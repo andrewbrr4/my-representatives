@@ -1,0 +1,62 @@
+# MyReps
+
+Find your elected representatives at every level of government — federal, state, and municipal — with AI-researched summaries for each.
+
+## How It Works
+
+1. Enter your address
+2. The backend calls the Google Civic Information API to find your representatives
+3. For each rep, a Claude AI agent searches the web (via Tavily) and writes a nonpartisan summary
+4. Results are displayed grouped by government level
+
+## API Keys You'll Need
+
+| Key | Where to get it |
+|-----|----------------|
+| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/) |
+| `TAVILY_API_KEY` | [tavily.com](https://tavily.com/) — free tier available |
+| `GOOGLE_CIVIC_API_KEY` | [Google Cloud Console](https://console.cloud.google.com/apis/library/civicinfo.googleapis.com) — enable the Civic Information API and create an API key |
+
+## Setup
+
+### 1. Environment variables
+
+```bash
+cp .env.example .env
+# Fill in your API keys in .env
+```
+
+### 2. Run with Docker Compose
+
+```bash
+docker compose up --build
+```
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:8000
+
+### 3. Run locally (without Docker)
+
+**Backend:**
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Tech Stack
+
+- **Frontend:** React + TypeScript + Vite + Tailwind CSS + shadcn/ui
+- **Backend:** FastAPI (Python)
+- **LLM:** Anthropic Claude (claude-sonnet-4-20250514) with tool use
+- **Web Search:** Tavily API
+- **Representative Data:** Google Civic Information API
