@@ -5,7 +5,11 @@
       "Bash(node:*)",
       "Bash(npx shadcn@latest:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "WebSearch",
+      "WebFetch(domain:app.cicerodata.com)",
+      "WebFetch(domain:developers.google.com)",
+      "WebFetch(domain:www.googleapis.com)"
     ]
   }
 }
