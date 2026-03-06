@@ -89,8 +89,11 @@ async def _research_representative_inner(rep: Representative) -> str:
     messages = [{"role": "user", "content": user_prompt}]
 
     # Agentic loop: let Claude call tools as needed
-    for _ in range(5):
+    for iteration in range(8):
+        logger.info(f"[{rep.name}] Agentic loop iteration {iteration + 1}")
         response = await _call_with_retry(client, system_prompt, tools, messages, rep.name)
+
+        logger.info(f"[{rep.name}] stop_reason={response.stop_reason}, blocks={[b.type for b in response.content]}")
 
         if response.stop_reason == "end_turn":
             # Extract text from response
@@ -106,6 +109,7 @@ async def _research_representative_inner(rep: Representative) -> str:
             if block.type == "tool_use":
                 has_tool_use = True
                 query = block.input.get("query", rep.name)
+                logger.info(f"[{rep.name}] Searching: {query}")
                 try:
                     search_results = await tavily.search(
                         query=query, max_results=5
@@ -114,7 +118,8 @@ async def _research_representative_inner(rep: Representative) -> str:
                         f"**{r['title']}**\n{r['url']}\n{r['content']}"
                         for r in search_results.get("results", [])
                     )
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"[{rep.name}] Search failed: {e}")
                     result_text = "Search failed. Please write summary based on your existing knowledge."
 
                 tool_results.append(
