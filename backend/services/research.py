@@ -1,4 +1,6 @@
+import asyncio
 import json
+import logging
 import os
 
 import anthropic
@@ -6,9 +8,43 @@ from tavily import AsyncTavilyClient
 
 from models import Representative
 
+logger = logging.getLogger(__name__)
+
+# Limit concurrent Anthropic API calls to avoid rate limits
+_semaphore = asyncio.Semaphore(2)
+
+# Retry config for rate limits
+_MAX_RETRIES = 8
+_BASE_DELAY = 10  # seconds
+
 
 async def research_representative(rep: Representative) -> str:
     """Use Claude with Tavily tool use to research a representative."""
+    async with _semaphore:
+        return await _research_representative_inner(rep)
+
+
+async def _call_with_retry(client, system_prompt, tools, messages, rep_name):
+    """Call Anthropic API with exponential backoff on rate limits."""
+    for attempt in range(_MAX_RETRIES):
+        try:
+            return await client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=1024,
+                system=system_prompt,
+                tools=tools,
+                messages=messages,
+            )
+        except anthropic.RateLimitError as e:
+            if attempt == _MAX_RETRIES - 1:
+                raise
+            delay = _BASE_DELAY * (2 ** attempt)
+            logger.warning(f"Rate limited researching {rep_name}, retrying in {delay}s (attempt {attempt + 1}/{_MAX_RETRIES})")
+            await asyncio.sleep(delay)
+
+
+async def _research_representative_inner(rep: Representative) -> str:
+    """Inner implementation with retry logic for rate limits."""
     tavily = AsyncTavilyClient(api_key=os.environ["TAVILY_API_KEY"])
     client = anthropic.AsyncAnthropic()
 
@@ -50,13 +86,7 @@ async def research_representative(rep: Representative) -> str:
 
     # Agentic loop: let Claude call tools as needed
     for _ in range(5):
-        response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=1024,
-            system=system_prompt,
-            tools=tools,
-            messages=messages,
-        )
+        response = await _call_with_retry(client, system_prompt, tools, messages, rep.name)
 
         if response.stop_reason == "end_turn":
             # Extract text from response
