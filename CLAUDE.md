@@ -40,7 +40,7 @@ cd frontend && npx shadcn@latest add <component-name>
 
 Request flow:
 1. `routers/representatives.py` receives address → calls `services/civic.py`
-2. `services/civic.py` calls Google Civic Information API, maps offices to `federal`/`state`/`municipal` levels, returns list of `Representative` models
+2. `services/civic.py` calls Cicero API (`/v3.1/official`), maps `district_type` to `federal`/`state`/`municipal` levels, filters out appointed officials, returns list of `Representative` models
 3. `routers/representatives.py` fans out `services/research.py` for all reps concurrently via `asyncio.gather`
 4. `services/research.py` runs a Claude agent (claude-sonnet-4-20250514) with a Tavily `web_search` tool in an agentic loop (up to 5 iterations) to produce a 2-3 paragraph summary per rep
 5. Results are sorted by level priority and returned
@@ -60,9 +60,10 @@ Frontend talks to backend via `fetch()` to `http://localhost:8000`. CORS is conf
 
 ## Environment Variables
 
-Required in `.env` at project root (see `.env.example`):
+Required in `.env` at project root:
 - `ANTHROPIC_API_KEY`
 - `TAVILY_API_KEY`
-- `GOOGLE_CIVIC_API_KEY`
+- `CICERO_API_KEY` — [cicerodata.com](https://www.cicerodata.com/) (paid, comprehensive elected official data)
+- `GOOGLE_CIVIC_API_KEY` — kept for future election/ballot data via `voterinfo` endpoint
 
 Backend loads these via `python-dotenv` at startup.

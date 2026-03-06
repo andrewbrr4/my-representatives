@@ -5,7 +5,7 @@ Find your elected representatives at every level of government — federal, stat
 ## How It Works
 
 1. Enter your address
-2. The backend calls the Google Civic Information API to find your representatives
+2. The backend calls the Cicero API to find your elected representatives at all levels
 3. For each rep, a Claude AI agent searches the web (via Tavily) and writes a nonpartisan summary
 4. Results are displayed grouped by government level
 
@@ -15,7 +15,8 @@ Find your elected representatives at every level of government — federal, stat
 |-----|----------------|
 | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/) |
 | `TAVILY_API_KEY` | [tavily.com](https://tavily.com/) — free tier available |
-| `GOOGLE_CIVIC_API_KEY` | [Google Cloud Console](https://console.cloud.google.com/apis/library/civicinfo.googleapis.com) — enable the Civic Information API and create an API key |
+| `CICERO_API_KEY` | [cicerodata.com](https://www.cicerodata.com/) — comprehensive elected official data |
+| `GOOGLE_CIVIC_API_KEY` | [Google Cloud Console](https://console.cloud.google.com/apis/library/civicinfo.googleapis.com) — for election/ballot data |
 
 ## Setup
 
@@ -52,4 +53,5 @@ npm run dev
 - **Backend:** FastAPI (Python)
 - **LLM:** Anthropic Claude (claude-sonnet-4-20250514) with tool use
 - **Web Search:** Tavily API
-- **Representative Data:** Google Civic Information API
+- **Representative Data:** Cicero API
+- **Election Data:** Google Civic Information API (voterinfo/elections endpoints)
