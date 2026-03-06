@@ -1,8 +1,11 @@
+import logging
 import os
 
 import httpx
 
 from models import Contact, Representative
+
+logger = logging.getLogger(__name__)
 
 CICERO_API_URL = "https://app.cicerodata.com/v3.1/official"
 
@@ -92,4 +95,5 @@ async def get_representatives(address: str) -> list[Representative]:
             )
         )
 
+    logger.info(f"Cicero API returned {len(representatives)} elected officials")
     return representatives

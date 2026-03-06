@@ -20,8 +20,12 @@ _BASE_DELAY = 10  # seconds
 
 async def research_representative(rep: Representative) -> str:
     """Use Claude with Tavily tool use to research a representative."""
+    logger.info(f"Queued research for {rep.name}")
     async with _semaphore:
-        return await _research_representative_inner(rep)
+        logger.info(f"Starting research for {rep.name}")
+        result = await _research_representative_inner(rep)
+        logger.info(f"Completed research for {rep.name}")
+        return result
 
 
 async def _call_with_retry(client, system_prompt, tools, messages, rep_name):

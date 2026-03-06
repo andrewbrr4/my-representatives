@@ -27,6 +27,8 @@ async def lookup_representatives(request: AddressRequest):
     if not request.address.strip():
         raise HTTPException(status_code=400, detail="Address is required.")
 
+    logger.info(f"Looking up representatives for: {request.address}")
+
     try:
         reps = await get_representatives(request.address)
     except Exception as e:
@@ -42,10 +44,13 @@ async def lookup_representatives(request: AddressRequest):
             detail="No representatives found for that address.",
         )
 
+    logger.info(f"Found {len(reps)} representatives, starting research")
+
     # Research all reps concurrently
     researched = await asyncio.gather(
         *[_research_with_fallback(rep) for rep in reps]
     )
+    logger.info("Research complete for all representatives")
 
     # Sort by level priority
     level_order = {"federal": 0, "state": 1, "municipal": 2}
