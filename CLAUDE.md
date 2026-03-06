@@ -10,8 +10,8 @@ MyReps — a full-stack app where a user enters their address and gets a list of
 
 ### Backend
 ```bash
+conda activate my-reps          # conda env already created
 cd backend
-source venv/bin/activate        # venv already created
 uvicorn main:app --reload       # runs on :8000
 ```
 
@@ -36,7 +36,7 @@ cd frontend && npx shadcn@latest add <component-name>
 
 ## Architecture
 
-**Backend (FastAPI, Python 3.9+):** Single endpoint `POST /api/representatives`.
+**Backend (FastAPI, Python 3.13+):** Single endpoint `POST /api/representatives`.
 
 Request flow:
 1. `routers/representatives.py` receives address → calls `services/civic.py`

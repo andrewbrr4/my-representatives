@@ -19,14 +19,7 @@ Find your elected representatives at every level of government — federal, stat
 
 ## Setup
 
-### 1. Environment variables
-
-```bash
-cp .env.example .env
-# Fill in your API keys in .env
-```
-
-### 2. Run with Docker Compose
+### Run with Docker Compose
 
 ```bash
 docker compose up --build
@@ -35,13 +28,13 @@ docker compose up --build
 - Frontend: http://localhost:5173
 - Backend: http://localhost:8000
 
-### 3. Run locally (without Docker)
+### Run locally (without Docker)
 
 **Backend:**
 ```bash
+conda create -n my-reps python=3.13 -y
+conda activate my-reps
 cd backend
-python3 -m venv venv
-source venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
