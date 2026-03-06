@@ -47,6 +47,10 @@ npm install
 npm run dev
 ```
 
+## TODO
+
+- [ ] Explore using the [US Congress API](https://api.congress.gov/) as a replacement for Cicero — Cicero has data gaps for some congressional districts (e.g. missing House representatives)
+
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Vite + Tailwind CSS + shadcn/ui
