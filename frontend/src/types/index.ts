@@ -6,6 +6,13 @@ export interface Contact {
   email: string | null;
 }
 
+export interface ResearchSummary {
+  background: string;
+  recent_news: string;
+  policy_positions: string;
+  committees: string;
+}
+
 export interface Representative {
   name: string;
   office: string;
@@ -13,7 +20,7 @@ export interface Representative {
   party: string | null;
   photo_url: string | null;
   contact: Contact;
-  summary: string | null;
+  summary: ResearchSummary | null;
 }
 
 export interface RepresentativesResponse {

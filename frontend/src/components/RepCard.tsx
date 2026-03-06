@@ -48,9 +48,24 @@ export function RepCard({ rep }: RepCardProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         {rep.summary ? (
-          <p className="text-sm leading-relaxed whitespace-pre-line">
-            {rep.summary}
-          </p>
+          <div className="space-y-2 text-sm leading-relaxed">
+            <div>
+              <h4 className="font-semibold text-foreground">Background</h4>
+              <p>{rep.summary.background}</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground">Recent News</h4>
+              <p>{rep.summary.recent_news}</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground">Policy Positions</h4>
+              <p>{rep.summary.policy_positions}</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground">Committees</h4>
+              <p>{rep.summary.committees}</p>
+            </div>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground italic">
             Research unavailable for this representative.

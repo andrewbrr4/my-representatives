@@ -6,7 +6,7 @@ import os
 import anthropic
 from tavily import AsyncTavilyClient
 
-from models import Representative
+from models import Representative, ResearchSummary
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ _MAX_RETRIES = 8
 _BASE_DELAY = 10  # seconds
 
 
-async def research_representative(rep: Representative) -> str:
+async def research_representative(rep: Representative) -> ResearchSummary | None:
     """Use Claude with Tavily tool use to research a representative."""
     logger.info(f"Queued research for {rep.name}")
     async with _semaphore:
@@ -47,7 +47,7 @@ async def _call_with_retry(client, system_prompt, tools, messages, rep_name):
             await asyncio.sleep(delay)
 
 
-async def _research_representative_inner(rep: Representative) -> str:
+async def _research_representative_inner(rep: Representative) -> ResearchSummary | None:
     """Inner implementation with retry logic for rate limits."""
     tavily = AsyncTavilyClient(api_key=os.environ["TAVILY_API_KEY"])
     client = anthropic.AsyncAnthropic()
@@ -71,19 +71,20 @@ async def _research_representative_inner(rep: Representative) -> str:
 
     system_prompt = (
         "You are a nonpartisan political research assistant. "
-        "Use the web_search tool to find current information, then write your summary. "
-        "Always search before writing your summary."
+        "Use the web_search tool to find current information, then respond with ONLY a JSON object. "
+        "Always search before writing. No preamble, no commentary, no markdown — just the JSON object."
     )
 
     user_prompt = (
         f"Research {rep.name}, who serves as {rep.office}.\n"
-        "Using web search, find and summarize:\n"
-        "1. Their background and how long they've been in office\n"
-        "2. Recent news or activity (last 6 months)\n"
-        "3. Key policy positions or notable votes\n"
-        "4. Any committee assignments or leadership roles\n\n"
-        "Write a clear, factual, nonpartisan 2-3 paragraph summary suitable for "
-        "a constituent who wants to understand who represents them."
+        "Search the web, then respond with ONLY this JSON object (no other text):\n"
+        "{\n"
+        '  "background": "1-2 sentences on their background and how long they\'ve been in office",\n'
+        '  "recent_news": "1-2 sentences on recent news or activity (last 6 months)",\n'
+        '  "policy_positions": "1-2 sentences on key policy positions or notable votes",\n'
+        '  "committees": "1-2 sentences on committee assignments or leadership roles"\n'
+        "}\n\n"
+        "Be clear, factual, and nonpartisan. Write for a constituent who wants to understand who represents them."
     )
 
     messages = [{"role": "user", "content": user_prompt}]
@@ -96,11 +97,11 @@ async def _research_representative_inner(rep: Representative) -> str:
         logger.info(f"[{rep.name}] stop_reason={response.stop_reason}, blocks={[b.type for b in response.content]}")
 
         if response.stop_reason == "end_turn":
-            # Extract text from response
+            # Extract text and parse as JSON
             for block in response.content:
                 if block.type == "text":
-                    return block.text
-            return "Summary unavailable."
+                    return _parse_summary(block.text, rep.name)
+            return None
 
         # Process tool calls
         tool_results = []
@@ -134,10 +135,26 @@ async def _research_representative_inner(rep: Representative) -> str:
             # No tool use and no end_turn — extract text
             for block in response.content:
                 if block.type == "text":
-                    return block.text
-            return "Summary unavailable."
+                    return _parse_summary(block.text, rep.name)
+            return None
 
         messages.append({"role": "assistant", "content": response.content})
         messages.append({"role": "user", "content": tool_results})
 
-    return "Summary unavailable — research timed out."
+    logger.warning(f"[{rep.name}] Research timed out after 8 iterations")
+    return None
+
+
+def _parse_summary(text: str, rep_name: str) -> ResearchSummary | None:
+    """Parse Claude's response text into a ResearchSummary."""
+    try:
+        # Strip markdown code fences if present
+        cleaned = text.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("\n", 1)[1]
+            cleaned = cleaned.rsplit("```", 1)[0]
+        data = json.loads(cleaned)
+        return ResearchSummary(**data)
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.warning(f"[{rep_name}] Failed to parse research summary: {e}")
+        return None
