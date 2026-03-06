@@ -50,6 +50,7 @@ npm run dev
 ## TODO
 
 - [ ] Explore using the [US Congress API](https://api.congress.gov/) as a replacement for Cicero — Cicero has data gaps for some congressional districts (e.g. missing House representatives)
+- [ ] Progressive loading — stream rep cards to the frontend as research completes (SSE) instead of blocking until all summaries are done
 
 ## Tech Stack
 
