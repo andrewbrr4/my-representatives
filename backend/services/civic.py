@@ -50,15 +50,18 @@ async def get_representatives(address: str) -> list[Representative]:
         district_type = district.get("district_type", "")
         chamber = office.get("chamber", {})
 
-        # Skip appointed officials (cabinet members, etc.)
-        if chamber.get("is_appointed"):
-            continue
-
-        level = DISTRICT_TYPE_TO_LEVEL.get(district_type, "municipal")
-
         first = official.get("first_name", "")
         last = official.get("last_name", "")
         name = f"{first} {last}".strip() or "Unknown"
+
+        logger.info(f"Official: {name}, district_type={district_type}, is_appointed={chamber.get('is_appointed')}, office={office.get('title')}")
+
+        # Skip appointed officials (cabinet members, etc.)
+        if chamber.get("is_appointed"):
+            logger.info(f"Skipping {name} (appointed)")
+            continue
+
+        level = DISTRICT_TYPE_TO_LEVEL.get(district_type, "municipal")
 
         party = official.get("party")
 

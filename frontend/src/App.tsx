@@ -70,7 +70,7 @@ function App() {
         {loading && (
           <div className="space-y-4">
             <p className="text-center text-sm text-muted-foreground">
-              Researching your representatives… This may take up to 30 seconds.
+              Researching your representatives… This may take a few minutes.
             </p>
             <div className="grid gap-4 md:grid-cols-2">
               {Array.from({ length: 6 }).map((_, i) => (
