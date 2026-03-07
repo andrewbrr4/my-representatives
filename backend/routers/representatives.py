@@ -4,7 +4,8 @@ import logging
 from fastapi import APIRouter, HTTPException
 
 from models import AddressRequest, Representative, RepresentativesResponse
-from services.civic import get_representatives
+from services.cicero import get_state_local_representatives
+from services.congress import get_federal_representatives
 from services.research import research_representative
 
 logger = logging.getLogger(__name__)
@@ -30,9 +31,13 @@ async def lookup_representatives(request: AddressRequest):
     logger.info(f"Looking up representatives for: {request.address}")
 
     try:
-        reps = await get_representatives(request.address)
+        federal_reps, state_local_reps = await asyncio.gather(
+            get_federal_representatives(request.address),
+            get_state_local_representatives(request.address),
+        )
+        reps = federal_reps + state_local_reps
     except Exception as e:
-        logger.error(f"Civic API error: {e}")
+        logger.error(f"Representative lookup error: {e}")
         raise HTTPException(
             status_code=502,
             detail="Could not look up representatives for that address. Please check the address and try again.",

@@ -39,11 +39,14 @@ cd frontend && npx shadcn@latest add <component-name>
 **Backend (FastAPI, Python 3.13+):** Single endpoint `POST /api/representatives`.
 
 Request flow:
-1. `routers/representatives.py` receives address → calls `services/civic.py`
-2. `services/civic.py` calls Cicero API (`/v3.1/official`), maps `district_type` to `federal`/`state`/`municipal` levels, filters out appointed officials, returns list of `Representative` models
-3. `routers/representatives.py` fans out `services/research.py` for all reps concurrently via `asyncio.gather`
-4. `services/research.py` runs a Claude agent (claude-sonnet-4-20250514) with a Tavily `web_search` tool in an agentic loop (up to 5 iterations) to produce a 2-3 paragraph summary per rep
-5. Results are sorted by level priority and returned
+1. `routers/representatives.py` receives address → fans out two lookups concurrently:
+   - `services/congress.py` for **federal** reps (US Senators + House Rep)
+   - `services/civic.py` for **state + municipal** reps
+2. `services/congress.py` uses the Census Geocoder (free, no key) to resolve address → state + congressional district, then calls the US Congress API (`/v3/member/congress/{congress}/{state}`) to get senators and the district's House rep with full detail (photo, phone, website, party)
+3. `services/civic.py` calls Cicero API (`/v3.1/official`), maps `district_type` to `state`/`municipal` levels, filters out appointed and federal officials, returns list of `Representative` models
+4. `routers/representatives.py` fans out `services/research.py` for all reps concurrently via `asyncio.gather`
+5. `services/research.py` runs a Claude agent (claude-sonnet-4-20250514) with a Tavily `web_search` tool in an agentic loop (up to 5 iterations) to produce a 2-3 paragraph summary per rep
+6. Results are sorted by level priority and returned
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
@@ -63,7 +66,8 @@ Frontend talks to backend via `fetch()` to `http://localhost:8000`. CORS is conf
 Required in `.env` at project root:
 - `ANTHROPIC_API_KEY`
 - `TAVILY_API_KEY`
-- `CICERO_API_KEY` — [cicerodata.com](https://www.cicerodata.com/) (paid, comprehensive elected official data)
+- `CICERO_API_KEY` — [cicerodata.com](https://www.cicerodata.com/) (paid, state + municipal elected official data)
+- `US_CONGRESS_API_KEY` — [api.congress.gov](https://api.congress.gov/) (free, federal legislators)
 - `GOOGLE_CIVIC_API_KEY` — kept for future election/ballot data via `voterinfo` endpoint
 
 Backend loads these via `python-dotenv` at startup.

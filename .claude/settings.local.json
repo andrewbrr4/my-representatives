@@ -9,7 +9,10 @@
       "WebSearch",
       "WebFetch(domain:app.cicerodata.com)",
       "WebFetch(domain:developers.google.com)",
-      "WebFetch(domain:www.googleapis.com)"
+      "WebFetch(domain:www.googleapis.com)",
+      "WebFetch(domain:api.congress.gov)",
+      "Bash(curl:*)",
+      "Bash(python3:*)"
     ]
   }
 }

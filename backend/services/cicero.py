@@ -21,7 +21,8 @@ DISTRICT_TYPE_TO_LEVEL = {
 }
 
 
-async def get_representatives(address: str) -> list[Representative]:
+async def get_state_local_representatives(address: str) -> list[Representative]:
+    """Get state and municipal representatives from Cicero (excludes federal)."""
     api_key = os.environ["CICERO_API_KEY"]
 
     async with httpx.AsyncClient() as client:
@@ -62,6 +63,11 @@ async def get_representatives(address: str) -> list[Representative]:
             continue
 
         level = DISTRICT_TYPE_TO_LEVEL.get(district_type, "municipal")
+
+        # Skip federal officials — handled by Congress API
+        if level == "federal":
+            logger.info(f"Skipping {name} (federal, handled by Congress API)")
+            continue
 
         party = official.get("party")
 
