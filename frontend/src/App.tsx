@@ -49,7 +49,7 @@ function App() {
 
         {/* Search or address display */}
         <div className="flex justify-center mb-8">
-          {searchedAddress && !loading ? (
+          {searchedAddress && (!loading || representatives.length > 0) ? (
             <div className="flex items-center gap-3 text-sm">
               <span className="text-muted-foreground">
                 Results for: <strong className="text-foreground">{searchedAddress}</strong>
@@ -66,11 +66,11 @@ function App() {
           )}
         </div>
 
-        {/* Loading state */}
-        {loading && (
+        {/* Loading state (before any reps arrive) */}
+        {loading && !hasResults && (
           <div className="space-y-4">
             <p className="text-center text-sm text-muted-foreground">
-              Researching your representatives… This may take a few minutes.
+              Looking up your representatives…
             </p>
             <div className="grid gap-4 md:grid-cols-2">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -88,7 +88,7 @@ function App() {
         )}
 
         {/* Results */}
-        {hasResults && !loading && (
+        {hasResults && (
           <div className="space-y-8">
             {groups.map((group) => (
               <section key={group.level}>

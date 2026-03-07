@@ -1,17 +1,18 @@
-import { useState } from "react";
-import type { Representative } from "@/types";
-
-// This is a "custom hook" — a reusable function that manages state and logic.
-// Think of it like a service class in Python, but for UI state.
+import { useState, useCallback, useRef } from "react";
+import type { Representative, ResearchSummary } from "@/types";
 
 export function useRepresentatives() {
-  // useState is how React tracks values that, when changed, re-render the UI.
-  // It returns [currentValue, setterFunction].
   const [representatives, setRepresentatives] = useState<Representative[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  async function lookup(address: string) {
+  const lookup = useCallback(async (address: string) => {
+    // Abort any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(null);
     setRepresentatives([]);
@@ -21,6 +22,7 @@ export function useRepresentatives() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address }),
+        signal: controller.signal,
       });
 
       if (!resp.ok) {
@@ -28,14 +30,72 @@ export function useRepresentatives() {
         throw new Error(data?.detail || `Request failed (${resp.status})`);
       }
 
-      const data = await resp.json();
-      setRepresentatives(data.representatives);
+      const reader = resp.body?.getReader();
+      if (!reader) throw new Error("Streaming not supported");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        // Keep the last potentially incomplete line in the buffer
+        buffer = lines.pop() || "";
+
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event:")) {
+            currentEvent = line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            const data = line.slice(5).trim();
+            handleSSEEvent(currentEvent, data);
+          }
+        }
+      }
+
+      // Process any remaining buffer
+      if (buffer.trim()) {
+        const lines = buffer.split("\n");
+        let currentEvent = "";
+        for (const line of lines) {
+          if (line.startsWith("event:")) {
+            currentEvent = line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            const data = line.slice(5).trim();
+            handleSSEEvent(currentEvent, data);
+          }
+        }
+      }
     } catch (err) {
+      if ((err as Error).name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
-  }
+
+    function handleSSEEvent(event: string, data: string) {
+      if (event === "representatives") {
+        const parsed = JSON.parse(data);
+        setRepresentatives(parsed.representatives);
+      } else if (event === "research") {
+        const { index, summary } = JSON.parse(data) as {
+          index: number;
+          summary: ResearchSummary | null;
+        };
+        setRepresentatives((prev) => {
+          const updated = [...prev];
+          updated[index] = { ...updated[index], summary };
+          return updated;
+        });
+      } else if (event === "error") {
+        const parsed = JSON.parse(data);
+        setError(parsed.detail);
+      }
+    }
+  }, []);
 
   return { representatives, loading, error, lookup };
 }

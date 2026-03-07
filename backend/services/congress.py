@@ -116,7 +116,7 @@ async def get_federal_representatives(address: str) -> list[Representative]:
             m_district = m.get("district")
             if m_district is None:
                 relevant.append(m)
-            elif str(m_district) == str(district):
+            elif int(m_district) == int(district):
                 relevant.append(m)
 
         logger.info(f"Found {len(relevant)} federal reps for {state}-{district}")

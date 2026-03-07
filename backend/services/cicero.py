@@ -64,9 +64,10 @@ async def get_state_local_representatives(address: str) -> list[Representative]:
 
         level = DISTRICT_TYPE_TO_LEVEL.get(district_type, "municipal")
 
-        # Skip federal officials — handled by Congress API
-        if level == "federal":
-            logger.info(f"Skipping {name} (federal, handled by Congress API)")
+        # Skip federal legislators — handled by Congress API
+        # Keep NATIONAL_EXEC (President, VP) since Congress API only covers legislators
+        if district_type in ("NATIONAL_UPPER", "NATIONAL_LOWER"):
+            logger.info(f"Skipping {name} (federal legislator, handled by Congress API)")
             continue
 
         party = official.get("party")
