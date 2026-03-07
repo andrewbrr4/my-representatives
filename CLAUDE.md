@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MyReps — a full-stack app where a user enters their address and gets a list of representatives (municipal, state, federal) with AI-researched summaries. No auth, no database, no caching.
 
+**Read [MISSION.md](./MISSION.md) before making any changes.** It defines the product vision, problem statement, and design principles that guide all decisions.
+
 ## Commands
 
 ### Backend

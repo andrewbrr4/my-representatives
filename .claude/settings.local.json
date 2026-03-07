@@ -12,7 +12,8 @@
       "WebFetch(domain:www.googleapis.com)",
       "WebFetch(domain:api.congress.gov)",
       "Bash(curl:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(conda run:*)"
     ]
   }
 }

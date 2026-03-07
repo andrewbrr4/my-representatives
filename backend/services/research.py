@@ -1,7 +1,8 @@
 import asyncio
-import json
 import logging
 import os
+from pathlib import Path
+from string import Template
 
 import anthropic
 from tavily import AsyncTavilyClient
@@ -10,12 +11,38 @@ from models import Representative, ResearchSummary
 
 logger = logging.getLogger(__name__)
 
+_PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+_SYSTEM_PROMPT = (_PROMPTS_DIR / "research_system.txt").read_text()
+_USER_PROMPT_TEMPLATE = Template((_PROMPTS_DIR / "research_user.txt").read_text())
+
 # Limit concurrent Anthropic API calls to avoid rate limits
 _semaphore = asyncio.Semaphore(2)
 
 # Retry config for rate limits
 _MAX_RETRIES = 8
 _BASE_DELAY = 10  # seconds
+
+_TOOLS = [
+    {
+        "name": "web_search",
+        "description": "Search the web for current information about a topic. Returns relevant search results with snippets.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query to look up.",
+                }
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "submit_summary",
+        "description": "Submit the final research summary for an elected official.",
+        "input_schema": ResearchSummary.model_json_schema(),
+    },
+]
 
 
 async def research_representative(rep: Representative) -> ResearchSummary | None:
@@ -39,7 +66,7 @@ async def _call_with_retry(client, system_prompt, tools, messages, rep_name):
                 tools=tools,
                 messages=messages,
             )
-        except anthropic.RateLimitError as e:
+        except anthropic.RateLimitError:
             if attempt == _MAX_RETRIES - 1:
                 raise
             delay = _BASE_DELAY * (2 ** attempt)
@@ -52,63 +79,33 @@ async def _research_representative_inner(rep: Representative) -> ResearchSummary
     tavily = AsyncTavilyClient(api_key=os.environ["TAVILY_API_KEY"])
     client = anthropic.AsyncAnthropic()
 
-    tools = [
-        {
-            "name": "web_search",
-            "description": "Search the web for current information about a topic. Returns relevant search results with snippets.",
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The search query to look up.",
-                    }
-                },
-                "required": ["query"],
-            },
-        }
-    ]
-
-    system_prompt = (
-        "You are a nonpartisan political research assistant. "
-        "Use the web_search tool to find current information, then respond with ONLY a JSON object. "
-        "Always search before writing. No preamble, no commentary, no markdown — just the JSON object."
-    )
-
-    user_prompt = (
-        f"Research {rep.name}, who serves as {rep.office}.\n"
-        "Search the web, then respond with ONLY this JSON object (no other text):\n"
-        "{\n"
-        '  "background": "1-2 sentences on their background and how long they\'ve been in office",\n'
-        '  "recent_news": "1-2 sentences on recent news or activity (last 6 months)",\n'
-        '  "policy_positions": "1-2 sentences on key policy positions or notable votes",\n'
-        '  "committees": "1-2 sentences on committee assignments or leadership roles"\n'
-        "}\n\n"
-        "Be clear, factual, and nonpartisan. Write for a constituent who wants to understand who represents them."
-    )
+    system_prompt = _SYSTEM_PROMPT
+    user_prompt = _USER_PROMPT_TEMPLATE.substitute(name=rep.name, office=rep.office)
 
     messages = [{"role": "user", "content": user_prompt}]
 
-    # Agentic loop: let Claude call tools as needed
+    # Agentic loop: let Claude search, then submit structured summary
     for iteration in range(8):
         logger.info(f"[{rep.name}] Agentic loop iteration {iteration + 1}")
-        response = await _call_with_retry(client, system_prompt, tools, messages, rep.name)
+        response = await _call_with_retry(client, system_prompt, _TOOLS, messages, rep.name)
 
         logger.info(f"[{rep.name}] stop_reason={response.stop_reason}, blocks={[b.type for b in response.content]}")
 
         if response.stop_reason == "end_turn":
-            # Extract text and parse as JSON
-            for block in response.content:
-                if block.type == "text":
-                    return _parse_summary(block.text, rep.name)
+            logger.warning(f"[{rep.name}] Ended without calling submit_summary")
             return None
 
         # Process tool calls
         tool_results = []
-        has_tool_use = False
         for block in response.content:
-            if block.type == "tool_use":
-                has_tool_use = True
+            if block.type != "tool_use":
+                continue
+
+            if block.name == "submit_summary":
+                logger.info(f"[{rep.name}] Received structured summary")
+                return ResearchSummary(**block.input)
+
+            if block.name == "web_search":
                 query = block.input.get("query", rep.name)
                 logger.info(f"[{rep.name}] Searching: {query}")
                 try:
@@ -131,11 +128,8 @@ async def _research_representative_inner(rep: Representative) -> ResearchSummary
                     }
                 )
 
-        if not has_tool_use:
-            # No tool use and no end_turn — extract text
-            for block in response.content:
-                if block.type == "text":
-                    return _parse_summary(block.text, rep.name)
+        if not tool_results:
+            logger.warning(f"[{rep.name}] No tool calls in response")
             return None
 
         messages.append({"role": "assistant", "content": response.content})
@@ -143,18 +137,3 @@ async def _research_representative_inner(rep: Representative) -> ResearchSummary
 
     logger.warning(f"[{rep.name}] Research timed out after 8 iterations")
     return None
-
-
-def _parse_summary(text: str, rep_name: str) -> ResearchSummary | None:
-    """Parse Claude's response text into a ResearchSummary."""
-    try:
-        # Strip markdown code fences if present
-        cleaned = text.strip()
-        if cleaned.startswith("```"):
-            cleaned = cleaned.split("\n", 1)[1]
-            cleaned = cleaned.rsplit("```", 1)[0]
-        data = json.loads(cleaned)
-        return ResearchSummary(**data)
-    except (json.JSONDecodeError, ValueError) as e:
-        logger.warning(f"[{rep_name}] Failed to parse research summary: {e}")
-        return None

@@ -87,6 +87,13 @@ function App() {
           </div>
         )}
 
+        {/* Research in progress message */}
+        {hasResults && loading && (
+          <p className="text-center text-sm text-muted-foreground mb-6">
+            Searching the web for information about your representatives — this will take a minute or two!
+          </p>
+        )}
+
         {/* Results */}
         {hasResults && (
           <div className="space-y-8">

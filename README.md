@@ -2,6 +2,9 @@
 
 Find your elected representatives at every level of government — federal, state, and municipal — with AI-researched summaries for each.
 
+- [Product spec & design principles](./MISSION.md)
+- [Public-facing welcome message](./WELCOME.md)
+
 ## How It Works
 
 1. Enter your address
@@ -46,10 +49,6 @@ cd frontend
 npm install
 npm run dev
 ```
-
-## TODO
-
-- [ ] Progressive loading — stream rep cards to the frontend as research completes (SSE) instead of blocking until all summaries are done
 
 ## Tech Stack
 
