@@ -79,7 +79,10 @@ export function useRepresentatives() {
     function handleSSEEvent(event: string, data: string) {
       if (event === "representatives") {
         const parsed = JSON.parse(data);
-        setRepresentatives(parsed.representatives);
+        // Mark all summaries as undefined (pending), not null (failed)
+        setRepresentatives(
+          parsed.representatives.map((r: Representative) => ({ ...r, summary: undefined }))
+        );
       } else if (event === "research") {
         const { index, summary } = JSON.parse(data) as {
           index: number;

@@ -20,7 +20,7 @@ export interface Representative {
   party: string | null;
   photo_url: string | null;
   contact: Contact;
-  summary: ResearchSummary | null;
+  summary: ResearchSummary | null | undefined; // undefined=pending, null=failed
 }
 
 export interface RepresentativesResponse {

@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const levelColors: Record<string, string> = {
   federal: "bg-blue-600 text-white hover:bg-blue-700",
@@ -47,7 +48,13 @@ export function RepCard({ rep }: RepCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {rep.summary ? (
+        {rep.summary === undefined ? (
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        ) : rep.summary ? (
           <div className="space-y-2 text-sm leading-relaxed">
             <div>
               <h4 className="font-semibold text-foreground">Background</h4>
