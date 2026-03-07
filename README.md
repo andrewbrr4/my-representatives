@@ -2,8 +2,8 @@
 
 Find your elected representatives at every level of government — federal, state, and municipal — with AI-researched summaries for each.
 
-- [Product spec & design principles](./MISSION.md)
-- [Public-facing welcome message](./WELCOME.md)
+- [Product mission & principles](./docs/MISSION.md)
+- [Design approach & challenges](./docs/DESIGN.md)
 
 ## How It Works
 

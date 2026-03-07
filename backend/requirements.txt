@@ -5,3 +5,4 @@ httpx==0.28.1
 anthropic==0.43.0
 tavily-python==0.5.0
 python-dotenv==1.0.1
+sse_starlette

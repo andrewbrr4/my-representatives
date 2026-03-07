@@ -1,4 +1,5 @@
 import type { Representative } from "@/types";
+import ReactMarkdown from "react-markdown";
 import {
   Card,
   CardContent,
@@ -55,22 +56,22 @@ export function RepCard({ rep }: RepCardProps) {
             <Skeleton className="h-4 w-3/4" />
           </div>
         ) : rep.summary ? (
-          <div className="space-y-2 text-sm leading-relaxed">
+          <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
             <div>
               <h4 className="font-semibold text-foreground">Background</h4>
-              <p>{rep.summary.background}</p>
+              <ReactMarkdown>{rep.summary.background}</ReactMarkdown>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Recent News</h4>
-              <p>{rep.summary.recent_news}</p>
+              <ReactMarkdown>{rep.summary.recent_news}</ReactMarkdown>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Policy Positions</h4>
-              <p>{rep.summary.policy_positions}</p>
+              <ReactMarkdown>{rep.summary.policy_positions}</ReactMarkdown>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Committees</h4>
-              <p>{rep.summary.committees}</p>
+              <ReactMarkdown>{rep.summary.committees}</ReactMarkdown>
             </div>
           </div>
         ) : (

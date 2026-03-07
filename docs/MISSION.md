@@ -28,12 +28,14 @@ MyReps exists to lower the barrier from "I should probably look into this" to "n
 
 These guide every product decision:
 
-1. **Zero friction.** One address, one click. No accounts, no sign-ups, no tracking. The information should be faster to find here than anywhere else.
+1. **Comprehensive by default.** Show every elected official, at every level. The city council member matters as much as the senator. Don't make users dig for the officials who affect their lives most directly.
 
-2. **Comprehensive by default.** Show every elected official, at every level. The city council member matters as much as the senator. Don't make users dig for the officials who affect their lives most directly.
+2. **Current and honest.** AI-researched summaries should reflect what representatives are actually doing right now — not campaign talking points. Present facts, not spin. Cut through the PR language and give people genuinely useful information: a reader should be able to look at a summary and clearly see what they might agree or disagree with about their rep's positions. Doing this in a nonpartisan way — presenting substance without editorializing — is perhaps the hardest design challenge in the product.
 
-3. **Current and honest.** AI-researched summaries should reflect what representatives are actually doing right now — not campaign talking points. Present facts, not spin.
+3. **Action-oriented.** Information without a path to action is just trivia. Every representative card should make it dead simple to pick up the phone, send an email, or visit their office's website.
 
-4. **Action-oriented.** Information without a path to action is just trivia. Every representative card should make it dead simple to pick up the phone, send an email, or visit their office's website.
+4. **Respect the user's time.** People are busy. Get them what they need fast, explain what's happening while they wait, and don't waste their attention on anything that isn't useful.
 
-5. **Respect the user's time.** People are busy. Get them what they need fast, explain what's happening while they wait, and don't waste their attention on anything that isn't useful.
+## Design Approach
+
+See [DESIGN.md](./DESIGN.md) for design decisions, challenges, and open questions.

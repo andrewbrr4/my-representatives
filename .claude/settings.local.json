@@ -13,7 +13,8 @@
       "WebFetch(domain:api.congress.gov)",
       "Bash(curl:*)",
       "Bash(python3:*)",
-      "Bash(conda run:*)"
+      "Bash(conda run:*)",
+      "Bash(npm install:*)"
     ]
   }
 }
