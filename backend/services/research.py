@@ -120,10 +120,11 @@ async def _research_representative_inner(rep: Representative) -> ResearchSummary
                     error_detail = str(e)
                     if hasattr(e, "response"):
                         try:
+                            error_status_code = e.response.status_code
                             error_detail = e.response.text
                         except Exception:
                             pass
-                    logger.warning(f"[{rep.name}] Search failed: {error_detail}")
+                    logger.warning(f"[{rep.name}] Search failed with code {error_status_code}: {error_detail}")
                     result_text = f"Search failed. Please write summary based on your existing knowledge."
 
                 tool_results.append(
