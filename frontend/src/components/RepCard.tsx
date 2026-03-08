@@ -62,16 +62,20 @@ export function RepCard({ rep }: RepCardProps) {
               <ReactMarkdown>{rep.summary.background}</ReactMarkdown>
             </div>
             <div>
-              <h4 className="font-semibold text-foreground">Recent News</h4>
-              <ReactMarkdown>{rep.summary.recent_news}</ReactMarkdown>
-            </div>
-            <div>
               <h4 className="font-semibold text-foreground">Policy Positions</h4>
               <ReactMarkdown>{rep.summary.policy_positions}</ReactMarkdown>
             </div>
             <div>
-              <h4 className="font-semibold text-foreground">Committees</h4>
-              <ReactMarkdown>{rep.summary.committees}</ReactMarkdown>
+              <h4 className="font-semibold text-foreground">Recent Legislative Record</h4>
+              <ReactMarkdown>{rep.summary.recent_legislative_record}</ReactMarkdown>
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground">Recent Press</h4>
+              <ReactMarkdown>{rep.summary.recent_press}</ReactMarkdown>
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground">Top Donors</h4>
+              <ReactMarkdown>{rep.summary.top_donors}</ReactMarkdown>
             </div>
           </div>
         ) : (

@@ -8,9 +8,10 @@ export interface Contact {
 
 export interface ResearchSummary {
   background: string;
-  recent_news: string;
   policy_positions: string;
-  committees: string;
+  recent_legislative_record: string;
+  recent_press: string;
+  top_donors: string;
 }
 
 export interface Representative {

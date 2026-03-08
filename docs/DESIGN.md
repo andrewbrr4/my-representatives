@@ -27,6 +27,12 @@ Crafting these cards is not easy. We need to strike several difficult balances:
 - **No PR spin, but still nonpartisan** — cut through talking points and present substance, without editorializing or taking sides.
 - **Government speak vs. real-world impact** — translate policy language into plain terms so people can understand what actually affects them.
 
-## Options to Explore
+### Current Card Sections
 
-<!-- TODO: Fill out when ready -->
+| Section | Description | Format |
+|---------|-------------|--------|
+| **Background** | Who the representative is — career history, how they came into office, and relevant personal context. | Paragraph-style text, no bullets/lists |
+| **Policy Positions** | Where the representative stands on key issues, based on their voting record and public statements rather than campaign messaging. | Paragraph-style text, no bullets/lists |
+| **Recent Legislate Record** | Key legislative measure they recently supported or opposed. | Bulleted list |
+| **Recent Press** | Any other recent press about the representatives--public statements, local news coverage, etc. | Bulleted list |
+| **Top Donors** | List of the representative's largest political donors, five max. | Bulleted list |
