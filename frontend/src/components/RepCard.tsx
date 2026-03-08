@@ -10,6 +10,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
+/** Ensure markdown bullet lists have proper line breaks for rendering. */
+function normalizeMarkdownLists(text: string): string {
+  return text
+    // Ensure a blank line before the first bullet if preceded by text
+    .replace(/([^\n])\n(- )/g, "$1\n\n$2")
+    // Ensure each bullet item is on its own line
+    .replace(/([^\n])- /g, "$1\n- ");
+}
+
 const levelColors: Record<string, string> = {
   federal: "bg-blue-600 text-white hover:bg-blue-700",
   state: "bg-amber-600 text-white hover:bg-amber-700",
@@ -67,15 +76,15 @@ export function RepCard({ rep }: RepCardProps) {
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Recent Legislative Record</h4>
-              <ReactMarkdown>{rep.summary.recent_legislative_record}</ReactMarkdown>
+              <ReactMarkdown>{normalizeMarkdownLists(rep.summary.recent_legislative_record)}</ReactMarkdown>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Recent Press</h4>
-              <ReactMarkdown>{rep.summary.recent_press}</ReactMarkdown>
+              <ReactMarkdown>{normalizeMarkdownLists(rep.summary.recent_press)}</ReactMarkdown>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Top Donors</h4>
-              <ReactMarkdown>{rep.summary.top_donors}</ReactMarkdown>
+              <ReactMarkdown>{normalizeMarkdownLists(rep.summary.top_donors)}</ReactMarkdown>
             </div>
           </div>
         ) : (

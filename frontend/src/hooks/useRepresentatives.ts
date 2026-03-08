@@ -18,7 +18,8 @@ export function useRepresentatives() {
     setRepresentatives([]);
 
     try {
-      const resp = await fetch("http://localhost:8000/api/representatives", {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const resp = await fetch(`${apiUrl}/api/representatives`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address }),

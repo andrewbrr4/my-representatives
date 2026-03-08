@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from pathlib import Path
 
@@ -8,6 +9,9 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from routers.representatives import router
 
@@ -17,7 +21,10 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="MyReps API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @app.middleware("http")
@@ -29,9 +36,12 @@ async def log_requests(request: Request, call_next):
     logging.getLogger("myreps.request").info(f"← {request.method} {request.url.path} {response.status_code} ({elapsed:.1f}s)")
     return response
 
+_default_origins = "http://localhost:5173,http://localhost:3000"
+allowed_origins = os.getenv("CORS_ORIGINS", _default_origins).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[o.strip() for o in allowed_origins],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

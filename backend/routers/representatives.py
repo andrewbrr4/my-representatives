@@ -2,7 +2,9 @@ import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sse_starlette.sse import EventSourceResponse
 
 from models import AddressRequest, Representative, RepresentativesResponse
@@ -11,6 +13,7 @@ from services.congress import get_federal_representatives
 from services.research import research_representative
 
 logger = logging.getLogger(__name__)
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
 
@@ -26,18 +29,19 @@ async def _research_with_fallback(rep: Representative) -> Representative:
 
 
 @router.post("/api/representatives")
-async def lookup_representatives(request: AddressRequest):
-    if not request.address.strip():
+@limiter.limit("10/minute")
+async def lookup_representatives(request: Request, address_request: AddressRequest):
+    if not address_request.address.strip():
         raise HTTPException(status_code=400, detail="Address is required.")
 
-    logger.info(f"Looking up representatives for: {request.address}")
+    logger.info(f"Looking up representatives for: {address_request.address}")
 
     async def event_stream():
         # Phase 1: Look up all reps
         try:
             federal_reps, state_local_reps = await asyncio.gather(
-                get_federal_representatives(request.address),
-                get_state_local_representatives(request.address),
+                get_federal_representatives(address_request.address),
+                get_state_local_representatives(address_request.address),
             )
             reps = federal_reps + state_local_reps
         except Exception as e:
