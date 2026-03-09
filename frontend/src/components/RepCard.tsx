@@ -12,11 +12,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /** Ensure markdown bullet lists have proper line breaks for rendering. */
 function normalizeMarkdownLists(text: string): string {
-  return text
-    // Ensure a blank line before the first bullet if preceded by text
+  // Convert inline unicode bullets (• or ·) to markdown list items on their own lines
+  let result = text.replace(/\s*[•·]\s*/g, "\n- ");
+  // Also handle markdown bullets that aren't on their own line
+  result = result
     .replace(/([^\n])\n(- )/g, "$1\n\n$2")
-    // Ensure each bullet item is on its own line
     .replace(/([^\n])- /g, "$1\n- ");
+  return result.trim();
 }
 
 const levelColors: Record<string, string> = {
