@@ -14,7 +14,8 @@
       "Bash(curl:*)",
       "Bash(python3:*)",
       "Bash(conda run:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "WebFetch(domain:docs.claude.com)"
     ]
   }
 }

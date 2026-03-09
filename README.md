@@ -36,9 +36,9 @@ docker compose up --build
 
 **Backend:**
 ```bash
+cd backend
 conda create -n my-reps python=3.13 -y
 conda activate my-reps
-cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```

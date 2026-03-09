@@ -10,17 +10,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/** Ensure markdown bullet lists have proper line breaks for rendering. */
-function normalizeMarkdownLists(text: string): string {
-  // Convert inline unicode bullets (• or ·) to markdown list items on their own lines
-  let result = text.replace(/\s*[•·]\s*/g, "\n- ");
-  // Also handle markdown bullets that aren't on their own line
-  result = result
-    .replace(/([^\n])\n(- )/g, "$1\n\n$2")
-    .replace(/([^\n])- /g, "$1\n- ");
-  return result.trim();
-}
-
 const levelColors: Record<string, string> = {
   federal: "bg-blue-600 text-white hover:bg-blue-700",
   state: "bg-amber-600 text-white hover:bg-amber-700",
@@ -78,15 +67,27 @@ export function RepCard({ rep }: RepCardProps) {
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Recent Legislative Record</h4>
-              <ReactMarkdown>{normalizeMarkdownLists(rep.summary.recent_legislative_record)}</ReactMarkdown>
+              <ul className="list-disc pl-5 space-y-1">
+                {rep.summary.recent_legislative_record.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Recent Press</h4>
-              <ReactMarkdown>{normalizeMarkdownLists(rep.summary.recent_press)}</ReactMarkdown>
+              <ul className="list-disc pl-5 space-y-1">
+                {rep.summary.recent_press.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Top Donors</h4>
-              <ReactMarkdown>{normalizeMarkdownLists(rep.summary.top_donors)}</ReactMarkdown>
+              <ul className="list-disc pl-5 space-y-1">
+                {rep.summary.top_donors.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
             </div>
           </div>
         ) : (
