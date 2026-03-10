@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class AddressRequest(BaseModel):
@@ -33,6 +33,21 @@ class ResearchSummary(BaseModel):
     recent_press: list[str] = Field(description="Recent press coverage, public statements, local news. Each item is one story or event. Embed inline citation markers like [1], [2] referencing the citations list. Max 3-5 items.")
     top_donors: list[str] = Field(description="Largest political donors, five max. Each item is one donor. Embed inline citation markers like [1], [2] referencing the citations list. Max 3-5 items.")
     citations: list[Citation] = Field(description="Ordered list of sources referenced in the text. citations[0] corresponds to [1], citations[1] to [2], etc. Must include every source referenced by inline markers. No cap on list length.")
+
+    _NOT_FOUND = "Information not found."
+
+    @model_validator(mode="after")
+    def fill_missing_fields(self) -> "ResearchSummary":
+        fallback = self._NOT_FOUND
+        for field_name, field_info in self.model_fields.items():
+            if field_name == "citations":
+                continue
+            value = getattr(self, field_name)
+            if isinstance(value, str) and not value.strip():
+                object.__setattr__(self, field_name, fallback)
+            elif isinstance(value, list) and len(value) == 0:
+                object.__setattr__(self, field_name, [fallback])
+        return self
 
 
 class Representative(BaseModel):
