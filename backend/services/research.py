@@ -70,7 +70,10 @@ def _build_findings_block(findings: list[ResearchFinding]) -> str:
 async def run_research_agent(rep: Representative) -> RawResearch | None:
     """Phase 1: Gather raw findings about a representative via web search agent."""
     langfuse_handler = CallbackHandler()
-    model = ChatAnthropic(model=os.environ["CLAUDE_MODEL"], max_tokens=4096)
+    model = ChatAnthropic(
+        model=os.environ["CLAUDE_MODEL"],
+        max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
+    )
     agent = create_agent(
         model,
         tools=[web_search],
@@ -100,7 +103,10 @@ async def run_summary_chain(
 ) -> ResearchSummary:
     """Phase 2: Synthesize research findings into structured prose with citations."""
     langfuse_handler = CallbackHandler()
-    model = ChatAnthropic(model=os.environ["CLAUDE_MODEL"], max_tokens=2048)
+    model = ChatAnthropic(
+        model=os.environ["CLAUDE_MODEL"],
+        max_tokens=int(os.environ["SUMMARY_MAX_TOKENS"]),
+    )
     chain = model.with_structured_output(ResearchSummary)
     findings_block = _build_findings_block(findings)
     summary_prompt = _SUMMARY_USER_TEMPLATE.substitute(
