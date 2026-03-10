@@ -3,7 +3,9 @@ uvicorn[standard]>=0.34.0
 pydantic>=2.10.4
 httpx>=0.28.1
 anthropic>=0.43.0
-pydantic-ai
+langchain>=0.3
+langchain-anthropic>=0.3
+langgraph>=0.2
 tavily-python==0.5.0
 python-dotenv>=1.1.0
 sse_starlette
