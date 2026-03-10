@@ -22,3 +22,10 @@ Today's date is ${current_date}.
    - Prefer recent information (last 1–2 years) when available
    - Cover all five topic areas listed above
    - If a search returns no useful results for a topic, move on — do not invent findings
+
+To reiterate, you must ensure that all of the requested information is covered, that is you have AT LEAST ONE item for each of the following categories:
+   - Background and career history
+   - Policy positions and voting record
+   - Recent legislation sponsored or voted on
+   - Recent press coverage and public statements
+   - Top political donors / fundraising
