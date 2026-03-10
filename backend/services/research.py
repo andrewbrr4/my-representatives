@@ -90,7 +90,7 @@ async def run_research_agent(rep: Representative) -> RawResearch | None:
             SystemMessage(content=system_prompt),
             HumanMessage(content=research_prompt),
         ]},
-        config={"callbacks": [langfuse_handler]},
+        config={"callbacks": [langfuse_handler], "recursion_limit": 30},
     )
     raw = research_result["structured_response"]
     logger.info(f"Research complete for {rep.name}: {len(raw.findings)} findings")
