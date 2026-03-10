@@ -78,6 +78,6 @@ Required in `.env` at project root:
 - `US_CONGRESS_API_KEY` — [api.congress.gov](https://api.congress.gov/) (free, federal legislators)
 - `GOOGLE_CIVIC_API_KEY` — kept for future election/ballot data via `voterinfo` endpoint
 - `CLAUDE_MODEL` — model ID for the research agent (e.g. `claude-sonnet-4-20250514`)
-- `FEDERAL_ONLY` — set to `true` to skip Cicero API and only return federal reps (useful for faster testing)
+- `US_CONGRESS_REPS_ONLY` — set to `true` to skip Cicero API and only return US congressional reps (useful for faster testing)
 
 Backend loads these via `python-dotenv` at startup.

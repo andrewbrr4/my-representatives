@@ -39,10 +39,10 @@ async def lookup_representatives(request: Request, address_request: AddressReque
 
     async def event_stream():
         # Phase 1: Look up all reps
-        federal_only = os.getenv("FEDERAL_ONLY", "").lower() in ("true", "1")
+        us_congress_reps_only = os.getenv("US_CONGRESS_REPS_ONLY", "").lower() in ("true", "1")
         try:
-            if federal_only:
-                logger.info("FEDERAL_ONLY mode: skipping state/municipal lookup")
+            if us_congress_reps_only:
+                logger.info("US_CONGRESS_REPS_ONLY mode: skipping state/municipal lookup")
                 reps = await get_federal_representatives(address_request.address)
             else:
                 federal_reps, state_local_reps = await asyncio.gather(
