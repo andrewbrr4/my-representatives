@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 
 from fastapi import APIRouter, HTTPException, Request
 from slowapi import Limiter
@@ -38,12 +39,17 @@ async def lookup_representatives(request: Request, address_request: AddressReque
 
     async def event_stream():
         # Phase 1: Look up all reps
+        federal_only = os.getenv("FEDERAL_ONLY", "").lower() in ("true", "1")
         try:
-            federal_reps, state_local_reps = await asyncio.gather(
-                get_federal_representatives(address_request.address),
-                get_state_local_representatives(address_request.address),
-            )
-            reps = federal_reps + state_local_reps
+            if federal_only:
+                logger.info("FEDERAL_ONLY mode: skipping state/municipal lookup")
+                reps = await get_federal_representatives(address_request.address)
+            else:
+                federal_reps, state_local_reps = await asyncio.gather(
+                    get_federal_representatives(address_request.address),
+                    get_state_local_representatives(address_request.address),
+                )
+                reps = federal_reps + state_local_reps
         except Exception as e:
             logger.error(f"Representative lookup error: {e}")
             yield {

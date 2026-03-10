@@ -71,20 +71,22 @@ async def run_research_agent(rep: Representative) -> RawResearch | None:
     """Phase 1: Gather raw findings about a representative via web search agent."""
     langfuse_handler = CallbackHandler()
     model = ChatAnthropic(model=os.environ["CLAUDE_MODEL"], max_tokens=4096)
-    system_prompt = _RESEARCH_SYSTEM_TEMPLATE.substitute(
-        current_date=date.today().isoformat()
-    )
     agent = create_agent(
         model,
         tools=[web_search],
-        system_prompt=system_prompt,
         response_format=RawResearch,
+    )
+    system_prompt = _RESEARCH_SYSTEM_TEMPLATE.substitute(
+        current_date=date.today().isoformat()
     )
     research_prompt = _RESEARCH_USER_TEMPLATE.substitute(
         name=rep.name, office=rep.office
     )
     research_result = await agent.ainvoke(
-        {"messages": [HumanMessage(content=research_prompt)]},
+        {"messages": [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=research_prompt),
+        ]},
         config={"callbacks": [langfuse_handler]},
     )
     raw = research_result["structured_response"]

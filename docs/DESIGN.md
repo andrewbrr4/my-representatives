@@ -33,6 +33,7 @@ Crafting these cards is not easy. We need to strike several difficult balances:
 |---------|-------------|--------|
 | **Background** | Who the representative is — career history, how they came into office, and relevant personal context. | Paragraph-style text, no bullets/lists |
 | **Policy Positions** | Where the representative stands on key issues, based on their voting record and public statements rather than campaign messaging. | Paragraph-style text, no bullets/lists |
-| **Recent Legislate Record** | Key legislative measure they recently supported or opposed. | Bulleted list |
+| **Recent Legislative Record** | Key legislative measures they recently supported or opposed. | Bulleted list |
 | **Recent Press** | Any other recent press about the representatives--public statements, local news coverage, etc. | Bulleted list |
 | **Top Donors** | List of the representative's largest political donors, five max. | Bulleted list |
+| **Citations** | Ordered list of sources referenced throughout the card via inline markers like [1], [2]. | Numbered list with title + URL |
