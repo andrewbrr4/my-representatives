@@ -65,39 +65,59 @@ def _build_findings_block(findings: list[ResearchFinding]) -> str:
     return "\n\n".join(lines)
 
 
-# Lazy-initialized components
-_research_agent = None
-_summary_chain = None
+async def run_research_agent(rep: Representative) -> RawResearch | None:
+    """Phase 1: Gather raw findings about a representative via web search agent."""
+    langfuse_handler = CallbackHandler()
+    model = ChatAnthropic(model="claude-sonnet-4-20250514", max_tokens=4096)
+    system_prompt = _RESEARCH_SYSTEM_TEMPLATE.substitute(
+        current_date=date.today().isoformat()
+    )
+    agent = create_react_agent(
+        model,
+        tools=[web_search],
+        prompt=system_prompt,
+        response_format=RawResearch,
+    )
+    research_prompt = _RESEARCH_USER_TEMPLATE.substitute(
+        name=rep.name, office=rep.office
+    )
+    research_result = await agent.ainvoke(
+        {"messages": [HumanMessage(content=research_prompt)]},
+        config={"callbacks": [langfuse_handler]},
+    )
+    raw = research_result["structured_response"]
+    logger.info(f"Research complete for {rep.name}: {len(raw.findings)} findings")
+    return raw if raw.findings else None
 
 
-def _get_research_agent():
-    global _research_agent
-    if _research_agent is None:
-        model = ChatAnthropic(
-            model="claude-sonnet-4-20250514",
-            max_tokens=4096,
-        )
-        system_prompt = _RESEARCH_SYSTEM_TEMPLATE.substitute(
-            current_date=date.today().isoformat()
-        )
-        _research_agent = create_react_agent(
-            model,
-            tools=[web_search],
-            prompt=system_prompt,
-            response_format=RawResearch,
-        )
-    return _research_agent
-
-
-def _get_summary_chain():
-    global _summary_chain
-    if _summary_chain is None:
-        model = ChatAnthropic(
-            model="claude-sonnet-4-20250514",
-            max_tokens=2048,
-        )
-        _summary_chain = model.with_structured_output(ResearchSummary)
-    return _summary_chain
+async def run_summary_chain(
+    rep: Representative, findings: list[ResearchFinding]
+) -> ResearchSummary:
+    """Phase 2: Synthesize research findings into structured prose with citations."""
+    langfuse_handler = CallbackHandler()
+    model = ChatAnthropic(model="claude-sonnet-4-20250514", max_tokens=2048)
+    chain = model.with_structured_output(ResearchSummary)
+    findings_block = _build_findings_block(findings)
+    summary_prompt = _SUMMARY_USER_TEMPLATE.substitute(
+        name=rep.name,
+        office=rep.office,
+        findings_block=findings_block,
+    )
+    output = await chain.ainvoke(
+        [
+            SystemMessage(content=_SUMMARY_SYSTEM),
+            HumanMessage(content=summary_prompt),
+        ],
+        config={"callbacks": [langfuse_handler]},
+    )
+    logger.info(
+        f"Summary complete for {rep.name}: "
+        f"{len(output.citations)} citations, "
+        f"sample text: {output.background[:100]}..."
+    )
+    if not output.citations:
+        logger.warning(f"No citations returned for {rep.name}")
+    return output
 
 
 async def research_representative(rep: Representative) -> ResearchSummary | None:
@@ -106,51 +126,11 @@ async def research_representative(rep: Representative) -> ResearchSummary | None
     async with _semaphore:
         logger.info(f"Starting research for {rep.name}")
         try:
-            langfuse_handler = CallbackHandler()
-
-            # Phase 1: Research — gather raw findings via web search
-            research_agent = _get_research_agent()
-            research_prompt = _RESEARCH_USER_TEMPLATE.substitute(
-                name=rep.name, office=rep.office
-            )
-            research_result = await research_agent.ainvoke(
-                {"messages": [HumanMessage(content=research_prompt)]},
-                config={"callbacks": [langfuse_handler]},
-            )
-            raw = research_result["structured_response"]
-            logger.info(
-                f"Research complete for {rep.name}: {len(raw.findings)} findings"
-            )
-
-            if not raw.findings:
+            raw = await run_research_agent(rep)
+            if raw is None:
                 logger.warning(f"No findings for {rep.name}, skipping summary")
                 return None
-
-            # Build numbered findings block
-            findings_block = _build_findings_block(raw.findings)
-
-            # Phase 2: Summary — synthesize findings into structured prose
-            summary_chain = _get_summary_chain()
-            summary_prompt = _SUMMARY_USER_TEMPLATE.substitute(
-                name=rep.name,
-                office=rep.office,
-                findings_block=findings_block,
-            )
-            output = await summary_chain.ainvoke(
-                [
-                    SystemMessage(content=_SUMMARY_SYSTEM),
-                    HumanMessage(content=summary_prompt),
-                ],
-                config={"callbacks": [langfuse_handler]},
-            )
-            logger.info(
-                f"Summary complete for {rep.name}: "
-                f"{len(output.citations)} citations, "
-                f"sample text: {output.background[:100]}..."
-            )
-            if not output.citations:
-                logger.warning(f"No citations returned for {rep.name}")
-            return output
+            return await run_summary_chain(rep, raw.findings)
         except Exception as e:
             logger.error(f"Research failed for {rep.name}: {e}", exc_info=True)
             return None
