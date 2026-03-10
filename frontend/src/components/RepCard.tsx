@@ -1,5 +1,4 @@
-import type { Representative } from "@/types";
-import ReactMarkdown from "react-markdown";
+import type { Representative, Citation } from "@/types";
 import {
   Card,
   CardContent,
@@ -9,6 +8,40 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+
+/**
+ * Replace [N] markers in text with superscript citation links.
+ * Returns a React fragment with mixed text and <sup> elements.
+ */
+function inlineCitations(
+  text: string,
+  citations: Citation[],
+): React.ReactNode {
+  const parts = text.split(/(\[\d+\])/g);
+  return parts.map((part, i) => {
+    const match = part.match(/^\[(\d+)\]$/);
+    if (match) {
+      const idx = parseInt(match[1], 10) - 1;
+      const citation = citations[idx];
+      if (citation) {
+        return (
+          <sup key={i}>
+            <a
+              href={citation.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={citation.title}
+              className="text-primary hover:text-primary/80 ml-0.5"
+            >
+              [{match[1]}]
+            </a>
+          </sup>
+        );
+      }
+    }
+    return part;
+  });
+}
 
 const levelColors: Record<string, string> = {
   federal: "bg-blue-600 text-white hover:bg-blue-700",
@@ -59,17 +92,17 @@ export function RepCard({ rep }: RepCardProps) {
           <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
             <div>
               <h4 className="font-semibold text-foreground">Background</h4>
-              <ReactMarkdown>{rep.summary.background}</ReactMarkdown>
+              <p>{inlineCitations(rep.summary.background, rep.summary.citations ?? [])}</p>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Policy Positions</h4>
-              <ReactMarkdown>{rep.summary.policy_positions}</ReactMarkdown>
+              <p>{inlineCitations(rep.summary.policy_positions, rep.summary.citations ?? [])}</p>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Recent Legislative Record</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.recent_legislative_record.map((item, i) => (
-                  <li key={i}>{item}</li>
+                  <li key={i}>{inlineCitations(item, rep.summary.citations ?? [])}</li>
                 ))}
               </ul>
             </div>
@@ -77,7 +110,7 @@ export function RepCard({ rep }: RepCardProps) {
               <h4 className="font-semibold text-foreground">Recent Press</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.recent_press.map((item, i) => (
-                  <li key={i}>{item}</li>
+                  <li key={i}>{inlineCitations(item, rep.summary.citations ?? [])}</li>
                 ))}
               </ul>
             </div>
@@ -85,7 +118,7 @@ export function RepCard({ rep }: RepCardProps) {
               <h4 className="font-semibold text-foreground">Top Donors</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.top_donors.map((item, i) => (
-                  <li key={i}>{item}</li>
+                  <li key={i}>{inlineCitations(item, rep.summary.citations ?? [])}</li>
                 ))}
               </ul>
             </div>

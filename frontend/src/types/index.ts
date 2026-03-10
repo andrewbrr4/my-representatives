@@ -6,12 +6,18 @@ export interface Contact {
   email: string | null;
 }
 
+export interface Citation {
+  title: string;
+  url: string;
+}
+
 export interface ResearchSummary {
   background: string;
   policy_positions: string;
   recent_legislative_record: string[];
   recent_press: string[];
   top_donors: string[];
+  citations: Citation[];
 }
 
 export interface Representative {
