@@ -8,8 +8,9 @@ from string import Template
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
+from langfuse import observe
 from langfuse.langchain import CallbackHandler
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 from tavily import AsyncTavilyClient
 
 from models import RawResearch, Representative, ResearchFinding, ResearchSummary
@@ -65,17 +66,18 @@ def _build_findings_block(findings: list[ResearchFinding]) -> str:
     return "\n\n".join(lines)
 
 
+@observe(name="research")
 async def run_research_agent(rep: Representative) -> RawResearch | None:
     """Phase 1: Gather raw findings about a representative via web search agent."""
     langfuse_handler = CallbackHandler()
-    model = ChatAnthropic(model="claude-sonnet-4-20250514", max_tokens=4096)
+    model = ChatAnthropic(model=os.environ["CLAUDE_MODEL"], max_tokens=4096)
     system_prompt = _RESEARCH_SYSTEM_TEMPLATE.substitute(
         current_date=date.today().isoformat()
     )
-    agent = create_react_agent(
+    agent = create_agent(
         model,
         tools=[web_search],
-        prompt=system_prompt,
+        system_prompt=system_prompt,
         response_format=RawResearch,
     )
     research_prompt = _RESEARCH_USER_TEMPLATE.substitute(
@@ -90,12 +92,13 @@ async def run_research_agent(rep: Representative) -> RawResearch | None:
     return raw if raw.findings else None
 
 
+@observe(name="summary")
 async def run_summary_chain(
     rep: Representative, findings: list[ResearchFinding]
 ) -> ResearchSummary:
     """Phase 2: Synthesize research findings into structured prose with citations."""
     langfuse_handler = CallbackHandler()
-    model = ChatAnthropic(model="claude-sonnet-4-20250514", max_tokens=2048)
+    model = ChatAnthropic(model=os.environ["CLAUDE_MODEL"], max_tokens=2048)
     chain = model.with_structured_output(ResearchSummary)
     findings_block = _build_findings_block(findings)
     summary_prompt = _SUMMARY_USER_TEMPLATE.substitute(
@@ -120,6 +123,7 @@ async def run_summary_chain(
     return output
 
 
+@observe(name="research-pipeline")
 async def research_representative(rep: Representative) -> ResearchSummary | None:
     """Two-phase pipeline: research gathers facts, summary synthesizes prose with citations."""
     logger.info(f"Queued research for {rep.name}")
