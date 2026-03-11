@@ -17,7 +17,7 @@ For the product vision and principles that inform these decisions, see [MISSION.
 
 Agentic coding via Claude Code makes the technical aspects of building the functionality quite smooth. The true challenge of this project lies in the design of the product itself — specifically, crafting the content of the summary cards. For now, we are more focused on optimizing this content than the visual UI components such as color, font, etc.
 
-The content in these cards is ultimately determined by the prompts given to the [research agent](../backend/services/research.py) and the Pydantic models used to structure the data.
+The content in these cards is ultimately determined by the prompts given to the [research agent](../backend/research/pipeline.py) and the Pydantic models used to structure the data.
 
 ### Challenges
 

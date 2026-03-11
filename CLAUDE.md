@@ -48,11 +48,12 @@ Request flow:
 3. `services/cicero.py` calls Cicero API (`/v3.1/official`), maps `district_type` to `state`/`municipal` levels, filters out appointed and federal officials, returns list of `Representative` models
 4. `routers/representatives.py` streams results via **Server-Sent Events** (SSE, via `sse-starlette`):
    - First sends all reps immediately (without summaries) as a `representatives` event
-   - Then fans out `services/research.py` for all reps concurrently, streaming each `research` event as it completes
+   - Then fans out `services/pipeline.py` for all reps concurrently, streaming each `research` event as it completes
    - Sends a `done` event when all research is finished
-5. `services/research.py` runs a **two-phase pipeline** using LangChain + Langfuse tracing:
+5. `research/pipeline.py` runs a **two-phase pipeline** using LangChain + Langfuse tracing:
    - **Phase 1 (Research):** A LangChain agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) uses a Tavily `web_search` tool to gather raw findings about each rep
    - **Phase 2 (Summary):** A structured output chain synthesizes findings into prose with inline citation markers (`[1]`, `[2]`, etc.)
+   - Prompts are stored in `research/prompts/`
 6. Results are sorted by level priority before streaming
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
