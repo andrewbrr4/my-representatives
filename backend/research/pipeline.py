@@ -34,8 +34,8 @@ _semaphore = asyncio.Semaphore(2)
 _search_semaphore = asyncio.Semaphore(3)
 
 
-_MAX_SEARCH_RETRIES = 3
-_RETRY_BASE_DELAY = 1.0  # seconds, doubles each retry
+_MAX_SEARCH_RETRIES = 5
+_RETRY_BASE_DELAY = 5.0  # seconds, doubles each retry
 
 
 @tool
