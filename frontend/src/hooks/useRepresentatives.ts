@@ -36,6 +36,7 @@ export function useRepresentatives() {
 
       const decoder = new TextDecoder();
       let buffer = "";
+      let currentEvent = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -46,7 +47,6 @@ export function useRepresentatives() {
         // Keep the last potentially incomplete line in the buffer
         buffer = lines.pop() || "";
 
-        let currentEvent = "";
         for (const line of lines) {
           if (line.startsWith("event:")) {
             currentEvent = line.slice(6).trim();
@@ -60,7 +60,6 @@ export function useRepresentatives() {
       // Process any remaining buffer
       if (buffer.trim()) {
         const lines = buffer.split("\n");
-        let currentEvent = "";
         for (const line of lines) {
           if (line.startsWith("event:")) {
             currentEvent = line.slice(6).trim();
