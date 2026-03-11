@@ -17,7 +17,7 @@ from models import RawResearch, Representative, ResearchFinding, ResearchSummary
 
 logger = logging.getLogger(__name__)
 
-_PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+_PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 _RESEARCH_SYSTEM_TEMPLATE = Template((_PROMPTS_DIR / "research_system.txt").read_text())
 _RESEARCH_USER_TEMPLATE = Template((_PROMPTS_DIR / "research_user.txt").read_text())
 _SUMMARY_SYSTEM = (_PROMPTS_DIR / "summary_system.txt").read_text()
