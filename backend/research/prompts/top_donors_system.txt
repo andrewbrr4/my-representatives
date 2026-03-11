@@ -4,18 +4,16 @@ Today's date is ${current_date}.
 
 ## Instructions
 
-1. Perform up to 5 web searches to find information about this official's top political donors and fundraising.
-2. Return a list of up to 5 items, each describing one donor or funding source.
+1. Perform up to 5 web searches to find this official's top political donors and fundraising info.
+2. Return a list of up to 5 items, each a short note about one donor or funding source (not full sentences — more like concise notes).
 3. Embed inline citation markers like [1], [2] in each item, referencing your citations list.
 
 ## Rules
 
 - Every factual claim must cite a search result — do not fabricate sources or URLs
 - Focus on the largest and most significant donors
-- Each item should be one concise sentence about one donor
+- Keep items brief — note-style, not full paragraphs
 - If no donor information is available, return an empty items list
-- Be nonpartisan and factual
-- Write clearly for a constituent who wants to understand who represents them
+- You may use inline markdown (bold, italic) for emphasis, but no headers, bullets, or links
 - citations[0] corresponds to [1], citations[1] to [2], etc.
-
-CRITICAL CONSTRAINT: You must use no more than 5 web searches total. Craft broad, well-targeted queries to maximize coverage.
+- Max 5 web searches total

@@ -10,18 +10,30 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * Replace [N] markers in text with superscript citation links.
- * Returns a React fragment with mixed text and <sup> elements.
+ * Parse text containing inline markdown (bold, italic) and [N] citation markers
+ * into React nodes. Handles **bold**, *italic*, and [N] citation links.
  */
-function inlineCitations(
+function renderInline(
   text: string,
   citations: Citation[],
 ): React.ReactNode {
-  const parts = text.split(/(\[\d+\])/g);
+  // Match **bold**, *italic*, and [N] citations
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|\[\d+\])/g);
   return parts.map((part, i) => {
-    const match = part.match(/^\[(\d+)\]$/);
-    if (match) {
-      const idx = parseInt(match[1], 10) - 1;
+    // Bold: **text**
+    const boldMatch = part.match(/^\*\*(.+)\*\*$/);
+    if (boldMatch) {
+      return <strong key={i}>{boldMatch[1]}</strong>;
+    }
+    // Italic: *text*
+    const italicMatch = part.match(/^\*(.+)\*$/);
+    if (italicMatch) {
+      return <em key={i}>{italicMatch[1]}</em>;
+    }
+    // Citation: [N]
+    const citeMatch = part.match(/^\[(\d+)\]$/);
+    if (citeMatch) {
+      const idx = parseInt(citeMatch[1], 10) - 1;
       const citation = citations[idx];
       if (citation) {
         return (
@@ -33,7 +45,7 @@ function inlineCitations(
               title={citation.title}
               className="text-primary hover:text-primary/80 ml-0.5"
             >
-              [{match[1]}]
+              [{citeMatch[1]}]
             </a>
           </sup>
         );
@@ -92,17 +104,17 @@ export function RepCard({ rep }: RepCardProps) {
           <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
             <div>
               <h4 className="font-semibold text-foreground">Background</h4>
-              <p>{inlineCitations(rep.summary.background, rep.summary.background_citations ?? [])}</p>
+              <p>{renderInline(rep.summary.background, rep.summary.background_citations ?? [])}</p>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Policy Positions</h4>
-              <p>{inlineCitations(rep.summary.policy_positions, rep.summary.policy_positions_citations ?? [])}</p>
+              <p>{renderInline(rep.summary.policy_positions, rep.summary.policy_positions_citations ?? [])}</p>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Recent Legislative Record</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.recent_legislative_record.map((item, i) => (
-                  <li key={i}>{inlineCitations(item, rep.summary.recent_legislative_record_citations ?? [])}</li>
+                  <li key={i}>{renderInline(item, rep.summary.recent_legislative_record_citations ?? [])}</li>
                 ))}
               </ul>
             </div>
@@ -110,7 +122,7 @@ export function RepCard({ rep }: RepCardProps) {
               <h4 className="font-semibold text-foreground">Recent Press</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.recent_press.map((item, i) => (
-                  <li key={i}>{inlineCitations(item, rep.summary.recent_press_citations ?? [])}</li>
+                  <li key={i}>{renderInline(item, rep.summary.recent_press_citations ?? [])}</li>
                 ))}
               </ul>
             </div>
@@ -118,7 +130,7 @@ export function RepCard({ rep }: RepCardProps) {
               <h4 className="font-semibold text-foreground">Top Donors</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.top_donors.map((item, i) => (
-                  <li key={i}>{inlineCitations(item, rep.summary.top_donors_citations ?? [])}</li>
+                  <li key={i}>{renderInline(item, rep.summary.top_donors_citations ?? [])}</li>
                 ))}
               </ul>
             </div>

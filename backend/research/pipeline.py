@@ -30,27 +30,30 @@ _PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
 # Limit concurrent research calls to avoid rate limits
 _semaphore = asyncio.Semaphore(2)
+# Limit concurrent Tavily searches to avoid rate limits
+_search_semaphore = asyncio.Semaphore(3)
 
 
 @tool
 async def web_search(query: str) -> str:
     """Search the web for current information about a topic. Returns relevant search results with snippets."""
-    tavily = AsyncTavilyClient(api_key=os.environ["TAVILY_API_KEY"])
-    try:
-        search_results = await tavily.search(query=query, max_results=5)
-        return "\n\n".join(
-            f"**{r['title']}**\n{r['url']}\n{r['content']}"
-            for r in search_results.get("results", [])
-        )
-    except Exception as e:
-        error_detail = str(e)
-        if hasattr(e, "response"):
-            try:
-                error_detail = e.response.text
-            except Exception:
-                pass
-        logger.warning(f"Search failed: {error_detail}")
-        return "Search failed. Try a different query."
+    async with _search_semaphore:
+        tavily = AsyncTavilyClient(api_key=os.environ["TAVILY_API_KEY"])
+        try:
+            search_results = await tavily.search(query=query, max_results=5)
+            return "\n\n".join(
+                f"**{r['title']}**\n{r['url']}\n{r['content']}"
+                for r in search_results.get("results", [])
+            )
+        except Exception as e:
+            error_detail = str(e)
+            if hasattr(e, "response"):
+                try:
+                    error_detail = e.response.text
+                except Exception:
+                    pass
+            logger.warning(f"Search failed: {error_detail}")
+            return "Search failed. Try a different query."
 
 
 @dataclass
