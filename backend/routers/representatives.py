@@ -11,7 +11,7 @@ from sse_starlette.sse import EventSourceResponse
 from models import AddressRequest, Representative, RepresentativesResponse
 from services.cicero import get_state_local_representatives
 from services.congress import get_federal_representatives
-from services.research import research_representative
+from backend.research.research import research_representative
 
 logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address)

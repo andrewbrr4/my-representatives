@@ -30,4 +30,4 @@ To reiterate, you must ensure that all of the requested information is covered, 
    - Recent press coverage and public statements
    - Top political donors / fundraising
 
-CRITICAL CONSTRAINT: You must use no more than 12 web searches total. This is an absolute hard limit — do NOT exceed it under any circumstances. Craft broad, well-targeted queries to maximize coverage. If you still have gaps after 12 searches, stop searching and return what you have. Partial coverage is always preferable to exceeding the search limit.
+CRITICAL CONSTRAINT: You must use no more than 20 web searches total. This is an absolute hard limit — do NOT exceed it under any circumstances. Craft broad, well-targeted queries to maximize coverage. If you still have gaps after 20 searches, stop searching and return what you have. Partial coverage is always preferable to exceeding the search limit.
