@@ -1,0 +1,1 @@
+Research the top political donors and fundraising sources for $name, who serves as $office. Search the web for current information, then provide a list of major donors.

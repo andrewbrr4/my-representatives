@@ -48,12 +48,12 @@ Request flow:
 3. `services/cicero.py` calls Cicero API (`/v3.1/official`), maps `district_type` to `state`/`municipal` levels, filters out appointed and federal officials, returns list of `Representative` models
 4. `routers/representatives.py` streams results via **Server-Sent Events** (SSE, via `sse-starlette`):
    - First sends all reps immediately (without summaries) as a `representatives` event
-   - Then fans out `services/pipeline.py` for all reps concurrently, streaming each `research` event as it completes
+   - Then fans out `research/pipeline.py` for all reps concurrently, streaming each `research` event as it completes
    - Sends a `done` event when all research is finished
-5. `research/pipeline.py` runs a **two-phase pipeline** using LangChain + Langfuse tracing:
-   - **Phase 1 (Research):** A LangChain agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) uses a Tavily `web_search` tool to gather raw findings about each rep
-   - **Phase 2 (Summary):** A structured output chain synthesizes findings into prose with inline citation markers (`[1]`, `[2]`, etc.)
-   - Prompts are stored in `research/prompts/`
+5. `research/pipeline.py` runs **5 per-section research agents** concurrently using LangChain + Langfuse tracing:
+   - Each section (background, policy_positions, recent_legislative_record, recent_press, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a Tavily `web_search` tool and returns structured output with per-section citations
+   - Section prompts are stored in `research/prompts/` (system + user template per section)
+   - Each agent is limited to 5 web searches and `recursion_limit=15`
 6. Results are sorted by level priority before streaming
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
@@ -80,5 +80,9 @@ Required in `.env` at project root:
 - `GOOGLE_CIVIC_API_KEY` — kept for future election/ballot data via `voterinfo` endpoint
 - `CLAUDE_MODEL` — model ID for the research agent (e.g. `claude-sonnet-4-20250514`)
 - `US_CONGRESS_REPS_ONLY` — set to `true` to skip Cicero API and only return US congressional reps (useful for faster testing)
+- `RESEARCH_MAX_TOKENS` — max token output for each section research agent
+- `LANGFUSE_SECRET_KEY` — Langfuse tracing secret key
+- `LANGFUSE_PUBLIC_KEY` — Langfuse tracing public key
+- `LANGFUSE_BASE_URL` — Langfuse tracing base URL
 
 Backend loads these via `python-dotenv` at startup.

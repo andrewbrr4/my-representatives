@@ -1,0 +1,1 @@
+Research recent press coverage and public statements by $name, who serves as $office. Search the web for current information, then provide a list of recent stories.

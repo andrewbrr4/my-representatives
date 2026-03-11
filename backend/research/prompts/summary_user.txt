@@ -1,5 +1,0 @@
-Synthesize the following research findings about $name ($office) into a structured summary with inline citation markers.
-
-## Findings
-
-$findings_block

@@ -13,11 +13,15 @@ export interface Citation {
 
 export interface ResearchSummary {
   background: string;
+  background_citations: Citation[];
   policy_positions: string;
+  policy_positions_citations: Citation[];
   recent_legislative_record: string[];
+  recent_legislative_record_citations: Citation[];
   recent_press: string[];
+  recent_press_citations: Citation[];
   top_donors: string[];
-  citations: Citation[];
+  top_donors_citations: Citation[];
 }
 
 export interface Representative {

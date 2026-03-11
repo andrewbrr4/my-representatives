@@ -92,17 +92,17 @@ export function RepCard({ rep }: RepCardProps) {
           <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
             <div>
               <h4 className="font-semibold text-foreground">Background</h4>
-              <p>{inlineCitations(rep.summary.background, rep.summary.citations ?? [])}</p>
+              <p>{inlineCitations(rep.summary.background, rep.summary.background_citations ?? [])}</p>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Policy Positions</h4>
-              <p>{inlineCitations(rep.summary.policy_positions, rep.summary.citations ?? [])}</p>
+              <p>{inlineCitations(rep.summary.policy_positions, rep.summary.policy_positions_citations ?? [])}</p>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Recent Legislative Record</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.recent_legislative_record.map((item, i) => (
-                  <li key={i}>{inlineCitations(item, rep.summary.citations ?? [])}</li>
+                  <li key={i}>{inlineCitations(item, rep.summary.recent_legislative_record_citations ?? [])}</li>
                 ))}
               </ul>
             </div>
@@ -110,7 +110,7 @@ export function RepCard({ rep }: RepCardProps) {
               <h4 className="font-semibold text-foreground">Recent Press</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.recent_press.map((item, i) => (
-                  <li key={i}>{inlineCitations(item, rep.summary.citations ?? [])}</li>
+                  <li key={i}>{inlineCitations(item, rep.summary.recent_press_citations ?? [])}</li>
                 ))}
               </ul>
             </div>
@@ -118,7 +118,7 @@ export function RepCard({ rep }: RepCardProps) {
               <h4 className="font-semibold text-foreground">Top Donors</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.top_donors.map((item, i) => (
-                  <li key={i}>{inlineCitations(item, rep.summary.citations ?? [])}</li>
+                  <li key={i}>{inlineCitations(item, rep.summary.top_donors_citations ?? [])}</li>
                 ))}
               </ul>
             </div>

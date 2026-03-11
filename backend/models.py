@@ -16,23 +16,27 @@ class Citation(BaseModel):
     url: str
 
 
-class ResearchFinding(BaseModel):
-    fact: str
-    source_url: str
-    source_title: str
+class SectionResult(BaseModel):
+    content: str
+    citations: list[Citation]
 
 
-class RawResearch(BaseModel):
-    findings: list[ResearchFinding]
+class ListSectionResult(BaseModel):
+    items: list[str]
+    citations: list[Citation]
 
 
 class ResearchSummary(BaseModel):
-    background: str = Field(description="Career history, how they came into office, relevant personal context. Paragraph form, no bullets. Embed inline citation markers like [1], [2] referencing the citations list. Max 3-5 sentences.")
-    policy_positions: str = Field(description="Where they stand on key issues based on voting record and public statements, not campaign messaging. Paragraph form, no bullets. Embed inline citation markers like [1], [2] referencing the citations list. Max 3-5 sentences.")
-    recent_legislative_record: list[str] = Field(description="Key legislative measures they recently supported or opposed. Each item is one measure. Embed inline citation markers like [1], [2] referencing the citations list. Max 3-5 items.")
-    recent_press: list[str] = Field(description="Recent press coverage, public statements, local news. Each item is one story or event. Embed inline citation markers like [1], [2] referencing the citations list. Max 3-5 items.")
-    top_donors: list[str] = Field(description="Largest political donors, five max. Each item is one donor. Embed inline citation markers like [1], [2] referencing the citations list. Max 3-5 items.")
-    citations: list[Citation] = Field(description="Ordered list of sources referenced in the text. citations[0] corresponds to [1], citations[1] to [2], etc. Must include every source referenced by inline markers. No cap on list length.")
+    background: str = Field(description="Career history, how they came into office, relevant personal context. Paragraph form, no bullets. Embed inline citation markers like [1], [2] referencing the background_citations list. Max 3-5 sentences.")
+    background_citations: list[Citation] = Field(default_factory=list, description="Ordered list of sources for background section.")
+    policy_positions: str = Field(description="Where they stand on key issues based on voting record and public statements, not campaign messaging. Paragraph form, no bullets. Embed inline citation markers like [1], [2] referencing the policy_positions_citations list. Max 3-5 sentences.")
+    policy_positions_citations: list[Citation] = Field(default_factory=list, description="Ordered list of sources for policy_positions section.")
+    recent_legislative_record: list[str] = Field(description="Key legislative measures they recently supported or opposed. Each item is one measure. Embed inline citation markers like [1], [2] referencing the recent_legislative_record_citations list. Max 3-5 items.")
+    recent_legislative_record_citations: list[Citation] = Field(default_factory=list, description="Ordered list of sources for recent_legislative_record section.")
+    recent_press: list[str] = Field(description="Recent press coverage, public statements, local news. Each item is one story or event. Embed inline citation markers like [1], [2] referencing the recent_press_citations list. Max 3-5 items.")
+    recent_press_citations: list[Citation] = Field(default_factory=list, description="Ordered list of sources for recent_press section.")
+    top_donors: list[str] = Field(description="Largest political donors, five max. Each item is one donor. Embed inline citation markers like [1], [2] referencing the top_donors_citations list. Max 3-5 items.")
+    top_donors_citations: list[Citation] = Field(default_factory=list, description="Ordered list of sources for top_donors section.")
 
     _NOT_FOUND = "Information not found."
 
@@ -40,7 +44,7 @@ class ResearchSummary(BaseModel):
     def fill_missing_fields(self) -> "ResearchSummary":
         fallback = self._NOT_FOUND
         for field_name, field_info in self.model_fields.items():
-            if field_name == "citations":
+            if field_name.endswith("_citations"):
                 continue
             value = getattr(self, field_name)
             if isinstance(value, str) and not value.strip():
