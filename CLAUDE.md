@@ -50,8 +50,8 @@ Request flow:
    - First sends all reps immediately (without summaries) as a `representatives` event
    - Then fans out `research/pipeline.py` for all reps concurrently, streaming each `research` event as it completes
    - Sends a `done` event when all research is finished
-5. `research/pipeline.py` runs **5 per-section research agents** concurrently using LangChain + Langfuse tracing:
-   - Each section (background, policy_positions, recent_legislative_record, recent_press, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a Tavily `web_search` tool and returns structured output with per-section citations
+5. `research/pipeline.py` runs **7 per-section research agents** concurrently using LangChain + Langfuse tracing:
+   - Each section (background, policy_positions, recent_legislative_record, accomplishments, controversies, recent_press, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a Tavily `web_search` tool and returns structured output with per-section citations
    - Section prompts are stored in `research/prompts/` (system + user template per section)
    - Each agent is limited to 5 web searches and `recursion_limit=15`
 6. Results are sorted by level priority before streaming

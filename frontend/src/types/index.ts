@@ -18,6 +18,10 @@ export interface ResearchSummary {
   policy_positions_citations: Citation[];
   recent_legislative_record: string[];
   recent_legislative_record_citations: Citation[];
+  accomplishments: string[];
+  accomplishments_citations: Citation[];
+  controversies: string[];
+  controversies_citations: Citation[];
   recent_press: string[];
   recent_press_citations: Citation[];
   top_donors: string[];

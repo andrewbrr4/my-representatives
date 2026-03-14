@@ -1,0 +1,1 @@
+Research recent controversies involving $name, who serves as $office. Search the web for current information, then provide a list of notable controversies.

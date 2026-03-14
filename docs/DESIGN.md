@@ -34,5 +34,7 @@ Crafting these cards is not easy. We need to strike several difficult balances:
 | **Background** | Who the representative is — career history, how they came into office, and relevant personal context. | Paragraph-style text, no bullets/lists |
 | **Policy Positions** | Where the representative stands on key issues, based on their voting record and public statements rather than campaign messaging. | Paragraph-style text, no bullets/lists |
 | **Recent Legislative Record** | Key legislative measures they recently supported or opposed. | Bulleted list |
-| **Recent Press** | Any other recent press about the representatives--public statements, local news coverage, etc. | Bulleted list |
+| **Accomplishments** | Notable achievements, successful initiatives, awards, and bipartisan wins. | Bulleted list |
+| **Controversies** | Scandals, ethics complaints, controversial votes or statements, lawsuits, and public criticism. | Bulleted list |
+| **Other Recent Press** | Any other recent press about the representatives--public statements, local news coverage, etc. | Bulleted list |
 | **Top Donors** | List of the representative's largest political donors, five max. | Bulleted list |
