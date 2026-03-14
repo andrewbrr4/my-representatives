@@ -36,4 +36,3 @@ Crafting these cards is not easy. We need to strike several difficult balances:
 | **Recent Legislative Record** | Key legislative measures they recently supported or opposed. | Bulleted list |
 | **Recent Press** | Any other recent press about the representatives--public statements, local news coverage, etc. | Bulleted list |
 | **Top Donors** | List of the representative's largest political donors, five max. | Bulleted list |
-| **Citations** | Ordered list of sources referenced throughout the card via inline markers like [1], [2]. | Numbered list with title + URL |

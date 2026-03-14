@@ -27,7 +27,7 @@ class ListSectionResult(BaseModel):
 
 
 class ResearchSummary(BaseModel):
-    background: str = Field(description="Career history, how they came into office, relevant personal context. Paragraph form, no bullets. Embed inline citation markers like [1], [2] referencing the background_citations list. Max 3-5 sentences.")
+    background: str = Field(description="Career history, how they came into office, relevant personal context. Paragraph form, no bullets. Embed inline citation markers like [1], [2] referencing the background_citations list. Max 1-2 sentences.")
     background_citations: list[Citation] = Field(default_factory=list, description="Ordered list of sources for background section.")
     policy_positions: str = Field(description="Where they stand on key issues based on voting record and public statements, not campaign messaging. Paragraph form, no bullets. Embed inline citation markers like [1], [2] referencing the policy_positions_citations list. Max 3-5 sentences.")
     policy_positions_citations: list[Citation] = Field(default_factory=list, description="Ordered list of sources for policy_positions section.")

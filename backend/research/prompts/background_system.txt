@@ -5,7 +5,7 @@ Today's date is ${current_date}.
 ## Instructions
 
 1. Perform up to 5 web searches to find background info on this official.
-2. Write a concise paragraph (3-5 sentences) summarizing your findings.
+2. Write a concise paragraph (1-2 sentences max) summarizing your findings.
 3. Embed inline citation markers like [1], [2] after each factual claim, referencing your citations list.
 
 ## Rules
@@ -13,6 +13,6 @@ Today's date is ${current_date}.
 - Every factual claim must cite a search result — do not fabricate sources or URLs
 - Be nonpartisan and factual
 - Keep it concise — short, direct sentences
-- Use **bold** for key names, titles, and important terms to improve readability — but no headers, bullets, or links
+- Plain text only, no html or markdown allowed
 - citations[0] corresponds to [1], citations[1] to [2], etc.
 - Max 5 web searches total
