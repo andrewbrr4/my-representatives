@@ -46,21 +46,27 @@ Request flow:
    - `services/cicero.py` for **state + municipal** reps
 2. `services/congress.py` uses the Census Geocoder (free, no key) to resolve address → state + congressional district, then calls the US Congress API (`/v3/member/congress/{congress}/{state}`) to get senators and the district's House rep with full detail (photo, phone, website, party)
 3. `services/cicero.py` calls Cicero API (`/v3.1/official`), maps `district_type` to `state`/`municipal` levels, filters out appointed and federal officials, returns list of `Representative` models
-4. `routers/representatives.py` streams results via **Server-Sent Events** (SSE, via `sse-starlette`):
-   - First sends all reps immediately (without summaries) as a `representatives` event
-   - Then fans out `research/pipeline.py` for all reps concurrently, streaming each `research` event as it completes
-   - Sends a `done` event when all research is finished
+4. `routers/representatives.py` streams results via **Server-Sent Events** (SSE, via `sse-starlette`), with research decoupled from the connection:
+   - Sends all reps immediately (without summaries) as a `representatives` event
+   - Creates a job in the in-memory `JobStore` and sends a `job` event with the `job_id`
+   - Spawns research as fire-and-forget `asyncio.create_task` — results write to `JobStore` + `RepCache` regardless of SSE connection
+   - SSE generator polls `JobStore` every 0.5s, yielding `research` events as they complete
+   - If the client disconnects, research keeps running; client can poll `GET /api/jobs/{job_id}` to recover
+   - `RepCache` (in-memory, 24h TTL) avoids redundant AI calls for previously-researched reps
 5. `research/pipeline.py` runs **7 per-section research agents** concurrently using LangChain + Langfuse tracing:
    - Each section (background, policy_positions, recent_legislative_record, accomplishments, controversies, recent_press, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a Tavily `web_search` tool and returns structured output with per-section citations
    - Section prompts are stored in `research/prompts/` (system + user template per section)
    - Each agent is limited to 5 web searches and `recursion_limit=15`
 6. Results are sorted by level priority before streaming
 
+7. `routers/jobs.py` exposes `GET /api/jobs/{job_id}` — returns current job state (reps, per-rep research status/summaries, overall status) for polling fallback
+8. `store/` contains ABC interfaces (`interfaces.py`) and in-memory implementations (`memory.py`) for `JobStore` and `RepCache`, with lazy singletons in `dependencies.py`. Designed to swap to Redis later.
+
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
 **Frontend (React + TypeScript + Vite + Tailwind v4 + shadcn/ui):** Single-page app with two states: search and results.
 
-- `src/hooks/useRepresentatives.ts` — manages API call state (loading, error, data)
+- `src/hooks/useRepresentatives.ts` — manages API call state (loading, error, data); captures `job_id` from SSE and falls back to polling `GET /api/jobs/{job_id}` on disconnect
 - `src/components/AddressSearch.tsx` — address input form
 - `src/components/RepCard.tsx` — representative card with photo, badge, summary, contacts
 - `src/components/SkeletonCard.tsx` — loading placeholder
@@ -84,5 +90,8 @@ Required in `.env` at project root:
 - `LANGFUSE_SECRET_KEY` — Langfuse tracing secret key
 - `LANGFUSE_PUBLIC_KEY` — Langfuse tracing public key
 - `LANGFUSE_BASE_URL` — Langfuse tracing base URL
+- `REP_CACHE_TTL_SECONDS` — how long cached research stays valid (default `86400` / 24h)
+- `JOB_TTL_SECONDS` — how long job state is kept in memory (default `1800` / 30min)
+- `DISABLE_REP_CACHE` — set to `true` to skip research cache globally (useful for testing pipeline changes)
 
 Backend loads these via `python-dotenv` at startup.

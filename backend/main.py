@@ -1,6 +1,8 @@
+import asyncio
 import logging
 import os
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -14,6 +16,8 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from routers.representatives import router
+from routers.jobs import router as jobs_router
+from store.dependencies import get_job_store, get_rep_cache
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,8 +25,31 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async def periodic_cleanup():
+        while True:
+            await asyncio.sleep(300)  # 5 minutes
+            try:
+                await get_job_store().cleanup()
+                await get_rep_cache().cleanup()
+            except Exception as e:
+                logger.error(f"Cleanup error: {e}")
+
+    task = asyncio.create_task(periodic_cleanup())
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="MyReps API")
+app = FastAPI(title="MyReps API", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -48,3 +75,4 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(jobs_router)

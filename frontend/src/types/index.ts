@@ -41,3 +41,17 @@ export interface Representative {
 export interface RepresentativesResponse {
   representatives: Representative[];
 }
+
+export interface JobResearchEntry {
+  index: number;
+  status: "pending" | "complete" | "failed";
+  summary: ResearchSummary | null;
+}
+
+export interface JobStatusResponse {
+  job_id: string;
+  status: "lookup" | "researching" | "done" | "error";
+  representatives: Representative[] | null;
+  research: JobResearchEntry[] | null;
+  error_detail: string | null;
+}
