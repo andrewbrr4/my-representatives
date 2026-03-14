@@ -18,7 +18,7 @@ export function useRepresentatives() {
     setRepresentatives([]);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const apiUrl = import.meta.env.VITE_API_URL || "https://my-reps-backend-968920716189.us-east1.run.app";
       const resp = await fetch(`${apiUrl}/api/representatives`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
