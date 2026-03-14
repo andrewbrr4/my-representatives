@@ -114,7 +114,7 @@ export function RepCard({ rep }: RepCardProps) {
               <h4 className="font-semibold text-foreground">Recent Legislative Record</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.recent_legislative_record.map((item, i) => (
-                  <li key={i}>{renderInline(item, rep.summary.recent_legislative_record_citations ?? [])}</li>
+                  <li key={i}>{renderInline(item, rep.summary!.recent_legislative_record_citations ?? [])}</li>
                 ))}
               </ul>
             </div>
@@ -122,7 +122,7 @@ export function RepCard({ rep }: RepCardProps) {
               <h4 className="font-semibold text-foreground">Recent Press</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.recent_press.map((item, i) => (
-                  <li key={i}>{renderInline(item, rep.summary.recent_press_citations ?? [])}</li>
+                  <li key={i}>{renderInline(item, rep.summary!.recent_press_citations ?? [])}</li>
                 ))}
               </ul>
             </div>
@@ -130,7 +130,7 @@ export function RepCard({ rep }: RepCardProps) {
               <h4 className="font-semibold text-foreground">Top Donors</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.top_donors.map((item, i) => (
-                  <li key={i}>{renderInline(item, rep.summary.top_donors_citations ?? [])}</li>
+                  <li key={i}>{renderInline(item, rep.summary!.top_donors_citations ?? [])}</li>
                 ))}
               </ul>
             </div>

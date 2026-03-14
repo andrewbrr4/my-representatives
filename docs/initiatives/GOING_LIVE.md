@@ -1,122 +1,76 @@
 # Going Live — Deployment Checklist
 
-Remaining steps to take MyReps from local dev to a production deployment on Google Cloud.
+Deploy MyReps to Google Cloud Run. Using default `*.run.app` URLs (custom domain can be added later).
+All steps use the **Google Cloud Console UI** unless noted otherwise.
+
+**Project:** `my-representatives-489301` | **Region:** `us-east1`
 
 ---
 
-## 1. Set up Google Cloud project
+## 1. Set up Google Cloud project ✅
 
-```bash
-gcloud projects create myreps --name="MyReps"
-gcloud config set project myreps
-gcloud services enable run.googleapis.com secretmanager.googleapis.com artifactregistry.googleapis.com
-```
+Created project `my-representatives-489301`, enabled Cloud Run, Secret Manager, and Artifact Registry APIs.
 
-## 2. Store API keys in Secret Manager
+## 2. Store secrets in Secret Manager ✅
 
-```bash
-echo -n "YOUR_KEY" | gcloud secrets create ANTHROPIC_API_KEY --data-file=-
-echo -n "YOUR_KEY" | gcloud secrets create TAVILY_API_KEY --data-file=-
-echo -n "YOUR_KEY" | gcloud secrets create CICERO_API_KEY --data-file=-
-echo -n "YOUR_KEY" | gcloud secrets create US_CONGRESS_API_KEY --data-file=-
-echo -n "YOUR_KEY" | gcloud secrets create GOOGLE_CIVIC_API_KEY --data-file=-
-```
+Stored via Console: `ANTHROPIC_API_KEY`, `TAVILY_API_KEY`, `CICERO_API_KEY`, `US_CONGRESS_API_KEY`, `GOOGLE_CIVIC_API_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`.
 
-Grant the Cloud Run service account access:
+Granted the default compute service account (`968920716189-compute@developer.gserviceaccount.com`) the `secretmanager.secretAccessor` role on each secret (done via CLI).
 
-```bash
-PROJECT_NUM=$(gcloud projects describe myreps --format='value(projectNumber)')
-gcloud secrets add-iam-policy-binding ANTHROPIC_API_KEY \
-  --member="serviceAccount:${PROJECT_NUM}-compute@developer.gserviceaccount.com" \
-  --role="roles/secretmanager.secretAccessor"
-# Repeat for each secret
-```
+## 3. Deploy the backend to Cloud Run ✅ (building)
 
-## 3. Deploy the backend to Cloud Run
+In Console: **Cloud Run → Create Service → Connect repository**
 
-Create an Artifact Registry repo for Docker images:
+- Connected GitHub repo, set to deploy from `main` branch
+- **Cloud Build** provider, Dockerfile path: `backend/Dockerfile`, build context: `backend/`
+- **Authentication:** Allow public access
+- **Billing:** Request-based
+- **Scaling:** Auto, min 0
+- **Ingress:** All
+- **Env vars:** `CLAUDE_MODEL=claude-sonnet-4-6`, `RESEARCH_MAX_TOKENS=32768`, `LANGFUSE_BASE_URL=https://us.cloud.langfuse.com`, `US_CONGRESS_REPS_ONLY=false`
+- **Secrets** (exposed as env vars, version `latest`): `ANTHROPIC_API_KEY`, `TAVILY_API_KEY`, `CICERO_API_KEY`, `US_CONGRESS_API_KEY`, `GOOGLE_CIVIC_API_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`
 
-```bash
-gcloud artifacts repositories create myreps --repository-format=docker --location=us-central1
-```
+Backend URL: `https://my-representatives-xxxxx-ue.a.run.app` ← update once deployed
 
-Build and deploy:
+## 5. Deploy the frontend to Cloud Run
 
-```bash
-cd backend
-gcloud run deploy myreps-api \
-  --source . \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --set-secrets="ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,TAVILY_API_KEY=TAVILY_API_KEY:latest,CICERO_API_KEY=CICERO_API_KEY:latest,US_CONGRESS_API_KEY=US_CONGRESS_API_KEY:latest,GOOGLE_CIVIC_API_KEY=GOOGLE_CIVIC_API_KEY:latest" \
-  --set-env-vars="CORS_ORIGINS=https://myreps.yourdomain.com"
-```
+The frontend Dockerfile is a multi-stage build: Node builds the app, nginx serves the static files.
+`VITE_API_URL` is baked in at build time.
 
-Note the service URL from the output (e.g., `https://myreps-api-xxxxx-uc.a.run.app`).
+In Console: **Cloud Run → Create Service → Connect repository**
 
-## 4. Build and deploy the frontend to Cloud Run
+- Same GitHub repo, deploy from `main` branch
+- Dockerfile path: `frontend/Dockerfile`, build context: `frontend/`
+- **Authentication:** Allow public access
+- **Billing:** Request-based
+- **Scaling:** Auto, min 0
+- **Ingress:** All
+- **Env vars (build-time):** Need to pass `VITE_API_URL` as a build arg pointing to the backend URL from step 4. In Cloud Build config, add a substitution variable or use `--build-arg` in the build trigger settings.
 
-```bash
-cd frontend
-VITE_API_URL=https://myreps-api-xxxxx-uc.a.run.app npm run build
-```
+Frontend URL: `https://myreps-web-xxxxx-ue.a.run.app` ← update once deployed
 
-Then deploy the nginx-based Dockerfile:
+## 6. Update backend CORS with the frontend URL
 
-```bash
-gcloud run deploy myreps-web \
-  --source . \
-  --region us-central1 \
-  --allow-unauthenticated
-```
+In Console: **Cloud Run → backend service → Edit & Deploy New Revision**
 
-## 5. Set up a custom domain
+- Add/update env var: `CORS_ORIGINS=<frontend URL from step 5>`
 
-Map your domain to the Cloud Run services:
-
-```bash
-gcloud run domain-mappings create --service myreps-web --domain myreps.yourdomain.com --region us-central1
-gcloud run domain-mappings create --service myreps-api --domain api.myreps.yourdomain.com --region us-central1
-```
-
-Add the DNS records shown in the output to your domain registrar. Cloud Run provisions TLS certificates automatically.
-
-After DNS is live, update the backend's CORS setting:
-
-```bash
-gcloud run services update myreps-api --region us-central1 \
-  --set-env-vars="CORS_ORIGINS=https://myreps.yourdomain.com"
-```
-
-## 6. Set up monitoring
-
-Use Google Cloud's built-in tools:
-
-- **Cloud Logging** — already captures stdout/stderr from Cloud Run (your existing request logging middleware works out of the box)
-- **Cloud Monitoring** — set up an uptime check for your frontend URL and an alerting policy for error rate spikes
-- **Error Reporting** — automatically groups and tracks errors from Cloud Run services
-
-```bash
-gcloud monitoring uptime create myreps-uptime \
-  --display-name="MyReps Frontend" \
-  --uri=https://myreps.yourdomain.com \
-  --period=5
-```
-
-## 7. Test end-to-end before launch
+## 7. Test end-to-end
 
 - Test with a few real addresses across different states
 - Verify all API integrations work with production keys
 - Check mobile responsiveness
 - Confirm error states display properly (bad address, API failures)
-- Verify rate limiting works (10 req/min per IP)
+- Verify SSE streaming works (research results appear one-by-one)
 
-## 8. Optional improvements
+## 8. Optional: Custom domain
 
-These aren't blockers but are worth considering:
+In Console: **Cloud Run → Domain Mappings** — map your domain to each service. Cloud Run provisions TLS certs automatically. Then update the CORS env var on the backend to match the custom frontend domain.
 
-- **Caching**: Use Memorystore (managed Redis) to cache research results and reduce API costs
-- **Error tracking**: Cloud Error Reporting covers this, or add Sentry for richer frontend error context
-- **Analytics**: Simple, privacy-respecting analytics (Plausible, Umami) to understand usage
-- **SEO/social meta tags**: Add `<meta>` tags and an Open Graph image if you want the site to be shareable
-- **Cloud CDN**: Put a load balancer + Cloud CDN in front of the frontend for faster global delivery
+## 9. Optional improvements
+
+- **Monitoring**: Cloud Logging already captures stdout/stderr. Add an uptime check for the frontend URL.
+- **Caching**: Memorystore (managed Redis) to cache research results and reduce API costs
+- **Analytics**: Privacy-respecting analytics (Plausible, Umami) to understand usage
+- **SEO/social meta tags**: `<meta>` tags and Open Graph image for shareability
+- **Cloud CDN**: Load balancer + CDN in front of the frontend for faster global delivery
