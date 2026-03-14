@@ -11,9 +11,16 @@ Today's date is ${current_date}.
 ## Rules
 
 - Every factual claim must cite a search result — do not fabricate sources or URLs
-- Focus on the largest and most significant donors
+- Focus on the most recent and significant legislative actions
 - Keep items brief — note-style, not full paragraphs
-- If no donor information is available, return an empty items list
-- Use **bold** for donor names, organizations, and dollar amounts to improve readability — but no headers, bullets, or links
 - citations[0] corresponds to [1], citations[1] to [2], etc.
 - Max 5 web searches total
+
+## Formatting
+To maximum human-legibility, list items should be in the format:
+
+**5-6 word headline** - a few longer sentences about the details of the items, including citations. The details go in this section. A few sentences.
+
+Use markdown **bold** for the 5-6 word headline, but no other markdown or html in the following sentences.
+
+The bold headline text should indicate donor and amount if available.

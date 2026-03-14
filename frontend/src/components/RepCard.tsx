@@ -119,7 +119,23 @@ export function RepCard({ rep }: RepCardProps) {
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-foreground">Recent Press</h4>
+              <h4 className="font-semibold text-foreground">Accomplishments</h4>
+              <ul className="list-disc pl-5 space-y-1">
+                {rep.summary.accomplishments.map((item, i) => (
+                  <li key={i}>{renderInline(item, rep.summary!.accomplishments_citations ?? [])}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground">Controversies</h4>
+              <ul className="list-disc pl-5 space-y-1">
+                {rep.summary.controversies.map((item, i) => (
+                  <li key={i}>{renderInline(item, rep.summary!.controversies_citations ?? [])}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground">Other Recent Press</h4>
               <ul className="list-disc pl-5 space-y-1">
                 {rep.summary.recent_press.map((item, i) => (
                   <li key={i}>{renderInline(item, rep.summary!.recent_press_citations ?? [])}</li>

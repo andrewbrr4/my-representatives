@@ -1,7 +1,13 @@
 import { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { AddressSearch } from "@/components/AddressSearch";
 import { RepCard } from "@/components/RepCard";
 import { SkeletonCard } from "@/components/SkeletonCard";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useRepresentatives } from "@/hooks/useRepresentatives";
 import type { Representative } from "@/types";
 
@@ -116,16 +122,29 @@ function App() {
         {hasResults && (
           <div className="space-y-8">
             {groups.map((group) => (
-              <section key={group.level}>
-                <h2 className="text-xl font-semibold mb-4 border-b pb-2">
-                  {group.label}
-                </h2>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {group.reps.map((rep) => (
-                    <RepCard key={`${rep.name}-${rep.office}`} rep={rep} />
-                  ))}
-                </div>
-              </section>
+              <Collapsible key={group.level} defaultOpen asChild>
+                <section>
+                  <CollapsibleTrigger className="flex w-full items-center gap-2 border-b pb-2 cursor-pointer group">
+                    <span className="text-muted-foreground transition-transform group-data-[state=closed]:rotate-0 group-data-[state=open]:rotate-0">
+                      <ChevronRight className="h-5 w-5 group-data-[state=open]:hidden" />
+                      <ChevronDown className="h-5 w-5 group-data-[state=closed]:hidden" />
+                    </span>
+                    <h2 className="text-xl font-semibold">
+                      {group.label}
+                    </h2>
+                    <span className="text-sm text-muted-foreground">
+                      ({group.reps.length})
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="grid gap-4 md:grid-cols-2 mt-4">
+                      {group.reps.map((rep) => (
+                        <RepCard key={`${rep.name}-${rep.office}`} rep={rep} />
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </section>
+              </Collapsible>
             ))}
           </div>
         )}

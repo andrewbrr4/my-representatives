@@ -18,6 +18,7 @@ Find your elected representatives at every level of government — federal, stat
 |-----|----------------|
 | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/) |
 | `TAVILY_API_KEY` | [tavily.com](https://tavily.com/) — free tier available |
+| `US_CONGRESS_API_KEY` | [api.congress.gov](https://api.congress.gov/) — free, federal legislators |
 | `CICERO_API_KEY` | [cicerodata.com](https://www.cicerodata.com/) — comprehensive elected official data |
 | `GOOGLE_CIVIC_API_KEY` | [Google Cloud Console](https://console.cloud.google.com/apis/library/civicinfo.googleapis.com) — for election/ballot data |
 

@@ -100,6 +100,20 @@ SECTIONS: list[SectionConfig] = [
         content_field="items",
     ),
     SectionConfig(
+        name="accomplishments",
+        output_model=ListSectionResult,
+        system_prompt_file="accomplishments_system.txt",
+        user_prompt_file="accomplishments_user.txt",
+        content_field="items",
+    ),
+    SectionConfig(
+        name="controversies",
+        output_model=ListSectionResult,
+        system_prompt_file="controversies_system.txt",
+        user_prompt_file="controversies_user.txt",
+        content_field="items",
+    ),
+    SectionConfig(
         name="recent_press",
         output_model=ListSectionResult,
         system_prompt_file="recent_press_system.txt",
@@ -170,7 +184,7 @@ async def run_section_agent(
 
 @observe(name="research-pipeline")
 async def research_representative(rep: Representative) -> ResearchSummary | None:
-    """Run 5 focused section agents concurrently, assemble into ResearchSummary."""
+    """Run 7 focused section agents concurrently, assemble into ResearchSummary."""
     logger.info(f"Queued research for {rep.name}")
     async with _semaphore:
         logger.info(f"Starting research for {rep.name}")

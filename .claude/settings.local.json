@@ -15,7 +15,15 @@
       "Bash(python3:*)",
       "Bash(conda run:*)",
       "Bash(npm install:*)",
-      "WebFetch(domain:docs.claude.com)"
+      "WebFetch(domain:docs.claude.com)",
+      "WebFetch(domain:langfuse.com)",
+      "WebFetch(domain:python.reference.langfuse.com)",
+      "WebFetch(domain:docs.tavily.com)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
