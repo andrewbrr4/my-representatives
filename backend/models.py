@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -70,3 +72,11 @@ class Representative(BaseModel):
 
 class RepresentativesResponse(BaseModel):
     representatives: list[Representative]
+
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    status: Literal["lookup", "researching", "done", "error"]
+    representatives: list[Representative] | None = None
+    research: list[dict] | None = None
+    error_detail: str | None = None
