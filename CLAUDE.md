@@ -84,6 +84,7 @@ Required in `.env` at project root:
 - `CICERO_API_KEY` — [cicerodata.com](https://www.cicerodata.com/) (paid, state + municipal elected official data)
 - `US_CONGRESS_API_KEY` — [api.congress.gov](https://api.congress.gov/) (free, federal legislators)
 - `GOOGLE_CIVIC_API_KEY` — kept for future election/ballot data via `voterinfo` endpoint
+- `VITE_GOOGLE_PLACES_API_KEY` — Google Places API key for address autocomplete (frontend env var in `frontend/.env`; must have Places API (New) enabled in GCP console; restrict by HTTP referrer for security)
 - `CLAUDE_MODEL` — model ID for the research agent (e.g. `claude-sonnet-4-20250514`)
 - `US_CONGRESS_REPS_ONLY` — set to `true` to skip Cicero API and only return US congressional reps (useful for faster testing)
 - `RESEARCH_MAX_TOKENS` — max token output for each section research agent
