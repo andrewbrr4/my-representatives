@@ -60,7 +60,7 @@ Request flow:
 6. Results are sorted by level priority before streaming
 
 7. `routers/jobs.py` exposes `GET /api/jobs/{job_id}` — returns current job state (reps, per-rep research status/summaries, overall status) for polling fallback
-8. `store/` contains ABC interfaces (`interfaces.py`) and in-memory implementations (`memory.py`) for `JobStore` and `RepCache`, with lazy singletons in `dependencies.py`. Designed to swap to Redis later.
+8. `store/` contains ABC interfaces (`interfaces.py`), in-memory implementations (`memory.py`), and Redis implementations (`redis.py`) for `JobStore` and `RepCache`, with lazy singletons in `dependencies.py`. When `REDIS_URL` is set, Redis is used; otherwise falls back to in-memory.
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
@@ -94,5 +94,6 @@ Required in `.env` at project root:
 - `REP_CACHE_TTL_SECONDS` — how long cached research stays valid (default `86400` / 24h)
 - `JOB_TTL_SECONDS` — how long job state is kept in memory (default `1800` / 30min)
 - `DISABLE_REP_CACHE` — set to `true` to skip research cache globally (useful for testing pipeline changes)
+- `REDIS_URL` — Redis connection URL (e.g. `redis://localhost:6379`). When set, uses Redis for job store and rep cache; when absent, falls back to in-memory (no Redis needed for local dev)
 
 Backend loads these via `python-dotenv` at startup.
