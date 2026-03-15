@@ -1,34 +1,57 @@
 steps:
-  - name: 'gcr.io/cloud-builders/docker'
+  - name: gcr.io/cloud-builders/docker
     args:
-      - 'build'
+      - build
+      - '--no-cache'
       - '-t'
-      - 'us-east1-docker.pkg.dev/my-representatives-489301/cloud-run-source-deploy/my-representatives/my-reps-frontend:$COMMIT_SHA'
+      - >-
+        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
       - '--build-arg'
       - 'VITE_API_URL=${_VITE_API_URL}'
       - '--build-arg'
       - 'VITE_GOOGLE_PLACES_API_KEY=${_VITE_GOOGLE_PLACES_API_KEY}'
+      - frontend
       - '-f'
-      - 'frontend/Dockerfile'
-      - 'frontend'
-
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+      - frontend/Dockerfile
+    id: Build
+  - name: gcr.io/cloud-builders/docker
     args:
-      - 'gcloud'
-      - 'run'
-      - 'deploy'
-      - 'my-reps-frontend'
-      - '--image'
-      - 'us-east1-docker.pkg.dev/my-representatives-489301/cloud-run-source-deploy/my-representatives/my-reps-frontend:$COMMIT_SHA'
-      - '--region'
-      - 'us-east1'
-
+      - push
+      - >-
+        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+    id: Push
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    args:
+      - run
+      - services
+      - update
+      - $_SERVICE_NAME
+      - '--platform=managed'
+      - >-
+        --image=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - >-
+        --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID,gcb-trigger-id=$_TRIGGER_ID
+      - '--region=$_DEPLOY_REGION'
+      - '--quiet'
+    id: Deploy
+    entrypoint: gcloud
 images:
-  - 'us-east1-docker.pkg.dev/my-representatives-489301/cloud-run-source-deploy/my-representatives/my-reps-frontend:$COMMIT_SHA'
-
+  - >-
+    $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
 options:
+  substitutionOption: ALLOW_LOOSE
   logging: CLOUD_LOGGING_ONLY
-
 substitutions:
+  _PLATFORM: managed
+  _SERVICE_NAME: my-reps-frontend
+  _DEPLOY_REGION: us-east1
+  _AR_HOSTNAME: us-east1-docker.pkg.dev
+  _AR_REPOSITORY: cloud-run-source-deploy
+  _AR_PROJECT_ID: my-representatives-489301
+  _TRIGGER_ID: ''
   _VITE_API_URL: ''
   _VITE_GOOGLE_PLACES_API_KEY: ''
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - my-reps-frontend
