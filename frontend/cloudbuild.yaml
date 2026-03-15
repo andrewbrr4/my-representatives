@@ -8,7 +8,9 @@ steps:
       - 'VITE_API_URL=${_VITE_API_URL}'
       - '--build-arg'
       - 'VITE_GOOGLE_PLACES_API_KEY=${_VITE_GOOGLE_PLACES_API_KEY}'
-      - '.'
+      - '-f'
+      - 'frontend/Dockerfile'
+      - 'frontend'
 
 images:
   - 'gcr.io/my-representatives-489301/my-reps-frontend:$COMMIT_SHA'
