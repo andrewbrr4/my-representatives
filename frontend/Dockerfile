@@ -14,7 +14,11 @@ ENV VITE_API_URL=$VITE_API_URL
 ARG VITE_GOOGLE_PLACES_API_KEY
 ENV VITE_GOOGLE_PLACES_API_KEY=$VITE_GOOGLE_PLACES_API_KEY
 
-RUN npm run build
+RUN echo "=== BUILD ARG DEBUG ===" && \
+    echo "VITE_API_URL=${VITE_API_URL}" && \
+    echo "VITE_GOOGLE_PLACES_API_KEY=${VITE_GOOGLE_PLACES_API_KEY}" && \
+    echo "========================" && \
+    npm run build
 
 # Production stage
 FROM nginx:alpine
