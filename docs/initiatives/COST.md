@@ -38,7 +38,7 @@ GitHub Sponsors has a webhook that fires on each new sponsorship. Stripe has web
 | **Anthropic** | LLM calls for research agents (Claude) | Per-request (tokens) | Langfuse `GET /api/public/metrics/daily` — captures token counts and USD cost automatically via `CallbackHandler` | Fully automatable via scheduled Langfuse API poll |
 | **Tavily** | Web search tool calls during research | Per-request (searches) | Langfuse traces record each `web_search` tool call as a span; cost estimated from search count × plan tier rate | Automatable — count from Langfuse, multiply by known rate |
 | **Cicero** | State + municipal representative lookups | Bulk credits (pre-purchased) | Manual log entry on each top-up | Manual — bulk purchase model, no per-request cost attribution |
-| **Google Cloud** | Cloud Run (backend + frontend), Artifact Registry, networking | Subscription / usage-based | GCP BigQuery Billing Export — auto-exports detailed daily costs by service and SKU to a BigQuery dataset | Fully automatable via scheduled BigQuery query |
+| **Google Cloud** | Cloud Run (backend + frontend), Artifact Registry, networking | Subscription / usage-based | GCP Cloud Billing API (`cloudbilling.googleapis.com`) — query cost and usage data by service and SKU without needing a data warehouse | Automatable via scheduled API call |
 | **US Congress API** | Federal representative lookups | Free | N/A — no cost | N/A |
 | **Census Geocoder** | Address → congressional district geocoding | Free | N/A — no cost | N/A |
 
@@ -100,7 +100,7 @@ Langfuse also has per-trace APIs (`GET /api/public/traces`, `GET /api/public/obs
 - Scheduled job (e.g. daily cron) polls `GET /api/public/metrics/daily` for Anthropic costs
 - Writes one `transactions` row per day per source (`source: anthropic`, `billing_model: per_request`)
 - Tavily costs estimated from trace count × fixed per-search cost (based on plan tier), or from Tavily's own usage dashboard if they add an API
-- GCP hosting costs pulled from BigQuery Billing Export via scheduled query, written as daily `transactions` rows (`source: gcp`, `billing_model: subscription`)
+- GCP hosting costs pulled from Cloud Billing API, written as daily `transactions` rows (`source: gcp`, `billing_model: subscription`)
 - Bulk costs (Cicero) written via a simple admin endpoint called manually on each top-up
 - `transactions` table per schema above
 
