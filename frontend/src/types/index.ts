@@ -42,6 +42,11 @@ export interface RepresentativesResponse {
   representatives: Representative[];
 }
 
+export interface LookupResponse {
+  job_id: string;
+  representatives: Representative[];
+}
+
 export interface JobResearchEntry {
   index: number;
   status: "pending" | "complete" | "failed";
