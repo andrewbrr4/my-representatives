@@ -12,6 +12,17 @@ steps:
       - 'frontend/Dockerfile'
       - 'frontend'
 
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args:
+      - 'gcloud'
+      - 'run'
+      - 'deploy'
+      - 'my-reps-frontend'
+      - '--image'
+      - 'us-east1-docker.pkg.dev/my-representatives-489301/cloud-run-source-deploy/my-representatives/my-reps-frontend:$COMMIT_SHA'
+      - '--region'
+      - 'us-east1'
+
 images:
   - 'us-east1-docker.pkg.dev/my-representatives-489301/cloud-run-source-deploy/my-representatives/my-reps-frontend:$COMMIT_SHA'
 
