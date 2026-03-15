@@ -1,0 +1,18 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/my-representatives-489301/my-reps-frontend:$COMMIT_SHA'
+      - '--build-arg'
+      - 'VITE_API_URL=${_VITE_API_URL}'
+      - '--build-arg'
+      - 'VITE_GOOGLE_PLACES_API_KEY=${_VITE_GOOGLE_PLACES_API_KEY}'
+      - '.'
+
+images:
+  - 'gcr.io/my-representatives-489301/my-reps-frontend:$COMMIT_SHA'
+
+substitutions:
+  _VITE_API_URL: ''
+  _VITE_GOOGLE_PLACES_API_KEY: ''
