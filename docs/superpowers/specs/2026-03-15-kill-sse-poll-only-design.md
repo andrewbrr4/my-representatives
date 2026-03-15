@@ -36,8 +36,11 @@ class LookupResponse(BaseModel):
 
 **`GET /api/jobs/{job_id}`** — unchanged. Returns `JobStatusResponse` with per-rep research status/summaries and overall job status.
 
+**Additions:**
+- `LookupResponse` model added to `models.py`
+
 **Removals:**
-- `sse-starlette` removed from dependencies
+- `sse-starlette` removed from `backend/requirements.txt`
 - `EventSourceResponse` import and `event_stream()` generator deleted from `representatives.py`
 - All SSE event yielding logic removed
 
