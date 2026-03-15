@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { Representative, LookupResponse, JobStatusResponse } from "@/types";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://my-reps-backend-968920716189.us-east1.run.app";
+const API_URL = import.meta.env.VITE_API_URL;
 const POLL_INTERVAL_MS = 2000;
 
 export function useRepresentatives() {
