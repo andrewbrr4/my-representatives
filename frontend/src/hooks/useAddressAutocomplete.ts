@@ -1,0 +1,119 @@
+import { useState, useRef, useCallback } from "react";
+
+interface PlaceSuggestion {
+  mainText: string;
+  secondaryText: string;
+  fullText: string;
+}
+
+const PLACES_API_URL = "https://places.googleapis.com/v1/places:autocomplete";
+const DEBOUNCE_MS = 300;
+const MIN_CHARS = 3;
+
+export function useAddressAutocomplete() {
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Build-time constant — listed in dependency array for correctness
+  const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+
+  const fetchSuggestions = useCallback(
+    async (input: string) => {
+      if (!apiKey || input.length < MIN_CHARS) {
+        setSuggestions([]);
+        setIsOpen(false);
+        return;
+      }
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      try {
+        const resp = await fetch(PLACES_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": apiKey,
+          },
+          body: JSON.stringify({
+            input,
+            includedRegionCodes: ["us"],
+            includedPrimaryTypes: [
+              "street_address",
+              "subpremise",
+              "route",
+              "locality",
+            ],
+          }),
+          signal: controller.signal,
+        });
+
+        if (!resp.ok) {
+          setSuggestions([]);
+          setIsOpen(false);
+          return;
+        }
+
+        const data = await resp.json();
+        const results: PlaceSuggestion[] = (data.suggestions ?? [])
+          .filter(
+            (s: Record<string, unknown>) => s.placePrediction !== undefined
+          )
+          .map(
+            (s: {
+              placePrediction: {
+                text: { text: string };
+                structuredFormat: {
+                  mainText: { text: string };
+                  secondaryText: { text: string };
+                };
+              };
+            }) => ({
+              mainText: s.placePrediction.structuredFormat.mainText.text,
+              secondaryText:
+                s.placePrediction.structuredFormat.secondaryText.text,
+              fullText: s.placePrediction.text.text,
+            })
+          );
+
+        setSuggestions(results);
+        setIsOpen(results.length > 0);
+      } catch (err) {
+        // Aborted requests (from new keystrokes) should not clear state
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setSuggestions([]);
+        setIsOpen(false);
+      }
+    },
+    [apiKey]
+  );
+
+  const onInputChange = useCallback(
+    (value: string) => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (!value || value.length < MIN_CHARS) {
+        setSuggestions([]);
+        setIsOpen(false);
+        return;
+      }
+      timerRef.current = setTimeout(() => fetchSuggestions(value), DEBOUNCE_MS);
+    },
+    [fetchSuggestions]
+  );
+
+  const close = useCallback(() => {
+    setIsOpen(false);
+  }, []);
+
+  const clear = useCallback(() => {
+    setSuggestions([]);
+    setIsOpen(false);
+    abortRef.current?.abort();
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
+
+  return { suggestions, isOpen, onInputChange, close, clear };
+}
