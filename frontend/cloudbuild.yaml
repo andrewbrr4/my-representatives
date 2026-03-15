@@ -3,7 +3,7 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/my-representatives-489301/my-reps-frontend:$COMMIT_SHA'
+      - 'us-east1-docker.pkg.dev/my-representatives-489301/cloud-run-source-deploy/my-representatives/my-reps-frontend:$COMMIT_SHA'
       - '--build-arg'
       - 'VITE_API_URL=${_VITE_API_URL}'
       - '--build-arg'
@@ -13,7 +13,7 @@ steps:
       - 'frontend'
 
 images:
-  - 'gcr.io/my-representatives-489301/my-reps-frontend:$COMMIT_SHA'
+  - 'us-east1-docker.pkg.dev/my-representatives-489301/cloud-run-source-deploy/my-representatives/my-reps-frontend:$COMMIT_SHA'
 
 options:
   logging: CLOUD_LOGGING_ONLY
