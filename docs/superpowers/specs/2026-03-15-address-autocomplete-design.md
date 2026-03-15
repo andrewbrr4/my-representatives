@@ -46,7 +46,7 @@ The new Places API supports browser CORS, unlike the legacy API.
 
 ## API Key
 
-`GOOGLE_PLACES_API_KEY` — a new frontend-exposed env var. This can be the same GCP key as `GOOGLE_CIVIC_API_KEY` if the Places API (New) is enabled on it, or a separate key.
+`VITE_GOOGLE_PLACES_API_KEY` — a new frontend-exposed env var. This can be the same GCP key as `GOOGLE_CIVIC_API_KEY` if the Places API (New) is enabled on it, or a separate key.
 
 **Security:** Since `VITE_`-prefixed vars are embedded in the JS bundle, the key must be restricted in the Google Cloud Console:
 - HTTP referrer restrictions (restrict to the app's domain)

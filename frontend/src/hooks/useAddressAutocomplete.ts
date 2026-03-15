@@ -24,7 +24,7 @@ export function useAddressAutocomplete() {
   }, []);
 
   // Build-time constant — listed in dependency array for correctness
-  const apiKey = import.meta.env.GOOGLE_PLACES_API_KEY;
+  const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
 
   const fetchSuggestions = useCallback(
     async (input: string) => {

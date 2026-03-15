@@ -16,7 +16,7 @@ MyReps runs on Google Cloud Platform (GCP) in the `us-east1` region.
 ### Cloud Run — Frontend (`my-reps-frontend`)
 - **Image:** Built from `frontend/Dockerfile` (Node 22 build → Nginx)
 - **Port:** 8080
-- **Build args:** `VITE_API_URL` (backend Cloud Run URL), `GOOGLE_PLACES_API_KEY`
+- **Build args:** `VITE_API_URL` (backend Cloud Run URL), `VITE_GOOGLE_PLACES_API_KEY`
 
 ### Memorystore for Redis
 - **Purpose:** Persistent rep research cache (24h TTL) and job store shared across backend workers
@@ -83,7 +83,7 @@ gcloud run deploy my-reps-backend --image us-east1-docker.pkg.dev/<PROJECT_ID>/m
 # Frontend
 docker build -t us-east1-docker.pkg.dev/<PROJECT_ID>/my-reps/frontend \
   --build-arg VITE_API_URL=<BACKEND_URL> \
-  --build-arg GOOGLE_PLACES_API_KEY=<KEY> \
+  --build-arg VITE_GOOGLE_PLACES_API_KEY=<KEY> \
   ./frontend
 docker push us-east1-docker.pkg.dev/<PROJECT_ID>/my-reps/frontend
 gcloud run deploy my-reps-frontend --image us-east1-docker.pkg.dev/<PROJECT_ID>/my-reps/frontend --region us-east1

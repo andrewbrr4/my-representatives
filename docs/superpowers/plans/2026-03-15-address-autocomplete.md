@@ -16,7 +16,7 @@
 |--------|------|----------------|
 | Create | `frontend/src/hooks/useAddressAutocomplete.ts` | Debounced fetch to Places API, state management for suggestions |
 | Modify | `frontend/src/components/AddressSearch.tsx` | Integrate autocomplete dropdown, keyboard nav, click-outside |
-| Modify | `frontend/Dockerfile` | Add `GOOGLE_PLACES_API_KEY` build arg |
+| Modify | `frontend/Dockerfile` | Add `VITE_GOOGLE_PLACES_API_KEY` build arg |
 | Modify | `docker-compose.yml` | Pass env var to frontend service |
 | Modify | `CLAUDE.md` | Document new env var |
 
@@ -51,7 +51,7 @@ export function useAddressAutocomplete() {
   const abortRef = useRef<AbortController | null>(null);
 
   // Build-time constant — listed in dependency array for correctness
-  const apiKey = import.meta.env.GOOGLE_PLACES_API_KEY;
+  const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
 
   const fetchSuggestions = useCallback(
     async (input: string) => {
@@ -327,13 +327,13 @@ Expected: No errors.
 Run: `cd /Users/andrewbarry/projects/my-representatives/frontend && npm run dev`
 
 Test:
-1. Type "123 Main" — dropdown should appear with suggestions (requires `GOOGLE_PLACES_API_KEY` in `frontend/.env`)
+1. Type "123 Main" — dropdown should appear with suggestions (requires `VITE_GOOGLE_PLACES_API_KEY` in `frontend/.env`)
 2. Arrow keys navigate the list, Enter selects and auto-submits
 3. Escape dismisses dropdown
 4. Clicking a suggestion selects and auto-submits
 5. Clicking outside dismisses dropdown
 6. Typing a full address and clicking "Search" still works (manual fallback)
-7. If `GOOGLE_PLACES_API_KEY` is not set, input works exactly like before (no dropdown, no errors)
+7. If `VITE_GOOGLE_PLACES_API_KEY` is not set, input works exactly like before (no dropdown, no errors)
 
 - [ ] **Step 4: Commit**
 
@@ -356,13 +356,13 @@ git commit -m "feat: integrate address autocomplete dropdown into AddressSearch"
 In `frontend/Dockerfile`, insert these two lines immediately after line 12 (`ENV VITE_API_URL=$VITE_API_URL`) and before line 14 (`RUN npm run build`):
 
 ```dockerfile
-ARG GOOGLE_PLACES_API_KEY
-ENV GOOGLE_PLACES_API_KEY=$GOOGLE_PLACES_API_KEY
+ARG VITE_GOOGLE_PLACES_API_KEY
+ENV VITE_GOOGLE_PLACES_API_KEY=$VITE_GOOGLE_PLACES_API_KEY
 ```
 
 - [ ] **Step 2: Add env_file to frontend service in docker-compose.yml**
 
-In `docker-compose.yml`, add `env_file` to the `frontend` service so the Vite dev server has access to `GOOGLE_PLACES_API_KEY`. Insert after line 16 (`dockerfile: Dockerfile.dev`):
+In `docker-compose.yml`, add `env_file` to the `frontend` service so the Vite dev server has access to `VITE_GOOGLE_PLACES_API_KEY`. Insert after line 16 (`dockerfile: Dockerfile.dev`):
 
 ```yaml
     env_file:
@@ -374,7 +374,7 @@ In `docker-compose.yml`, add `env_file` to the `frontend` service so the Vite de
 In the "Environment Variables" section of `CLAUDE.md`, insert after the `GOOGLE_CIVIC_API_KEY` line:
 
 ```
-- `GOOGLE_PLACES_API_KEY` — Google Places API key for address autocomplete (frontend env var, read by Vite; must have Places API (New) enabled in GCP console; restrict by HTTP referrer for security)
+- `VITE_GOOGLE_PLACES_API_KEY` — Google Places API key for address autocomplete (frontend env var, read by Vite; must have Places API (New) enabled in GCP console; restrict by HTTP referrer for security)
 ```
 
 **Note on env file location:** For local dev (`cd frontend && npm run dev`), Vite reads `.env` from the working directory, so the key should go in `frontend/.env`. For Docker Compose, the `env_file: .env` directive reads from the project root `.env`. If using a single root `.env`, create a `frontend/.env` that references or duplicates the key.
@@ -388,5 +388,5 @@ Expected: Build succeeds with no errors.
 
 ```bash
 git add frontend/Dockerfile docker-compose.yml CLAUDE.md
-git commit -m "chore: add GOOGLE_PLACES_API_KEY to Dockerfile, docker-compose, and docs"
+git commit -m "chore: add VITE_GOOGLE_PLACES_API_KEY to Dockerfile, docker-compose, and docs"
 ```
