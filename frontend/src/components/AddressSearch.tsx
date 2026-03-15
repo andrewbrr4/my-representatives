@@ -96,38 +96,39 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
           }
         />
         {isOpen && suggestions.length > 0 && (
-          <ul
-            id="address-suggestions"
-            role="listbox"
-            className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md"
-          >
-            {suggestions.map((s, i) => (
-              <li
-                key={`${s.fullText}-${i}`}
-                id={`suggestion-${i}`}
-                role="option"
-                aria-selected={i === highlightedIndex}
-                className={`cursor-pointer px-3 py-2 text-sm ${
-                  i === highlightedIndex
-                    ? "bg-accent text-accent-foreground"
-                    : "hover:bg-accent/50"
-                }`}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  selectSuggestion(s.fullText);
-                }}
-                onMouseEnter={() => setHighlightedIndex(i)}
-              >
-                <span className="font-medium">{s.mainText}</span>{" "}
-                <span className="text-muted-foreground text-xs">
-                  {s.secondaryText}
-                </span>
-              </li>
-            ))}
-            <li className="px-3 py-1.5 text-[10px] text-muted-foreground text-right">
+          <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+            <ul
+              id="address-suggestions"
+              role="listbox"
+            >
+              {suggestions.map((s, i) => (
+                <li
+                  key={`${s.fullText}-${i}`}
+                  id={`suggestion-${i}`}
+                  role="option"
+                  aria-selected={i === highlightedIndex}
+                  className={`cursor-pointer px-3 py-2 text-sm ${
+                    i === highlightedIndex
+                      ? "bg-accent text-accent-foreground"
+                      : "hover:bg-accent/50"
+                  }`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    selectSuggestion(s.fullText);
+                  }}
+                  onMouseEnter={() => setHighlightedIndex(i)}
+                >
+                  <span className="font-medium">{s.mainText}</span>{" "}
+                  <span className="text-muted-foreground text-xs">
+                    {s.secondaryText}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="px-3 py-1.5 text-[10px] text-muted-foreground text-right border-t">
               Powered by Google
-            </li>
-          </ul>
+            </div>
+          </div>
         )}
       </div>
       <Button type="submit" disabled={loading || !address.trim()}>

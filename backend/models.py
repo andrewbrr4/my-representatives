@@ -74,6 +74,11 @@ class RepresentativesResponse(BaseModel):
     representatives: list[Representative]
 
 
+class LookupResponse(BaseModel):
+    job_id: str
+    representatives: list[Representative]
+
+
 class JobStatusResponse(BaseModel):
     job_id: str
     status: Literal["lookup", "researching", "done", "error"]
