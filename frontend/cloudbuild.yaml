@@ -13,6 +13,9 @@ steps:
 images:
   - 'gcr.io/my-representatives-489301/my-reps-frontend:$COMMIT_SHA'
 
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 substitutions:
   _VITE_API_URL: ''
   _VITE_GOOGLE_PLACES_API_KEY: ''
