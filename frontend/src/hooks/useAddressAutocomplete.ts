@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 interface PlaceSuggestion {
   mainText: string;
@@ -15,6 +15,13 @@ export function useAddressAutocomplete() {
   const [isOpen, setIsOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      abortRef.current?.abort();
+    };
+  }, []);
 
   // Build-time constant — listed in dependency array for correctness
   const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
@@ -60,7 +67,10 @@ export function useAddressAutocomplete() {
         const data = await resp.json();
         const results: PlaceSuggestion[] = (data.suggestions ?? [])
           .filter(
-            (s: Record<string, unknown>) => s.placePrediction !== undefined
+            (s: Record<string, unknown>) => {
+              const pred = s.placePrediction as { structuredFormat?: unknown } | undefined;
+              return pred !== undefined && pred.structuredFormat !== undefined;
+            }
           )
           .map(
             (s: {
