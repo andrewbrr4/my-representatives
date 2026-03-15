@@ -24,6 +24,10 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
     datefmt="%H:%M:%S",
 )
+# Suppress noisy OpenTelemetry context-detach errors from Langfuse's async tracing.
+# These occur when asyncio.gather tasks detach context tokens across task boundaries.
+# Traces still work correctly — this is cosmetic noise only.
+logging.getLogger("opentelemetry.context").setLevel(logging.CRITICAL)
 
 logger = logging.getLogger(__name__)
 
