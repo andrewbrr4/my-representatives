@@ -18,7 +18,11 @@ RUN echo "=== BUILD ARG DEBUG ===" && \
     echo "VITE_API_URL=${VITE_API_URL}" && \
     echo "VITE_GOOGLE_PLACES_API_KEY=${VITE_GOOGLE_PLACES_API_KEY}" && \
     echo "========================" && \
-    npm run build
+    npm run build && \
+    echo "=== BUNDLE CHECK ===" && \
+    grep -r "VITE_GOOGLE_PLACES" dist/ || echo "NOT FOUND IN BUNDLE" && \
+    grep -r "AIzaSy" dist/ || echo "API KEY NOT FOUND IN BUNDLE" && \
+    echo "========================"
 
 # Production stage
 FROM nginx:alpine
