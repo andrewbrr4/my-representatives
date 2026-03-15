@@ -6,14 +6,12 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from models import Representative, ResearchSummary
-from store.interfaces import JobStoreInterface, RepCacheInterface
+from store.interfaces import JobStoreInterface
 
 logger = logging.getLogger(__name__)
 
 JOB_TTL_SECONDS = int(os.getenv("JOB_TTL_SECONDS", "1800"))
-REP_CACHE_TTL_SECONDS = int(os.getenv("REP_CACHE_TTL_SECONDS", "86400"))
 MAX_JOBS = 1000
-MAX_CACHE_ENTRIES = 5000
 
 
 @dataclass
@@ -30,10 +28,6 @@ class JobState:
     representatives: list[Representative] = field(default_factory=list)
     research: list[RepResearchState] = field(default_factory=list)
     error_detail: str | None = None
-
-
-def _cache_key(name: str, office: str) -> str:
-    return f"{name.lower().strip()}|{office.lower().strip()}"
 
 
 class InMemoryJobStore(JobStoreInterface):
@@ -101,39 +95,3 @@ class InMemoryJobStore(JobStoreInterface):
                 del self._jobs[k]
             if expired:
                 logger.info(f"Cleaned up {len(expired)} expired jobs")
-
-
-class InMemoryRepCache(RepCacheInterface):
-    def __init__(self) -> None:
-        self._cache: dict[str, tuple[ResearchSummary, float]] = {}
-        self._lock = asyncio.Lock()
-
-    async def get(self, name: str, office: str) -> ResearchSummary | None:
-        key = _cache_key(name, office)
-        async with self._lock:
-            entry = self._cache.get(key)
-            if entry is None:
-                return None
-            summary, ts = entry
-            if time.time() - ts > REP_CACHE_TTL_SECONDS:
-                del self._cache[key]
-                return None
-            logger.info(f"Cache hit for {name} ({office})")
-            return summary
-
-    async def put(self, name: str, office: str, summary: ResearchSummary) -> None:
-        key = _cache_key(name, office)
-        async with self._lock:
-            if len(self._cache) >= MAX_CACHE_ENTRIES:
-                oldest_key = min(self._cache, key=lambda k: self._cache[k][1])
-                del self._cache[oldest_key]
-            self._cache[key] = (summary, time.time())
-
-    async def cleanup(self) -> None:
-        now = time.time()
-        async with self._lock:
-            expired = [k for k, (_, ts) in self._cache.items() if now - ts > REP_CACHE_TTL_SECONDS]
-            for k in expired:
-                del self._cache[k]
-            if expired:
-                logger.info(f"Cleaned up {len(expired)} expired cache entries")

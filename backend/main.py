@@ -34,6 +34,17 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Verify Redis connectivity at startup if configured
+    if os.getenv("REDIS_URL"):
+        try:
+            from store.redis import create_redis_client
+            client = create_redis_client()
+            await client.ping()
+            logger.info("Redis connection verified (PING OK)")
+            await client.aclose()
+        except Exception as e:
+            logger.error(f"Redis connection FAILED: {e} — falling back may cause errors")
+
     async def periodic_cleanup():
         while True:
             await asyncio.sleep(300)  # 5 minutes
