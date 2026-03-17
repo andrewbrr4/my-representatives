@@ -12,14 +12,38 @@ _pool: asyncpg.Pool | None = None
 
 
 async def get_pool() -> asyncpg.Pool:
-    """Return the shared connection pool, creating it on first call."""
+    """Return the shared connection pool, creating it on first call.
+
+    Supports two connection modes:
+    - DATABASE_URL: standard postgres:// DSN (local dev, direct IP)
+    - Cloud SQL Unix socket: set DB_SOCKET_PATH (e.g. /cloudsql/proj:region:inst),
+      DB_NAME, DB_USER, DB_PASSWORD
+    """
     global _pool
     if _pool is None:
-        dsn = os.environ.get("DATABASE_URL")
-        if not dsn:
-            raise RuntimeError("DATABASE_URL environment variable is not set")
-        _pool = await asyncpg.create_pool(dsn, min_size=1, max_size=5)
-        logger.info("Postgres connection pool created")
+        socket_path = os.environ.get("DB_SOCKET_PATH")
+        if socket_path:
+            # Cloud Run with Cloud SQL proxy — connect via Unix socket
+            db_name = os.environ.get("DB_NAME", "postgres")
+            db_user = os.environ.get("DB_USER", "postgres")
+            db_password = os.environ.get("DB_PASSWORD", "")
+            _pool = await asyncpg.create_pool(
+                host=socket_path,
+                database=db_name,
+                user=db_user,
+                password=db_password,
+                min_size=1,
+                max_size=5,
+            )
+            logger.info("Postgres pool created via Unix socket: %s", socket_path)
+        else:
+            dsn = os.environ.get("DATABASE_URL")
+            if not dsn:
+                raise RuntimeError(
+                    "Neither DB_SOCKET_PATH nor DATABASE_URL is set"
+                )
+            _pool = await asyncpg.create_pool(dsn, min_size=1, max_size=5)
+            logger.info("Postgres pool created via DATABASE_URL")
     return _pool
 
 

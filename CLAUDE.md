@@ -63,7 +63,7 @@ Request flow:
 
 7. `routers/jobs.py` exposes `GET /api/jobs/{job_id}` — returns current job state (reps, per-rep research status/summaries, overall status) for polling fallback
 8. `store/` contains ABC interfaces (`interfaces.py`), in-memory implementations (`memory.py`), and Redis implementations (`redis.py`) for `JobStore` and `RepCache`, with lazy singletons in `dependencies.py`. When `REDIS_URL` is set, Redis is used; otherwise falls back to in-memory.
-9. `db.py` manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Contains `save_job()` for persisting per-request usage data and `save_transactions()` for writing Anthropic/Tavily cost outflows to the `transactions` ledger. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
+9. `db.py` manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Supports two connection modes: `DB_SOCKET_PATH` for Unix socket (Cloud Run with Cloud SQL proxy sidecar) or `DATABASE_URL` DSN (local dev via Cloud SQL Auth Proxy). Contains `save_job()` for persisting per-request usage data and `save_transactions()` for writing Anthropic/Tavily cost outflows to the `transactions` ledger. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
@@ -98,8 +98,11 @@ Required in `.env` at project root:
 - `JOB_TTL_SECONDS` — how long job state is kept in memory (default `1800` / 30min)
 - `DISABLE_REP_CACHE` — set to `true` to skip research cache globally (useful for testing pipeline changes)
 - `REDIS_URL` — Redis connection URL (e.g. `redis://localhost:6379`). When set, uses Redis for job store and rep cache; when absent, falls back to in-memory (no Redis needed for local dev)
-- `DATABASE_URL` — PostgreSQL connection URL (e.g. `postgresql://postgres:<password>@<ip>:5432/postgres`). Required for persisting job usage data to Cloud SQL. Uses `asyncpg`.
-- `DB_PASSWORD` — Postgres password, referenced by `docker-compose.yml` to construct `DATABASE_URL` with `host.docker.internal`
+- `DATABASE_URL` — PostgreSQL connection URL (e.g. `postgresql://postgres:<password>@127.0.0.1:5432/postgres`). Used for local dev (via Cloud SQL Auth Proxy). Uses `asyncpg`.
+- `DB_SOCKET_PATH` — Cloud SQL Unix socket path (e.g. `/cloudsql/my-representatives-489301:us-central1:my-representatives`). When set, `db.py` connects via Unix socket instead of `DATABASE_URL`. Used on Cloud Run where the Cloud SQL proxy sidecar provides the socket automatically.
+- `DB_NAME` — Postgres database name (default `postgres`). Used with `DB_SOCKET_PATH`.
+- `DB_USER` — Postgres user (default `postgres`). Used with `DB_SOCKET_PATH`.
+- `DB_PASSWORD` — Postgres password. Used with `DB_SOCKET_PATH` on Cloud Run, and by `docker-compose.yml` to construct `DATABASE_URL`.
 - `ANTHROPIC_INPUT_COST_PER_M` — Anthropic input token cost in USD per million tokens (e.g. `3` for Sonnet 4)
 - `ANTHROPIC_OUTPUT_COST_PER_M` — Anthropic output token cost in USD per million tokens (e.g. `15` for Sonnet 4)
 - `TAVILY_COST_PER_SEARCH` — Tavily cost per search in USD (e.g. `0.008`)

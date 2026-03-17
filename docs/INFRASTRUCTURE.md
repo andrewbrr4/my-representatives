@@ -10,6 +10,7 @@ MyReps runs on Google Cloud Platform (GCP) in the `us-east1` region.
 - **Region:** us-east1
 - **VPC:** Direct VPC egress to `default` network (required for Redis access)
 - **Traffic routing:** Route only private IPs to VPC
+- **Cloud SQL connection:** Add the Cloud SQL instance (`my-representatives-489301:us-central1:my-representatives`) to the service. Cloud Run injects a proxy sidecar that exposes a Unix socket at `/cloudsql/my-representatives-489301:us-central1:my-representatives`. The backend connects via `DB_SOCKET_PATH` env var (see below).
 - **Secrets:** API keys injected via GCP Secret Manager (see below)
 - **Env vars:** `REDIS_URL=redis://10.107.77.182:6379` set as a Cloud Run env var (not a secret — it's a private IP)
 
@@ -41,12 +42,19 @@ API keys are stored in Secret Manager and mounted as env vars in Cloud Run, not 
 
 Non-secret env vars (set directly on Cloud Run):
 - `REDIS_URL` — Redis connection string
+- `DB_SOCKET_PATH` — Cloud SQL Unix socket path (e.g. `/cloudsql/my-representatives-489301:us-central1:my-representatives`)
+- `DB_NAME` — Postgres database name (default `postgres`)
+- `DB_USER` — Postgres user (default `postgres`)
 - `CLAUDE_MODEL` — model ID for research agents
 - `RESEARCH_MAX_TOKENS` — max tokens per section agent
 - `LANGFUSE_BASE_URL` — Langfuse endpoint
 - `US_CONGRESS_REPS_ONLY` — feature flag
 - `REP_CACHE_TTL_SECONDS` — cache TTL (default 86400)
 - `JOB_TTL_SECONDS` — job TTL (default 1800)
+
+| Secret name | Env var | Used by |
+|------------|---------|---------|
+| `DB_PASSWORD` | `DB_PASSWORD` | Backend — Cloud SQL password (used with `DB_SOCKET_PATH`) |
 
 ## Networking
 

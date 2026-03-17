@@ -40,8 +40,13 @@ LANGFUSE_SECRET_KEY=...
 LANGFUSE_PUBLIC_KEY=...
 LANGFUSE_BASE_URL=https://us.cloud.langfuse.com
 
-# Cloud SQL (via auth proxy — see below)
+# Cloud SQL — local dev (via auth proxy — see below)
 DATABASE_URL=postgresql://postgres:<password>@127.0.0.1:5432/postgres
+# Cloud SQL — Cloud Run (uses Unix socket from proxy sidecar instead of DATABASE_URL)
+# DB_SOCKET_PATH=/cloudsql/my-representatives-489301:us-central1:my-representatives
+# DB_NAME=postgres
+# DB_USER=postgres
+# DB_PASSWORD=<password>
 
 # Cost tracking (for transactions ledger)
 ANTHROPIC_INPUT_COST_PER_M=3      # USD per million input tokens
