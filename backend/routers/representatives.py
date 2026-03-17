@@ -11,6 +11,7 @@ from models import AddressRequest, LookupResponse, Representative
 from services.cicero import get_state_local_representatives
 from services.congress import get_federal_representatives
 from research.pipeline import research_representative
+from research.usage import UsageStats
 from store.dependencies import get_job_store, get_rep_cache
 
 logger = logging.getLogger(__name__)
@@ -20,18 +21,20 @@ router = APIRouter()
 
 async def _research_rep_to_store(
     job_id: str, index: int, rep: Representative
-) -> None:
+) -> UsageStats:
     """Research a single rep, writing results to job store and rep cache."""
     job_store = get_job_store()
     rep_cache = get_rep_cache()
     try:
-        summary = await research_representative(rep)
+        summary, usage = await research_representative(rep)
         await job_store.update_rep_research(job_id, index, summary, failed=summary is None)
         if summary is not None:
             await rep_cache.put(rep.name, rep.office, summary)
+        return usage
     except Exception as e:
         logger.warning(f"Research failed for {rep.name}: {e}")
         await job_store.update_rep_research(job_id, index, None, failed=True)
+        return UsageStats()
 
 
 async def _run_all_research(job_id: str, reps: list[Representative], skip_cache: bool = False) -> None:
@@ -40,20 +43,33 @@ async def _run_all_research(job_id: str, reps: list[Representative], skip_cache:
     rep_cache = get_rep_cache()
 
     tasks = []
+    cached_count = 0
     for i, rep in enumerate(reps):
         # Check cache first (unless disabled)
         if not skip_cache:
             cached = await rep_cache.get(rep.name, rep.office)
             if cached is not None:
                 await job_store.update_rep_research(job_id, i, cached)
+                cached_count += 1
                 continue
         tasks.append(asyncio.create_task(_research_rep_to_store(job_id, i, rep)))
 
+    total_usage = UsageStats()
     if tasks:
-        await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for result in results:
+            if isinstance(result, UsageStats):
+                total_usage += result
 
     await job_store.mark_done(job_id)
-    logger.info(f"Job {job_id}: all research complete")
+    logger.info(
+        f"Job {job_id}: research complete — "
+        f"{len(reps)} reps ({cached_count} cached, {len(tasks)} researched) — "
+        f"{total_usage.input_tokens:,} input tokens, "
+        f"{total_usage.output_tokens:,} output tokens, "
+        f"{total_usage.total_tokens:,} total tokens, "
+        f"{total_usage.tool_calls} tool calls"
+    )
 
 
 @router.post("/api/representatives")
