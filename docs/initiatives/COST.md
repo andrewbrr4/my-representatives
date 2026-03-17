@@ -114,18 +114,36 @@ Job abc123: research complete — 8 reps (2 cached, 6 researched) — 45,231 inp
 
 **Database:** Cloud SQL for PostgreSQL (GCP-managed). Connection via `DATABASE_URL` env var. Schema migrations in `backend/migrations/`.
 
-### Phase 2 — Transactions ledger + transparency dashboard
+### Phase 2 — Transactions ledger (implemented)
 
-Database and `jobs` table are live. `jobs` rows are written automatically on every research completion. What remains:
+Anthropic and Tavily outflow transactions are written to the `transactions` table inline at request time, alongside `save_job`. Cost is computed from token counts and tool calls using env var pricing (`ANTHROPIC_INPUT_COST_PER_M`, `ANTHROPIC_OUTPUT_COST_PER_M`, `TAVILY_COST_PER_SEARCH`). See `db.py:save_transactions()`.
 
-**Populate `transactions` table:**
-- Write Anthropic cost entries derived from `jobs` data (token counts × per-token pricing)
-- Tavily costs estimated from `tool_calls` count × per-search cost (based on plan tier)
-- GCP hosting costs from Cloud Billing API, written as periodic entries (`source: gcp`, `billing_model: subscription`)
-- Bulk costs (Cicero) written via a simple admin endpoint called manually on each top-up
+**Design decision: two tables, two purposes.**
 
-**Endpoints and dashboard:**
+- **`jobs`** = operational telemetry. Raw token counts, tool calls, reps found/cached. Used by the dashboard for per-request stats (average cost per lookup, tokens per request). These are estimates — the dashboard applies current pricing to historical token counts, so numbers shift if pricing changes. That's fine for "roughly what does a request cost" questions.
+
+- **`transactions`** = financial ledger. Actual USD spent, recorded at the time of the request. Immutable once written. Used for "how much money have I spent total" questions.
+
+**Why inline writes instead of polling:**
+- Anthropic and Tavily are ~99% of costs, so getting these right covers most of the ledger
+- Anthropic pricing changes are rare and announced in advance — update the env var when it happens
+- Tavily has no cost API, so env var pricing is the only option regardless
+- Avoids the complexity of a polling job, reconciliation logic, or Langfuse API dependency
+- If we ever want to verify accuracy, a one-off reconciliation script against Langfuse can spot-check Anthropic costs
+
+**What remains:**
+- GCP hosting costs: future scheduled job polling Cloud Billing API → periodic `transactions` entries (`source: gcp`, `billing_model: subscription`)
+- Cicero: manual entry on each credit top-up (`source: cicero`, `billing_model: bulk`)
+- Inflows: future GitHub Sponsors webhook → `transactions` entries (`type: inflow`)
+
+### Phase 3 — Cost dashboard
+
+**Endpoints:**
 - `/api/costs/summary` and `/api/costs/transactions` backend endpoints
-- `/costs` frontend dashboard: daily spend by source, period totals, average cost per lookup, inflows vs. outflows once donation infrastructure exists
+
+**Dashboard (`/costs`):**
+- Per-request stats from `jobs`: average cost per lookup, tokens/searches per request (estimated from current pricing)
+- Total spend from `transactions`: actual USD by source, period totals, daily trends
+- Inflows vs. outflows once donation infrastructure exists
 
 Cicero and other bulk sources appear as periodic lump entries alongside granular per-request costs.

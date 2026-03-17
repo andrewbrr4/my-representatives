@@ -42,6 +42,11 @@ LANGFUSE_BASE_URL=https://us.cloud.langfuse.com
 
 # Cloud SQL (via auth proxy — see below)
 DATABASE_URL=postgresql://postgres:<password>@127.0.0.1:5432/postgres
+
+# Cost tracking (for transactions ledger)
+ANTHROPIC_INPUT_COST_PER_M=3      # USD per million input tokens
+ANTHROPIC_OUTPUT_COST_PER_M=15    # USD per million output tokens
+TAVILY_COST_PER_SEARCH=0.008      # USD per search
 ```
 
 The frontend also needs a `frontend/.env`:
@@ -71,6 +76,14 @@ cloud-sql-proxy my-representatives-489301:us-central1:my-representatives --port 
 ```
 
 This proxies `localhost:5432` to the Cloud SQL instance. Make sure `DATABASE_URL` in `.env` points to `127.0.0.1`.
+
+```bash
+# Check if it's running
+pgrep -fl cloud-sql-proxy
+
+# Stop it
+pkill cloud-sql-proxy
+```
 
 If you don't need database persistence, you can skip this — the app still works, it just won't save job usage data.
 

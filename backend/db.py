@@ -2,6 +2,7 @@
 
 import logging
 import os
+from decimal import Decimal
 
 import asyncpg
 
@@ -54,3 +55,54 @@ async def save_job(
         job_id, address, reps_found, reps_researched, reps_cached,
         input_tokens, output_tokens, tool_calls, status,
     )
+
+
+_M = Decimal("1000000")
+
+
+async def save_transactions(
+    *,
+    job_id: str,
+    input_tokens: int,
+    output_tokens: int,
+    tool_calls: int,
+) -> None:
+    """Insert outflow transactions for Anthropic and Tavily costs."""
+    pool = await get_pool()
+
+    input_cost_per_m = os.environ.get("ANTHROPIC_INPUT_COST_PER_M")
+    output_cost_per_m = os.environ.get("ANTHROPIC_OUTPUT_COST_PER_M")
+    tavily_cost_per_search = os.environ.get("TAVILY_COST_PER_SEARCH")
+
+    if input_cost_per_m and output_cost_per_m:
+        anthropic_cost = (
+            Decimal(input_tokens) * Decimal(input_cost_per_m) / _M
+            + Decimal(output_tokens) * Decimal(output_cost_per_m) / _M
+        )
+        await pool.execute(
+            """
+            INSERT INTO transactions (type, source, billing_model, amount_usd,
+                                      description, job_id)
+            VALUES ('outflow', 'anthropic', 'per_request', $1, $2, $3)
+            """,
+            anthropic_cost,
+            f"{input_tokens} input + {output_tokens} output tokens",
+            job_id,
+        )
+    else:
+        logger.warning("ANTHROPIC_INPUT_COST_PER_M / ANTHROPIC_OUTPUT_COST_PER_M not set, skipping anthropic transaction")
+
+    if tavily_cost_per_search and tool_calls > 0:
+        tavily_cost = Decimal(tool_calls) * Decimal(tavily_cost_per_search)
+        await pool.execute(
+            """
+            INSERT INTO transactions (type, source, billing_model, amount_usd,
+                                      description, job_id)
+            VALUES ('outflow', 'tavily', 'per_request', $1, $2, $3)
+            """,
+            tavily_cost,
+            f"{tool_calls} web searches",
+            job_id,
+        )
+    elif not tavily_cost_per_search:
+        logger.warning("TAVILY_COST_PER_SEARCH not set, skipping tavily transaction")

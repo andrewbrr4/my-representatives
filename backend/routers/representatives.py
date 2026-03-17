@@ -10,7 +10,7 @@ from slowapi.util import get_remote_address
 from models import AddressRequest, LookupResponse, Representative
 from services.cicero import get_state_local_representatives
 from services.congress import get_federal_representatives
-from db import save_job
+from db import save_job, save_transactions
 from research.pipeline import research_representative
 from research.usage import UsageStats
 from store.dependencies import get_job_store, get_rep_cache
@@ -84,6 +84,12 @@ async def _run_all_research(job_id: str, address: str, reps: list[Representative
             output_tokens=total_usage.output_tokens,
             tool_calls=total_usage.tool_calls,
             status=status,
+        )
+        await save_transactions(
+            job_id=job_id,
+            input_tokens=total_usage.input_tokens,
+            output_tokens=total_usage.output_tokens,
+            tool_calls=total_usage.tool_calls,
         )
         logger.info(f"Job {job_id}: saved to database")
     except Exception as e:
