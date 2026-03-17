@@ -112,7 +112,7 @@ Job abc123: research complete — 8 reps (2 cached, 6 researched) — 45,231 inp
 
 **Database persistence:** After logging, usage data is written to the `jobs` table in Cloud SQL PostgreSQL via `db.py` (asyncpg connection pool). DB writes are wrapped in try/except so failures never break the main research flow.
 
-**Database:** Cloud SQL for PostgreSQL (GCP-managed). Connection via `DATABASE_URL` env var. Schema migrations in `backend/migrations/`.
+**Database:** Cloud SQL for PostgreSQL (GCP-managed). Locally connects via `DATABASE_URL` (through Cloud SQL Auth Proxy); on Cloud Run connects via Unix socket (`DB_SOCKET_PATH`). Schema migrations in `backend/migrations/`.
 
 ### Phase 2 — Transactions ledger (implemented)
 
