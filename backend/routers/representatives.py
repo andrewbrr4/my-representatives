@@ -10,6 +10,7 @@ from slowapi.util import get_remote_address
 from models import AddressRequest, LookupResponse, Representative
 from services.cicero import get_state_local_representatives
 from services.congress import get_federal_representatives
+from db import save_job
 from research.pipeline import research_representative
 from research.usage import UsageStats
 from store.dependencies import get_job_store, get_rep_cache
@@ -37,7 +38,7 @@ async def _research_rep_to_store(
         return UsageStats()
 
 
-async def _run_all_research(job_id: str, reps: list[Representative], skip_cache: bool = False) -> None:
+async def _run_all_research(job_id: str, address: str, reps: list[Representative], skip_cache: bool = False) -> None:
     """Fire-and-forget: research all reps and mark job done when finished."""
     job_store = get_job_store()
     rep_cache = get_rep_cache()
@@ -61,6 +62,7 @@ async def _run_all_research(job_id: str, reps: list[Representative], skip_cache:
             if isinstance(result, UsageStats):
                 total_usage += result
 
+    status = "done"
     await job_store.mark_done(job_id)
     logger.info(
         f"Job {job_id}: research complete — "
@@ -70,6 +72,22 @@ async def _run_all_research(job_id: str, reps: list[Representative], skip_cache:
         f"{total_usage.total_tokens:,} total tokens, "
         f"{total_usage.tool_calls} tool calls"
     )
+
+    try:
+        await save_job(
+            job_id=job_id,
+            address=address,
+            reps_found=len(reps),
+            reps_researched=len(tasks),
+            reps_cached=cached_count,
+            input_tokens=total_usage.input_tokens,
+            output_tokens=total_usage.output_tokens,
+            tool_calls=total_usage.tool_calls,
+            status=status,
+        )
+        logger.info(f"Job {job_id}: saved to database")
+    except Exception as e:
+        logger.error(f"Job {job_id}: failed to save to database: {e}")
 
 
 @router.post("/api/representatives")
@@ -123,7 +141,7 @@ async def lookup_representatives(
     await job_store.create_job(job_id, reps)
 
     logger.info(f"Job {job_id}: starting research for {len(reps)} reps")
-    asyncio.create_task(_run_all_research(job_id, reps, skip_cache=skip_cache))
+    asyncio.create_task(_run_all_research(job_id, address_request.address, reps, skip_cache=skip_cache))
 
     # Phase 3: Return reps + job_id as plain JSON
     return LookupResponse(job_id=job_id, representatives=reps)
