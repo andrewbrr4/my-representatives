@@ -63,9 +63,29 @@ Local dev does **not** use Redis. When `REDIS_URL` is absent:
 - Job store: in-memory (works for single-worker `--reload` mode)
 - Rep cache: disabled (no caching — every lookup does fresh research)
 
+### Cloud SQL Auth Proxy
+
+Local dev connects to Cloud SQL via the Auth Proxy (authenticates with your `gcloud` IAM credentials — no public IP or IP allowlisting needed).
+
 ```bash
-# No REDIS_URL needed locally
+# Start the proxy (runs in background, proxies localhost:5432 → Cloud SQL)
+cloud-sql-proxy my-representatives-489301:us-central1:my-representatives --port 5432 &
+```
+
+`.env` should use `127.0.0.1` as the host:
+```
+DATABASE_URL=postgresql://postgres:<password>@127.0.0.1:5432/postgres
+```
+
+### Running locally
+
+```bash
 conda activate my-reps
+
+# Start Cloud SQL proxy
+cloud-sql-proxy my-representatives-489301:us-central1:my-representatives --port 5432 &
+
+# Backend + frontend
 cd backend && uvicorn main:app --reload     # :8000
 cd frontend && npm run dev                  # :5173
 ```

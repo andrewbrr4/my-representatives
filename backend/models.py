@@ -1,3 +1,5 @@
+from datetime import datetime
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
@@ -85,3 +87,24 @@ class JobStatusResponse(BaseModel):
     representatives: list[Representative] | None = None
     research: list[dict] | None = None
     error_detail: str | None = None
+
+
+class TransactionCreate(BaseModel):
+    type: Literal["inflow", "outflow"]
+    source: str
+    billing_model: Literal["per_request", "bulk", "subscription"]
+    amount_usd: float
+    description: str | None = None
+    job_id: str | None = None
+
+
+class TransactionOut(BaseModel):
+    id: int
+    type: str
+    source: str
+    billing_model: str
+    amount_usd: Decimal
+    description: str | None
+    job_id: str | None
+    created_at: datetime
+    balance_after: Decimal | None

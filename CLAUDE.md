@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-MyReps — a full-stack app where a user enters their address and gets a list of representatives (municipal, state, federal) with AI-researched summaries. No auth, no database, no caching.
+MyReps — a full-stack app where a user enters their address and gets a list of representatives (municipal, state, federal) with AI-researched summaries. No auth. Cloud SQL PostgreSQL for cost/usage tracking. Redis optional for caching.
 
 **Read [MISSION.md](./docs/MISSION.md) and [DESIGN.md](./docs/DESIGN.md) before making any changes.** MISSION.md defines the product vision and principles. DESIGN.md captures design decisions, tradeoffs, and open challenges.
 
@@ -57,10 +57,13 @@ Request flow:
    - Each section (background, policy_positions, recent_legislative_record, accomplishments, controversies, recent_press, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a Tavily `web_search` tool and returns structured output with per-section citations
    - Section prompts are stored in `research/prompts/` (system + user template per section)
    - Each agent is limited to 5 web searches and `recursion_limit=15`
+   - A separate `UsageTracker` callback handler (`research/usage.py`) runs alongside Langfuse on each agent, tracking input/output tokens and tool calls independently
+   - Per-rep usage is aggregated and logged; per-job totals are persisted to the `jobs` table in Postgres via `db.py`
 6. Results are sorted by level priority before streaming
 
 7. `routers/jobs.py` exposes `GET /api/jobs/{job_id}` — returns current job state (reps, per-rep research status/summaries, overall status) for polling fallback
 8. `store/` contains ABC interfaces (`interfaces.py`), in-memory implementations (`memory.py`), and Redis implementations (`redis.py`) for `JobStore` and `RepCache`, with lazy singletons in `dependencies.py`. When `REDIS_URL` is set, Redis is used; otherwise falls back to in-memory.
+9. `db.py` manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Contains `save_job()` for persisting per-request usage data and `save_transactions()` for writing Anthropic/Tavily cost outflows to the `transactions` ledger. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
@@ -95,5 +98,10 @@ Required in `.env` at project root:
 - `JOB_TTL_SECONDS` — how long job state is kept in memory (default `1800` / 30min)
 - `DISABLE_REP_CACHE` — set to `true` to skip research cache globally (useful for testing pipeline changes)
 - `REDIS_URL` — Redis connection URL (e.g. `redis://localhost:6379`). When set, uses Redis for job store and rep cache; when absent, falls back to in-memory (no Redis needed for local dev)
+- `DATABASE_URL` — PostgreSQL connection URL (e.g. `postgresql://postgres:<password>@<ip>:5432/postgres`). Required for persisting job usage data to Cloud SQL. Uses `asyncpg`.
+- `DB_PASSWORD` — Postgres password, referenced by `docker-compose.yml` to construct `DATABASE_URL` with `host.docker.internal`
+- `ANTHROPIC_INPUT_COST_PER_M` — Anthropic input token cost in USD per million tokens (e.g. `3` for Sonnet 4)
+- `ANTHROPIC_OUTPUT_COST_PER_M` — Anthropic output token cost in USD per million tokens (e.g. `15` for Sonnet 4)
+- `TAVILY_COST_PER_SEARCH` — Tavily cost per search in USD (e.g. `0.008`)
 
 Backend loads these via `python-dotenv` at startup.

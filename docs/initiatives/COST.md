@@ -47,20 +47,36 @@ Cicero is purchased in bulk and topped up as needed rather than billed per reque
 
 If usage patterns eventually make amortized per-request attribution useful (e.g. cost-per-lookup calculations), a credit burn rate can be estimated from historical top-up frequency and request volume.
 
-### Ledger schema (phase 2)
+### Database schema (implemented)
+
+Two tables in Cloud SQL PostgreSQL. Migration: `backend/migrations/001_create_jobs_and_transactions.sql`.
+
 ```
+jobs
+  - id              text PK (12-char hex job_id)
+  - address         text
+  - reps_found      int
+  - reps_researched int (reps that hit the pipeline, not cached)
+  - reps_cached     int
+  - input_tokens    int
+  - output_tokens   int
+  - tool_calls      int
+  - status          text (done | error)
+  - created_at      timestamptz
+
 transactions
-  - id
-  - type           (inflow | outflow)
-  - source         (string — e.g. github_sponsors, anthropic, tavily, cicero, hosting, other)
-  - billing_model  (per_request | bulk | subscription)
-  - amount_usd
-  - description
-  - created_at
-  - balance_after  (running total)
+  - id              serial PK
+  - type            text (inflow | outflow)
+  - source          text (e.g. github_sponsors, anthropic, tavily, cicero, gcp)
+  - billing_model   text (per_request | bulk | subscription)
+  - amount_usd      numeric(10,4)
+  - description     text
+  - job_id          text FK → jobs(id), nullable
+  - created_at      timestamptz
+  - balance_after   numeric(10,4) (running total)
 ```
 
-`source` is a freeform string and `billing_model` documents how the cost accrues, so new sources with different billing patterns can be added without a schema migration.
+`jobs` captures per-request operational telemetry. `transactions` is the financial ledger. `job_id` FK links per-request outflows to specific lookups; null for bulk/subscription/inflow entries. `source` is freeform so new cost sources can be added without a schema migration.
 
 ---
 
@@ -81,31 +97,53 @@ Langfuse already captures Anthropic token usage and costs automatically via the 
 
 This phase requires no code changes. Use the Langfuse dashboard for ad-hoc cost visibility during early usage.
 
-### Phase 2 — Database ledger + transparency dashboard
+### Phase 1.5 — Per-request usage tracking + persistence (implemented)
 
-Introduce a `transactions` table and populate it by polling the Langfuse API, so the app owns its cost data independently.
+A custom `UsageTracker` callback handler (`research/usage.py`) runs alongside the Langfuse handler on every section agent, tracking input tokens, output tokens, and tool calls independently. Fully decoupled from Langfuse — if Langfuse breaks, usage tracking still works.
 
-**Langfuse API as data source:**
-
-Langfuse exposes a `GET /api/public/metrics/daily` endpoint that returns aggregated daily metrics including trace counts, total costs, and per-model token usage. A background job (cron or scheduled task) can poll this endpoint and write cost entries to the `transactions` table.
+Usage bubbles up from section → rep → job:
+- Each section agent returns its `UsageStats` alongside content/citations
+- `research_representative()` aggregates across 7 sections and logs per-rep totals
+- `_run_all_research()` aggregates across all reps and logs the job-level summary:
 
 ```
-GET /api/public/metrics/daily?traceName=research-pipeline
-→ { date, countTraces, totalCost, usage: [{ model, inputUsage, outputUsage, totalUsage }] }
+Job abc123: research complete — 8 reps (2 cached, 6 researched) — 45,231 input tokens, 12,847 output tokens, 58,078 total tokens, 42 tool calls
 ```
 
-Langfuse also has per-trace APIs (`GET /api/public/traces`, `GET /api/public/observations`) for more granular per-lookup attribution if needed.
+**Database persistence:** After logging, usage data is written to the `jobs` table in Cloud SQL PostgreSQL via `db.py` (asyncpg connection pool). DB writes are wrapped in try/except so failures never break the main research flow.
 
-**Implementation approach:**
-- Scheduled job (e.g. daily cron) polls `GET /api/public/metrics/daily` for Anthropic costs
-- Writes one `transactions` row per day per source (`source: anthropic`, `billing_model: per_request`)
-- Tavily costs estimated from trace count × fixed per-search cost (based on plan tier), or from Tavily's own usage dashboard if they add an API
-- GCP hosting costs pulled from Cloud Billing API, written as daily `transactions` rows (`source: gcp`, `billing_model: subscription`)
-- Bulk costs (Cicero) written via a simple admin endpoint called manually on each top-up
-- `transactions` table per schema above
+**Database:** Cloud SQL for PostgreSQL (GCP-managed). Connection via `DATABASE_URL` env var. Schema migrations in `backend/migrations/`.
 
-**Endpoints and dashboard:**
+### Phase 2 — Transactions ledger (implemented)
+
+Anthropic and Tavily outflow transactions are written to the `transactions` table inline at request time, alongside `save_job`. Cost is computed from token counts and tool calls using env var pricing (`ANTHROPIC_INPUT_COST_PER_M`, `ANTHROPIC_OUTPUT_COST_PER_M`, `TAVILY_COST_PER_SEARCH`). See `db.py:save_transactions()`.
+
+**Design decision: two tables, two purposes.**
+
+- **`jobs`** = operational telemetry. Raw token counts, tool calls, reps found/cached. Used by the dashboard for per-request stats (average cost per lookup, tokens per request). These are estimates — the dashboard applies current pricing to historical token counts, so numbers shift if pricing changes. That's fine for "roughly what does a request cost" questions.
+
+- **`transactions`** = financial ledger. Actual USD spent, recorded at the time of the request. Immutable once written. Used for "how much money have I spent total" questions.
+
+**Why inline writes instead of polling:**
+- Anthropic and Tavily are ~99% of costs, so getting these right covers most of the ledger
+- Anthropic pricing changes are rare and announced in advance — update the env var when it happens
+- Tavily has no cost API, so env var pricing is the only option regardless
+- Avoids the complexity of a polling job, reconciliation logic, or Langfuse API dependency
+- If we ever want to verify accuracy, a one-off reconciliation script against Langfuse can spot-check Anthropic costs
+
+**What remains:**
+- GCP hosting costs: future scheduled job polling Cloud Billing API → periodic `transactions` entries (`source: gcp`, `billing_model: subscription`)
+- Cicero: manual entry on each credit top-up (`source: cicero`, `billing_model: bulk`)
+- Inflows: future GitHub Sponsors webhook → `transactions` entries (`type: inflow`)
+
+### Phase 3 — Cost dashboard
+
+**Endpoints:**
 - `/api/costs/summary` and `/api/costs/transactions` backend endpoints
-- `/costs` frontend dashboard: daily spend by source, period totals, average cost per lookup, inflows vs. outflows once donation infrastructure exists
+
+**Dashboard (`/costs`):**
+- Per-request stats from `jobs`: average cost per lookup, tokens/searches per request (estimated from current pricing)
+- Total spend from `transactions`: actual USD by source, period totals, daily trends
+- Inflows vs. outflows once donation infrastructure exists
 
 Cicero and other bulk sources appear as periodic lump entries alongside granular per-request costs.

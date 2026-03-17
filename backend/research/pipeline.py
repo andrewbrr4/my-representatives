@@ -23,6 +23,7 @@ from models import (
     ResearchSummary,
     SectionResult,
 )
+from research.usage import UsageStats, UsageTracker
 
 logger = logging.getLogger(__name__)
 
@@ -133,9 +134,10 @@ SECTIONS: list[SectionConfig] = [
 @observe(name="section-agent")
 async def run_section_agent(
     rep: Representative, section: SectionConfig
-) -> tuple[str | list[str], list[Citation]]:
+) -> tuple[str | list[str], list[Citation], UsageStats]:
     """Run a focused agent for one section of the research summary."""
     langfuse_handler = CallbackHandler()
+    usage_tracker = UsageTracker()
     model = ChatAnthropic(
         model=os.environ["CLAUDE_MODEL"],
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
@@ -166,7 +168,7 @@ async def run_section_agent(
             ]
         },
         config={
-            "callbacks": [langfuse_handler],
+            "callbacks": [langfuse_handler, usage_tracker],
             "recursion_limit": 15,
             "run_name": f"{section.name}:{rep.name}",
         },
@@ -179,12 +181,13 @@ async def run_section_agent(
         f"Section '{section.name}' complete for {rep.name}: "
         f"{len(citations)} citations"
     )
-    return content, citations
+    return content, citations, usage_tracker.stats
 
 
 @observe(name="research-pipeline")
-async def research_representative(rep: Representative) -> ResearchSummary | None:
+async def research_representative(rep: Representative) -> tuple[ResearchSummary | None, UsageStats]:
     """Run 7 focused section agents concurrently, assemble into ResearchSummary."""
+    total_usage = UsageStats()
     logger.info(f"Queued research for {rep.name}")
     async with _semaphore:
         logger.info(f"Starting research for {rep.name}")
@@ -201,18 +204,23 @@ async def research_representative(rep: Representative) -> ResearchSummary | None
                         f"Section '{section.name}' failed for {rep.name}: {result}",
                         exc_info=result,
                     )
-                    # Fallback: empty content, no citations
                     if section.content_field == "content":
                         summary_kwargs[section.name] = ""
                     else:
                         summary_kwargs[section.name] = []
                     summary_kwargs[f"{section.name}_citations"] = []
                 else:
-                    content, citations = result
+                    content, citations, usage = result
                     summary_kwargs[section.name] = content
                     summary_kwargs[f"{section.name}_citations"] = citations
+                    total_usage += usage
 
-            return ResearchSummary(**summary_kwargs)
+            logger.info(
+                f"Research for {rep.name}: "
+                f"{total_usage.input_tokens} in / {total_usage.output_tokens} out / "
+                f"{total_usage.tool_calls} tool calls"
+            )
+            return ResearchSummary(**summary_kwargs), total_usage
         except Exception as e:
             logger.error(f"Research failed for {rep.name}: {e}", exc_info=True)
-            return None
+            return None, total_usage
