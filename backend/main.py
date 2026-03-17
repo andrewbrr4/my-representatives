@@ -17,6 +17,7 @@ from slowapi.util import get_remote_address
 
 from routers.representatives import router
 from routers.jobs import router as jobs_router
+from routers.transactions import router as transactions_router
 from db import close_pool
 from store.dependencies import get_job_store, get_rep_cache
 
@@ -93,3 +94,4 @@ app.add_middleware(
 
 app.include_router(router)
 app.include_router(jobs_router)
+app.include_router(transactions_router)

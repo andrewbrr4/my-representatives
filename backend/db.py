@@ -106,3 +106,35 @@ async def save_transactions(
         )
     elif not tavily_cost_per_search:
         logger.warning("TAVILY_COST_PER_SEARCH not set, skipping tavily transaction")
+
+
+async def save_manual_transaction(
+    *,
+    type: str,
+    source: str,
+    billing_model: str,
+    amount_usd: float,
+    description: str | None = None,
+    job_id: str | None = None,
+) -> dict:
+    """Insert a manual transaction and return id + created_at."""
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        INSERT INTO transactions (type, source, billing_model, amount_usd, description, job_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, created_at
+        """,
+        type, source, billing_model, Decimal(str(amount_usd)), description, job_id,
+    )
+    return {"id": row["id"], "created_at": row["created_at"]}
+
+
+async def list_transactions(limit: int = 50) -> list[dict]:
+    """Return recent transactions ordered by created_at desc."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        "SELECT * FROM transactions ORDER BY created_at DESC LIMIT $1",
+        limit,
+    )
+    return [dict(r) for r in rows]
