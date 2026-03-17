@@ -4,27 +4,95 @@ Find your elected representatives at every level of government — federal, stat
 
 - [Product mission & principles](./docs/MISSION.md)
 - [Design approach & challenges](./docs/DESIGN.md)
+- [Infrastructure & deployment](./docs/INFRASTRUCTURE.md)
 
 ## How It Works
 
 1. Enter your address
-2. The backend calls the Cicero API to find your elected representatives at all levels
-3. For each rep, a Claude AI agent searches the web (via Tavily) and writes a nonpartisan summary
-4. Results are displayed grouped by government level
+2. The backend resolves your address to representatives via two concurrent lookups:
+   - **Federal:** Census Geocoder (free) → US Congress API for senators + house rep
+   - **State + municipal:** Cicero API for all other elected officials
+3. Representatives are returned immediately via SSE; AI research runs in the background
+4. For each rep, 7 focused Claude agents research different sections (background, policy positions, legislative record, etc.) using Tavily web search
+5. Research results stream back as they complete; if you disconnect, poll `/api/jobs/{job_id}` to recover
 
-## API Keys You'll Need
+## Prerequisites
 
-| Key | Where to get it |
-|-----|----------------|
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/) |
-| `TAVILY_API_KEY` | [tavily.com](https://tavily.com/) — free tier available |
-| `US_CONGRESS_API_KEY` | [api.congress.gov](https://api.congress.gov/) — free, federal legislators |
-| `CICERO_API_KEY` | [cicerodata.com](https://www.cicerodata.com/) — comprehensive elected official data |
-| `GOOGLE_CIVIC_API_KEY` | [Google Cloud Console](https://console.cloud.google.com/apis/library/civicinfo.googleapis.com) — for election/ballot data |
+- Python 3.13+ (via conda)
+- Node.js 22+
+- `gcloud` CLI (for Cloud SQL Auth Proxy)
 
-## Setup
+## API Keys
 
-### Run with Docker Compose
+Create a `.env` file at the project root:
+
+```env
+ANTHROPIC_API_KEY=...          # console.anthropic.com
+TAVILY_API_KEY=...             # tavily.com (free tier available)
+US_CONGRESS_API_KEY=...        # api.congress.gov (free)
+CICERO_API_KEY=...             # cicerodata.com (paid, state + municipal data)
+GOOGLE_CIVIC_API_KEY=...       # Google Cloud Console (future election/ballot data)
+CLAUDE_MODEL=claude-sonnet-4-6 # model for research agents
+RESEARCH_MAX_TOKENS=32768      # max tokens per section agent
+
+# Langfuse tracing (optional)
+LANGFUSE_SECRET_KEY=...
+LANGFUSE_PUBLIC_KEY=...
+LANGFUSE_BASE_URL=https://us.cloud.langfuse.com
+
+# Cloud SQL (via auth proxy — see below)
+DATABASE_URL=postgresql://postgres:<password>@127.0.0.1:5432/postgres
+```
+
+The frontend also needs a `frontend/.env`:
+
+```env
+VITE_GOOGLE_PLACES_API_KEY=... # Google Places API (New) — restrict by HTTP referrer
+```
+
+### Optional env vars
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `US_CONGRESS_REPS_ONLY` | `false` | Skip Cicero, only return federal reps (faster for testing) |
+| `REP_CACHE_TTL_SECONDS` | `86400` (24h) | How long cached research stays valid |
+| `JOB_TTL_SECONDS` | `1800` (30min) | How long job state is kept in memory |
+| `DISABLE_REP_CACHE` | `false` | Skip research cache globally (useful for testing pipeline changes) |
+| `REDIS_URL` | _(none)_ | When set, uses Redis for job store + rep cache; otherwise in-memory |
+
+## Running Locally
+
+### 1. Cloud SQL Auth Proxy
+
+The backend persists usage data to Cloud SQL. Locally, you connect via the auth proxy (uses your `gcloud` IAM credentials — no public IP or IP allowlisting needed):
+
+```bash
+cloud-sql-proxy my-representatives-489301:us-central1:my-representatives --port 5432 &
+```
+
+This proxies `localhost:5432` to the Cloud SQL instance. Make sure `DATABASE_URL` in `.env` points to `127.0.0.1`.
+
+If you don't need database persistence, you can skip this — the app still works, it just won't save job usage data.
+
+### 2. Start the app
+
+**Without Docker:**
+
+```bash
+conda activate my-reps
+
+# Backend (port 8000)
+cd backend
+pip install -r requirements.txt  # first time only
+uvicorn main:app --reload
+
+# Frontend (port 5173, separate terminal)
+cd frontend
+npm install  # first time only
+npm run dev
+```
+
+**With Docker Compose:**
 
 ```bash
 docker compose up --build
@@ -33,29 +101,13 @@ docker compose up --build
 - Frontend: http://localhost:5173
 - Backend: http://localhost:8000
 
-### Run locally (without Docker)
-
-**Backend:**
-```bash
-cd backend
-conda create -n my-reps python=3.13 -y
-conda activate my-reps
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
-
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
 ## Tech Stack
 
-- **Frontend:** React + TypeScript + Vite + Tailwind CSS + shadcn/ui
-- **Backend:** FastAPI (Python)
-- **LLM:** Anthropic Claude (claude-sonnet-4-20250514) with tool use
+- **Frontend:** React + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui
+- **Backend:** FastAPI (Python 3.13+)
+- **LLM:** Anthropic Claude with tool use (model configurable via `CLAUDE_MODEL`)
 - **Web Search:** Tavily API
-- **Representative Data:** Cicero API
-- **Election Data:** Google Civic Information API (voterinfo/elections endpoints)
+- **Representative Data:** US Congress API (federal) + Cicero API (state/municipal)
+- **Database:** Cloud SQL PostgreSQL (usage tracking)
+- **Caching:** Redis via Memorystore (production) / in-memory (local dev)
+- **Tracing:** Langfuse

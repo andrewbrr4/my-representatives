@@ -87,7 +87,7 @@ async def _run_all_research(job_id: str, address: str, reps: list[Representative
         )
         logger.info(f"Job {job_id}: saved to database")
     except Exception as e:
-        logger.error(f"Job {job_id}: failed to save to database: {e}")
+        logger.error(f"Job {job_id}: failed to save to database: {e}", exc_info=True)
 
 
 @router.post("/api/representatives")
