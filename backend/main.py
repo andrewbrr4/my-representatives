@@ -78,7 +78,9 @@ async def log_requests(request: Request, call_next):
     logging.getLogger("myreps.request").info(f"→ {request.method} {request.url.path}")
     response = await call_next(request)
     elapsed = time.perf_counter() - start
-    logging.getLogger("myreps.request").info(f"← {request.method} {request.url.path} {response.status_code} ({elapsed:.1f}s)")
+    logging.getLogger("myreps.request").info(
+        f"← {request.method} {request.url.path} {response.status_code} ({elapsed:.1f}s)"
+    )
     return response
 
 _default_origins = "http://localhost:5173,http://localhost:3000"

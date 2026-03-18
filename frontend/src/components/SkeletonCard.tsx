@@ -1,9 +1,6 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// This shows a placeholder "ghost" card while the real data is loading.
-// The Skeleton component renders animated gray rectangles.
-
 export function SkeletonCard() {
   return (
     <Card className="overflow-hidden">

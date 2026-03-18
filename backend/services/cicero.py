@@ -55,7 +55,10 @@ async def get_state_local_representatives(address: str) -> list[Representative]:
         last = official.get("last_name", "")
         name = f"{first} {last}".strip() or "Unknown"
 
-        logger.info(f"Official: {name}, district_type={district_type}, is_appointed={chamber.get('is_appointed')}, office={office.get('title')}")
+        logger.info(
+            f"Official: {name}, district_type={district_type}, "
+            f"is_appointed={chamber.get('is_appointed')}, office={office.get('title')}"
+        )
 
         # Skip appointed officials (cabinet members, etc.)
         if chamber.get("is_appointed"):

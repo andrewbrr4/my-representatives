@@ -9,10 +9,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/**
- * Parse text containing inline markdown (bold, italic) and [N] citation markers
- * into React nodes. Handles **bold**, *italic*, and [N] citation links.
- */
 function renderInline(
   text: string,
   citations: Citation[],
@@ -53,6 +49,40 @@ function renderInline(
     }
     return part;
   });
+}
+
+interface ParagraphSectionProps {
+  title: string;
+  content: string;
+  citations: Citation[];
+}
+
+function ParagraphSection({ title, content, citations }: ParagraphSectionProps) {
+  return (
+    <div>
+      <h4 className="font-semibold text-foreground">{title}</h4>
+      <p>{renderInline(content, citations)}</p>
+    </div>
+  );
+}
+
+interface ListSectionProps {
+  title: string;
+  items: string[];
+  citations: Citation[];
+}
+
+function ListSection({ title, items, citations }: ListSectionProps) {
+  return (
+    <div>
+      <h4 className="font-semibold text-foreground">{title}</h4>
+      <ul className="list-disc pl-5 space-y-1">
+        {items.map((item, i) => (
+          <li key={i}>{renderInline(item, citations)}</li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 const levelColors: Record<string, string> = {
@@ -102,54 +132,13 @@ export function RepCard({ rep }: RepCardProps) {
           </div>
         ) : rep.summary ? (
           <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
-            <div>
-              <h4 className="font-semibold text-foreground">Background</h4>
-              <p>{renderInline(rep.summary.background, rep.summary.background_citations ?? [])}</p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground">Policy Positions</h4>
-              <p>{renderInline(rep.summary.policy_positions, rep.summary.policy_positions_citations ?? [])}</p>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground">Recent Legislative Record</h4>
-              <ul className="list-disc pl-5 space-y-1">
-                {rep.summary.recent_legislative_record.map((item, i) => (
-                  <li key={i}>{renderInline(item, rep.summary!.recent_legislative_record_citations ?? [])}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground">Accomplishments</h4>
-              <ul className="list-disc pl-5 space-y-1">
-                {rep.summary.accomplishments.map((item, i) => (
-                  <li key={i}>{renderInline(item, rep.summary!.accomplishments_citations ?? [])}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground">Controversies</h4>
-              <ul className="list-disc pl-5 space-y-1">
-                {rep.summary.controversies.map((item, i) => (
-                  <li key={i}>{renderInline(item, rep.summary!.controversies_citations ?? [])}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground">Other Recent Press</h4>
-              <ul className="list-disc pl-5 space-y-1">
-                {rep.summary.recent_press.map((item, i) => (
-                  <li key={i}>{renderInline(item, rep.summary!.recent_press_citations ?? [])}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground">Top Donors</h4>
-              <ul className="list-disc pl-5 space-y-1">
-                {rep.summary.top_donors.map((item, i) => (
-                  <li key={i}>{renderInline(item, rep.summary!.top_donors_citations ?? [])}</li>
-                ))}
-              </ul>
-            </div>
+            <ParagraphSection title="Background" content={rep.summary.background} citations={rep.summary.background_citations ?? []} />
+            <ParagraphSection title="Policy Positions" content={rep.summary.policy_positions} citations={rep.summary.policy_positions_citations ?? []} />
+            <ListSection title="Recent Legislative Record" items={rep.summary.recent_legislative_record} citations={rep.summary.recent_legislative_record_citations ?? []} />
+            <ListSection title="Accomplishments" items={rep.summary.accomplishments} citations={rep.summary.accomplishments_citations ?? []} />
+            <ListSection title="Controversies" items={rep.summary.controversies} citations={rep.summary.controversies_citations ?? []} />
+            <ListSection title="Other Recent Press" items={rep.summary.recent_press} citations={rep.summary.recent_press_citations ?? []} />
+            <ListSection title="Top Donors" items={rep.summary.top_donors} citations={rep.summary.top_donors_citations ?? []} />
           </div>
         ) : (
           <p className="text-sm text-muted-foreground italic">

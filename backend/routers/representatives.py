@@ -62,7 +62,6 @@ async def _run_all_research(job_id: str, address: str, reps: list[Representative
             if isinstance(result, UsageStats):
                 total_usage += result
 
-    status = "done"
     await job_store.mark_done(job_id)
     logger.info(
         f"Job {job_id}: research complete — "
@@ -83,7 +82,7 @@ async def _run_all_research(job_id: str, address: str, reps: list[Representative
             input_tokens=total_usage.input_tokens,
             output_tokens=total_usage.output_tokens,
             tool_calls=total_usage.tool_calls,
-            status=status,
+            status="done",
         )
         await save_transactions(
             job_id=job_id,
