@@ -25,13 +25,10 @@ export function useAddressAutocomplete() {
 
   // Build-time constant — listed in dependency array for correctness
   const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
-  console.log("[autocomplete] apiKey present:", !!apiKey, "value prefix:", apiKey?.substring(0, 8));
 
   const fetchSuggestions = useCallback(
     async (input: string) => {
-      console.log("[autocomplete] fetchSuggestions called:", input, "apiKey:", !!apiKey);
       if (!apiKey || input.length < MIN_CHARS) {
-        console.log("[autocomplete] bailing: apiKey=", !!apiKey, "length=", input.length);
         setSuggestions([]);
         setIsOpen(false);
         return;
@@ -112,7 +109,6 @@ export function useAddressAutocomplete() {
         setIsOpen(false);
         return;
       }
-      console.log("[autocomplete] scheduling fetch for:", value);
       timerRef.current = setTimeout(() => fetchSuggestions(value), DEBOUNCE_MS);
     },
     [fetchSuggestions]

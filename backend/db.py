@@ -114,7 +114,10 @@ async def save_transactions(
             job_id,
         )
     else:
-        logger.warning("ANTHROPIC_INPUT_COST_PER_M / ANTHROPIC_OUTPUT_COST_PER_M not set, skipping anthropic transaction")
+        logger.warning(
+            "ANTHROPIC_INPUT_COST_PER_M / ANTHROPIC_OUTPUT_COST_PER_M not set, "
+            "skipping anthropic transaction"
+        )
 
     if tavily_cost_per_search and tool_calls > 0:
         tavily_cost = Decimal(tool_calls) * Decimal(tavily_cost_per_search)
