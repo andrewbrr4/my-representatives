@@ -61,22 +61,35 @@ function renderInline(
 
 interface ParagraphSectionProps {
   title: string;
-  content: string;
+  content: string | null;
   citations: Citation[];
+}
+
+function SectionSkeleton() {
+  return (
+    <div className="space-y-1.5 mt-1">
+      <Skeleton className="h-3.5 w-full" />
+      <Skeleton className="h-3.5 w-5/6" />
+    </div>
+  );
 }
 
 function ParagraphSection({ title, content, citations }: ParagraphSectionProps) {
   return (
     <div>
       <h4 className="font-semibold text-foreground">{title}</h4>
-      <p>{renderInline(content, citations)}</p>
+      {content === null ? (
+        <SectionSkeleton />
+      ) : (
+        <p>{renderInline(content, citations)}</p>
+      )}
     </div>
   );
 }
 
 interface ListSectionProps {
   title: string;
-  items: string[];
+  items: string[] | null;
   citations: Citation[];
 }
 
@@ -84,11 +97,15 @@ function ListSection({ title, items, citations }: ListSectionProps) {
   return (
     <div>
       <h4 className="font-semibold text-foreground">{title}</h4>
-      <ul className="list-disc pl-5 space-y-1">
-        {items.map((item, i) => (
-          <li key={i}>{renderInline(item, citations)}</li>
-        ))}
-      </ul>
+      {items === null ? (
+        <SectionSkeleton />
+      ) : (
+        <ul className="list-disc pl-5 space-y-1">
+          {items.map((item, i) => (
+            <li key={i}>{renderInline(item, citations)}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -186,15 +203,29 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
           </Button>
         )}
 
-        {researchStatus === "loading" && (
+        {researchStatus === "loading" && !summary && (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground italic">
-              Scraping the web for information about your representative, sit tight...
+              Scraping the web for information about your representative -- this usually takes 30-60 seconds...
             </p>
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-3/4" />
           </div>
+        )}
+
+        {(researchStatus === "loading" && summary) && (
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
+              <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
+              <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
+              AI Research
+              <span className="ml-1 text-xs text-muted-foreground italic">(Scraping the web for information about your representative -- this usually takes 30-60 seconds...)</span>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <ResearchContent summary={summary} />
+            </CollapsibleContent>
+          </Collapsible>
         )}
 
         {researchStatus === "complete" && summary && (

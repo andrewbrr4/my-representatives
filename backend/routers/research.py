@@ -40,9 +40,8 @@ async def _run_research(research_id: str, req: ResearchRequest) -> None:
     rep = req.representative
 
     try:
-        summary, usage = await research_representative(rep)
+        summary, usage = await research_representative(rep, store=store, research_id=research_id)
         if summary is not None:
-            await store.complete(research_id, summary)
             await rep_cache.put(rep.name, rep.office, summary)
         else:
             await store.fail(research_id)
