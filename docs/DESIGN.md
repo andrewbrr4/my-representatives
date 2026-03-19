@@ -8,8 +8,11 @@ For the product vision and principles that inform these decisions, see [MISSION.
 
 1. User enters their address.
 2. Third-party APIs return a list of representatives at every level of government.
-3. A research agent crawls the web to gather information about each representative.
-4. The user is presented with a "summary card" for each representative containing the research results.
+3. The user sees a card for each representative with basic info and a "Learn More" button.
+4. When the user clicks "Learn More" on a specific rep, a research agent crawls the web to gather information about that representative.
+5. The research results appear on the card once complete.
+
+Research is **on-demand** — only triggered for reps the user explicitly wants to learn about. This cuts API costs ~80%+ compared to researching every rep on every lookup, since most users only care about a few of their ~15+ representatives.
 
 ![UI example](./ui_example.png)
 

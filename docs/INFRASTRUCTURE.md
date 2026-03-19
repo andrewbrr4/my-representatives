@@ -20,7 +20,7 @@ MyReps runs on Google Cloud Platform (GCP) in the `us-east1` region.
 - **Build args:** `VITE_API_URL` (backend Cloud Run URL), `VITE_GOOGLE_PLACES_API_KEY`
 
 ### Memorystore for Redis
-- **Purpose:** Persistent rep research cache (24h TTL) and job store shared across backend workers
+- **Purpose:** Persistent rep research cache (3-day TTL) shared across backend workers
 - **Instance:** Basic tier, `us-east1`
 - **Primary endpoint:** `10.107.77.182:6379` (private IP, only reachable from same VPC)
 - **Read endpoint:** `10.107.77.181:6379`
@@ -48,9 +48,8 @@ Non-secret env vars (set directly on Cloud Run):
 - `CLAUDE_MODEL` — model ID for research agents
 - `RESEARCH_MAX_TOKENS` — max tokens per section agent
 - `LANGFUSE_BASE_URL` — Langfuse endpoint
-- `US_CONGRESS_REPS_ONLY` — feature flag
-- `REP_CACHE_TTL_SECONDS` — cache TTL (default 86400)
-- `JOB_TTL_SECONDS` — job TTL (default 1800)
+- `REP_CACHE_TTL_SECONDS` — cache TTL (default 259200 / 3 days)
+- `JOB_TTL_SECONDS` — research task TTL (default 1800)
 
 | Secret name | Env var | Used by |
 |------------|---------|---------|
@@ -68,8 +67,8 @@ Cloud Run backend connects to Redis via Direct VPC egress on the `default` netwo
 ## Local Development
 
 Local dev does **not** use Redis. When `REDIS_URL` is absent:
-- Job store: in-memory (works for single-worker `--reload` mode)
-- Rep cache: disabled (no caching — every lookup does fresh research)
+- Research task store: in-memory (works for single-worker `--reload` mode)
+- Rep cache: disabled (no caching — every research request runs fresh)
 
 ### Cloud SQL Auth Proxy
 

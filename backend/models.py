@@ -69,24 +69,20 @@ class Representative(BaseModel):
     party: str | None = None
     photo_url: str | None = None
     contact: Contact = Contact()
-    summary: ResearchSummary | None = None
 
 
 class RepresentativesResponse(BaseModel):
     representatives: list[Representative]
 
 
-class LookupResponse(BaseModel):
-    job_id: str
-    representatives: list[Representative]
+class ResearchRequest(BaseModel):
+    representative: Representative
 
 
-class JobStatusResponse(BaseModel):
-    job_id: str
-    status: Literal["lookup", "researching", "done", "error"]
-    representatives: list[Representative] | None = None
-    research: list[dict] | None = None
-    error_detail: str | None = None
+class ResearchResponse(BaseModel):
+    research_id: str
+    status: Literal["pending", "complete", "failed"]
+    summary: ResearchSummary | None = None
 
 
 class TransactionCreate(BaseModel):
@@ -95,7 +91,7 @@ class TransactionCreate(BaseModel):
     billing_model: Literal["per_request", "bulk", "subscription"]
     amount_usd: float
     description: str | None = None
-    job_id: str | None = None
+    research_task_id: str | None = None
 
 
 class TransactionOut(BaseModel):
@@ -105,6 +101,6 @@ class TransactionOut(BaseModel):
     billing_model: str
     amount_usd: Decimal
     description: str | None
-    job_id: str | None
+    research_task_id: str | None
     created_at: datetime
     balance_after: Decimal | None

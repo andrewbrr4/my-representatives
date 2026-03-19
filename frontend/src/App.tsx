@@ -9,6 +9,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useRepresentatives } from "@/hooks/useRepresentatives";
+import { useResearch } from "@/hooks/useResearch";
 import type { Representative } from "@/types";
 
 // Group reps by level for display
@@ -28,6 +29,7 @@ function groupByLevel(reps: Representative[]) {
 
 function App() {
   const { representatives, loading, error, lookup } = useRepresentatives();
+  const { requestResearch, getStatus, getSummary } = useResearch();
   const [searchedAddress, setSearchedAddress] = useState<string | null>(null);
 
   function handleSearch(address: string) {
@@ -96,7 +98,7 @@ function App() {
             <p className="text-center text-sm text-muted-foreground">
               Looking up your representatives…
             </p>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 max-w-4xl mx-auto">
               {Array.from({ length: 6 }).map((_, i) => (
                 <SkeletonCard key={i} />
               ))}
@@ -111,19 +113,12 @@ function App() {
           </div>
         )}
 
-        {/* Research in progress message */}
-        {hasResults && loading && (
-          <p className="text-center text-sm text-muted-foreground mb-6">
-            Searching the web for information about your representatives — this will take a minute or two!
-          </p>
-        )}
-
         {/* Results */}
         {hasResults && (
           <div className="space-y-8">
             {groups.map((group) => (
               <Collapsible key={group.level} defaultOpen asChild>
-                <section>
+                <section className="max-w-4xl mx-auto">
                   <CollapsibleTrigger className="flex w-full items-center gap-2 border-b pb-2 cursor-pointer group">
                     <span className="text-muted-foreground transition-transform group-data-[state=closed]:rotate-0 group-data-[state=open]:rotate-0">
                       <ChevronRight className="h-5 w-5 group-data-[state=open]:hidden" />
@@ -137,9 +132,15 @@ function App() {
                     </span>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="grid gap-4 md:grid-cols-2 mt-4">
+                    <div className="grid gap-4 grid-cols-1 mt-4">
                       {group.reps.map((rep) => (
-                        <RepCard key={`${rep.name}-${rep.office}`} rep={rep} />
+                        <RepCard
+                          key={`${rep.name}-${rep.office}`}
+                          rep={rep}
+                          researchStatus={getStatus(rep)}
+                          summary={getSummary(rep)}
+                          onResearch={() => requestResearch(rep)}
+                        />
                       ))}
                     </div>
                   </CollapsibleContent>
