@@ -105,6 +105,6 @@ Required in `.env` at project root:
 - `DB_PASSWORD` — Postgres password. Used with `DB_SOCKET_PATH` on Cloud Run, and by `docker-compose.yml` to construct `DATABASE_URL`.
 - `ANTHROPIC_INPUT_COST_PER_M` — Anthropic input token cost in USD per million tokens (e.g. `3` for Sonnet 4)
 - `ANTHROPIC_OUTPUT_COST_PER_M` — Anthropic output token cost in USD per million tokens (e.g. `15` for Sonnet 4)
-- `TAVILY_COST_PER_SEARCH` — Tavily cost per search in USD (e.g. `0.008`)
+- `COST_PER_SEARCH` — Tavily cost per search in USD (e.g. `0.008`)
 
 Backend loads these via `python-dotenv` at startup.

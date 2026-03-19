@@ -51,7 +51,7 @@ DATABASE_URL=postgresql://postgres:<password>@127.0.0.1:5432/postgres
 # Cost tracking (for transactions ledger)
 ANTHROPIC_INPUT_COST_PER_M=3      # USD per million input tokens
 ANTHROPIC_OUTPUT_COST_PER_M=15    # USD per million output tokens
-TAVILY_COST_PER_SEARCH=0.008      # USD per search
+COST_PER_SEARCH=0.008      # USD per search
 ```
 
 The frontend also needs a `frontend/.env`:

@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import uuid
+from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from slowapi import Limiter
@@ -12,6 +13,7 @@ from services.cicero import get_state_local_representatives
 from services.congress import get_federal_representatives
 from db import save_job, save_transactions
 from research.pipeline import research_representative
+from research.search import get_search_tool_name
 from research.usage import UsageStats
 from store.dependencies import get_job_store, get_rep_cache
 
@@ -72,6 +74,17 @@ async def _run_all_research(job_id: str, address: str, reps: list[Representative
         f"{total_usage.tool_calls} tool calls"
     )
 
+    # Snapshot pricing at request time so historical data survives rate changes
+    model = os.environ.get("CLAUDE_MODEL")
+    input_cost_env = os.environ.get("ANTHROPIC_INPUT_COST_PER_M")
+    output_cost_env = os.environ.get("ANTHROPIC_OUTPUT_COST_PER_M")
+    search_cost_env = os.environ.get("COST_PER_SEARCH")
+    input_cost_per_m = Decimal(input_cost_env) if input_cost_env else None
+    output_cost_per_m = Decimal(output_cost_env) if output_cost_env else None
+    search_tool = get_search_tool_name()
+    cost_per_search = Decimal(search_cost_env) if search_cost_env else None
+    environment = os.environ.get("ENVIRONMENT", "dev")
+
     try:
         await save_job(
             job_id=job_id,
@@ -83,12 +96,23 @@ async def _run_all_research(job_id: str, address: str, reps: list[Representative
             output_tokens=total_usage.output_tokens,
             tool_calls=total_usage.tool_calls,
             status="done",
+            model=model,
+            input_cost_per_m=input_cost_per_m,
+            output_cost_per_m=output_cost_per_m,
+            search_tool=search_tool,
+            cost_per_search=cost_per_search,
+            environment=environment,
         )
         await save_transactions(
             job_id=job_id,
+            model=model,
             input_tokens=total_usage.input_tokens,
             output_tokens=total_usage.output_tokens,
+            input_cost_per_m=input_cost_per_m,
+            output_cost_per_m=output_cost_per_m,
+            search_tool=search_tool,
             tool_calls=total_usage.tool_calls,
+            cost_per_search=cost_per_search,
         )
         logger.info(f"Job {job_id}: saved to database")
     except Exception as e:
