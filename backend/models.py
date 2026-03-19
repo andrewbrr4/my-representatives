@@ -69,7 +69,6 @@ class Representative(BaseModel):
     party: str | None = None
     photo_url: str | None = None
     contact: Contact = Contact()
-    summary: ResearchSummary | None = None
 
 
 class RepresentativesResponse(BaseModel):

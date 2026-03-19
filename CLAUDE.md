@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-MyReps — a full-stack app where a user enters their address and gets a list of representatives (municipal, state, federal) with AI-researched summaries. No auth. Cloud SQL PostgreSQL for cost/usage tracking. Redis optional for caching.
+MyReps — a full-stack app where a user enters their address and gets a list of representatives (municipal, state, federal) with on-demand AI-researched summaries. No auth. Cloud SQL PostgreSQL for cost/usage tracking. Redis optional for caching.
 
 **Read [MISSION.md](./docs/MISSION.md) and [DESIGN.md](./docs/DESIGN.md) before making any changes.** MISSION.md defines the product vision and principles. DESIGN.md captures design decisions, tradeoffs, and open challenges.
 
@@ -52,7 +52,7 @@ cd frontend && npx shadcn@latest add <component-name>
 1. `POST /api/research` accepts a `ResearchRequest` (contains one `Representative`)
 2. Checks `RepCache` first — if cached, returns immediately with `status: "complete"` + summary
 3. Creates task in `InMemoryResearchStore`, spawns `asyncio.create_task` for background research
-4. Background task calls `research_representative(rep)` from `research/pipeline.py`, writes results to store + `RepCache`, persists costs via `save_job()` + `save_transactions()`
+4. Background task calls `research_representative(rep)` from `research/pipeline.py`, writes results to store + `RepCache`, persists costs via `save_research_task()` + `save_transactions()`
 5. `GET /api/research/{research_id}` — client polls for task completion, returns `ResearchResponse`
 
 **Research pipeline** (`research/pipeline.py`) runs **7 per-section research agents** concurrently using LangChain + Langfuse tracing:
@@ -60,7 +60,7 @@ cd frontend && npx shadcn@latest add <component-name>
 - Section prompts are stored in `research/prompts/` (system + user template per section)
 - Each agent is limited to 5 web searches and `recursion_limit=15`
 - A separate `UsageTracker` callback handler (`research/usage.py`) runs alongside Langfuse on each agent, tracking input/output tokens and tool calls independently
-- Per-rep usage is aggregated and logged; per-research-task totals are persisted to the `jobs` table in Postgres via `db.py`
+- Per-rep usage is aggregated and logged; per-research-task totals are persisted to the `research_tasks` table in Postgres via `db.py`
 
 **Store layer** (`store/`):
 - `interfaces.py` — `RepCacheInterface` ABC
@@ -77,7 +77,7 @@ All models are in `backend/models.py`. Backend imports use bare module names (no
 - `src/hooks/useRepresentatives.ts` — manages lookup API call state (loading, error, data); pure fetch, no polling
 - `src/hooks/useResearch.ts` — manages per-rep on-demand research state; keyed by `name|office`, handles POST + polling per rep, deduplicates requests
 - `src/components/AddressSearch.tsx` — address input form
-- `src/components/RepCard.tsx` — representative card with photo, badge, contacts, and "Learn More" button that triggers on-demand research (4 states: idle, loading, complete, failed)
+- `src/components/RepCard.tsx` — representative card with photo, badge, contacts, and "Generate AI Research" button that triggers on-demand research (4 states: idle, loading, complete, failed); research results are collapsible
 - `src/components/SkeletonCard.tsx` — loading placeholder
 - `src/types/index.ts` — TypeScript interfaces mirroring backend Pydantic models
 - `src/components/ui/` — shadcn components (owned copies, not library imports)
@@ -95,13 +95,12 @@ Required in `.env` at project root:
 - `GOOGLE_CIVIC_API_KEY` — kept for future election/ballot data via `voterinfo` endpoint
 - `VITE_GOOGLE_PLACES_API_KEY` — Google Places API key for address autocomplete (frontend env var in `frontend/.env`; must have Places API (New) enabled in GCP console; restrict by HTTP referrer for security)
 - `CLAUDE_MODEL` — model ID for the research agent (e.g. `claude-sonnet-4-20250514`)
-- `SEARCH_TOOL` — which search provider is in use (default `tavily`). Recorded in the `jobs` table for cost tracking.
-- `US_CONGRESS_REPS_ONLY` — set to `true` to skip Cicero API and only return US congressional reps (useful for faster testing)
+- `SEARCH_TOOL` — which search provider is in use (default `tavily`). Recorded in the `research_tasks` table for cost tracking.
 - `RESEARCH_MAX_TOKENS` — max token output for each section research agent
 - `LANGFUSE_SECRET_KEY` — Langfuse tracing secret key
 - `LANGFUSE_PUBLIC_KEY` — Langfuse tracing public key
 - `LANGFUSE_BASE_URL` — Langfuse tracing base URL
-- `REP_CACHE_TTL_SECONDS` — how long cached research stays valid (default `86400` / 24h)
+- `REP_CACHE_TTL_SECONDS` — how long cached research stays valid (default `259200` / 3 days)
 - `JOB_TTL_SECONDS` — how long research task state is kept in memory (default `1800` / 30min)
 - `DISABLE_REP_CACHE` — set to `true` to skip research cache globally (useful for testing pipeline changes)
 - `REDIS_URL` — Redis connection URL (e.g. `redis://localhost:6379`). When set, uses Redis for rep cache; when absent, rep cache is a no-op (no Redis needed for local dev)
@@ -113,6 +112,6 @@ Required in `.env` at project root:
 - `ANTHROPIC_INPUT_COST_PER_M` — Anthropic input token cost in USD per million tokens (e.g. `3` for Sonnet 4)
 - `ANTHROPIC_OUTPUT_COST_PER_M` — Anthropic output token cost in USD per million tokens (e.g. `15` for Sonnet 4)
 - `COST_PER_SEARCH` — Tavily cost per search in USD (e.g. `0.008`)
-- `ENVIRONMENT` — `dev` or `prod` (default `dev`). Recorded in the `jobs` table for filtering.
+- `ENVIRONMENT` — `dev` or `prod` (default `dev`). Recorded in the `research_tasks` table for filtering.
 
 Backend loads these via `python-dotenv` at startup.

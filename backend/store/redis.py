@@ -8,7 +8,7 @@ from store.interfaces import RepCacheInterface
 
 logger = logging.getLogger(__name__)
 
-REP_CACHE_TTL_SECONDS = int(os.getenv("REP_CACHE_TTL_SECONDS", "86400"))
+REP_CACHE_TTL_SECONDS = int(os.getenv("REP_CACHE_TTL_SECONDS", "259200"))
 
 
 def create_redis_client() -> redis.Redis:

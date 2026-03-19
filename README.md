@@ -1,6 +1,6 @@
 # MyReps
 
-Find your elected representatives at every level of government — federal, state, and municipal — with AI-researched summaries for each.
+Find your elected representatives at every level of government — federal, state, and municipal — with on-demand AI-researched summaries.
 
 - [Product mission & principles](./docs/MISSION.md)
 - [Design approach & challenges](./docs/DESIGN.md)
@@ -12,9 +12,9 @@ Find your elected representatives at every level of government — federal, stat
 2. The backend resolves your address to representatives via two concurrent lookups:
    - **Federal:** Census Geocoder (free) → US Congress API for senators + house rep
    - **State + municipal:** Cicero API for all other elected officials
-3. Representatives are returned immediately via SSE; AI research runs in the background
-4. For each rep, 7 focused Claude agents research different sections (background, policy positions, legislative record, etc.) using Tavily web search
-5. Research results stream back as they complete; if you disconnect, poll `/api/jobs/{job_id}` to recover
+3. Representatives appear instantly with basic info and contact links
+4. Click "Generate AI Research" on any rep to trigger on-demand research — 7 focused Claude agents research different sections (background, policy positions, legislative record, etc.) using Tavily web search
+5. Research results appear on the card once complete; cached for 3 days
 
 ## Prerequisites
 
@@ -48,11 +48,11 @@ DATABASE_URL=postgresql://postgres:<password>@127.0.0.1:5432/postgres
 # DB_USER=postgres
 # DB_PASSWORD=<password>
 
-# Cost tracking (recorded per job for historical analysis)
+# Cost tracking (recorded per research task for historical analysis)
 ANTHROPIC_INPUT_COST_PER_M=3      # USD per million input tokens
 ANTHROPIC_OUTPUT_COST_PER_M=15    # USD per million output tokens
 COST_PER_SEARCH=0.008             # USD per Tavily search
-ENVIRONMENT=dev                   # "dev" or "prod" — recorded in jobs table
+ENVIRONMENT=dev                   # "dev" or "prod" — recorded in research_tasks table
 ```
 
 The frontend also needs a `frontend/.env`:
@@ -65,13 +65,12 @@ VITE_GOOGLE_PLACES_API_KEY=... # Google Places API (New) — restrict by HTTP re
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `US_CONGRESS_REPS_ONLY` | `false` | Skip Cicero, only return federal reps (faster for testing) |
-| `REP_CACHE_TTL_SECONDS` | `86400` (24h) | How long cached research stays valid |
-| `JOB_TTL_SECONDS` | `1800` (30min) | How long job state is kept in memory |
+| `REP_CACHE_TTL_SECONDS` | `259200` (3 days) | How long cached research stays valid |
+| `JOB_TTL_SECONDS` | `1800` (30min) | How long research task state is kept in memory |
 | `DISABLE_REP_CACHE` | `false` | Skip research cache globally (useful for testing pipeline changes) |
-| `REDIS_URL` | _(none)_ | When set, uses Redis for job store + rep cache; otherwise in-memory |
-| `SEARCH_TOOL` | `tavily` | Search provider name, recorded in jobs table for cost tracking |
-| `ENVIRONMENT` | `dev` | Recorded in jobs table to distinguish dev vs prod usage |
+| `REDIS_URL` | _(none)_ | When set, uses Redis for rep cache; otherwise no caching |
+| `SEARCH_TOOL` | `tavily` | Search provider name, recorded in research_tasks table for cost tracking |
+| `ENVIRONMENT` | `dev` | Recorded in research_tasks table to distinguish dev vs prod usage |
 
 ## Running Locally
 
@@ -93,7 +92,7 @@ pgrep -fl cloud-sql-proxy
 pkill cloud-sql-proxy
 ```
 
-If you don't need database persistence, you can skip this — the app still works, it just won't save job usage data.
+If you don't need database persistence, you can skip this — the app still works, it just won't save research usage data.
 
 ### 2. Start the app
 

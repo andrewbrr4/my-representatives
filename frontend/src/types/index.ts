@@ -35,7 +35,6 @@ export interface Representative {
   party: string | null;
   photo_url: string | null;
   contact: Contact;
-  summary: ResearchSummary | null;
 }
 
 export interface RepresentativesResponse {

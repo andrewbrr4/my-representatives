@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 
 from fastapi import APIRouter, HTTPException, Request
 from slowapi import Limiter
@@ -26,17 +25,12 @@ async def lookup_representatives(
 
     logger.info(f"Looking up representatives for: {address_request.address}")
 
-    us_congress_reps_only = os.getenv("US_CONGRESS_REPS_ONLY", "").lower() in ("true", "1")
     try:
-        if us_congress_reps_only:
-            logger.info("US_CONGRESS_REPS_ONLY mode: skipping state/municipal lookup")
-            reps = await get_federal_representatives(address_request.address)
-        else:
-            federal_reps, state_local_reps = await asyncio.gather(
-                get_federal_representatives(address_request.address),
-                get_state_local_representatives(address_request.address),
-            )
-            reps = federal_reps + state_local_reps
+        federal_reps, state_local_reps = await asyncio.gather(
+            get_federal_representatives(address_request.address),
+            get_state_local_representatives(address_request.address),
+        )
+        reps = federal_reps + state_local_reps
     except Exception as e:
         logger.error(f"Representative lookup error: {e}")
         raise HTTPException(

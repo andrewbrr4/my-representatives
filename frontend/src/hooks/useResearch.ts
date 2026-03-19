@@ -15,8 +15,21 @@ interface ResearchEntry {
   summary: ResearchSummary | null;
 }
 
+function updateEntry(
+  key: string,
+  entry: ResearchEntry,
+): (prev: Map<string, ResearchEntry>) => Map<string, ResearchEntry> {
+  return (prev) => {
+    const next = new Map(prev);
+    next.set(key, entry);
+    return next;
+  };
+}
+
 export function useResearch() {
   const [entries, setEntries] = useState<Map<string, ResearchEntry>>(new Map());
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
   const stopPolling = useCallback((key: string) => {
@@ -31,16 +44,12 @@ export function useResearch() {
     const key = repKey(rep);
 
     // Don't re-request if already loading or complete
-    const existing = entries.get(key);
+    const existing = entriesRef.current.get(key);
     if (existing && (existing.status === "loading" || existing.status === "complete")) {
       return;
     }
 
-    setEntries((prev) => {
-      const next = new Map(prev);
-      next.set(key, { status: "loading", summary: null });
-      return next;
-    });
+    setEntries(updateEntry(key, { status: "loading", summary: null }));
 
     (async () => {
       try {
@@ -51,22 +60,14 @@ export function useResearch() {
         });
 
         if (!resp.ok) {
-          setEntries((prev) => {
-            const next = new Map(prev);
-            next.set(key, { status: "failed", summary: null });
-            return next;
-          });
+          setEntries(updateEntry(key, { status: "failed", summary: null }));
           return;
         }
 
         const data: ResearchResponse = await resp.json();
 
         if (data.status === "complete" && data.summary) {
-          setEntries((prev) => {
-            const next = new Map(prev);
-            next.set(key, { status: "complete", summary: data.summary });
-            return next;
-          });
+          setEntries(updateEntry(key, { status: "complete", summary: data.summary }));
           return;
         }
 
@@ -76,29 +77,17 @@ export function useResearch() {
             const pollResp = await fetch(`${API_URL}/api/research/${data.research_id}`);
             if (!pollResp.ok) {
               stopPolling(key);
-              setEntries((prev) => {
-                const next = new Map(prev);
-                next.set(key, { status: "failed", summary: null });
-                return next;
-              });
+              setEntries(updateEntry(key, { status: "failed", summary: null }));
               return;
             }
 
             const pollData: ResearchResponse = await pollResp.json();
             if (pollData.status === "complete") {
               stopPolling(key);
-              setEntries((prev) => {
-                const next = new Map(prev);
-                next.set(key, { status: "complete", summary: pollData.summary });
-                return next;
-              });
+              setEntries(updateEntry(key, { status: "complete", summary: pollData.summary }));
             } else if (pollData.status === "failed") {
               stopPolling(key);
-              setEntries((prev) => {
-                const next = new Map(prev);
-                next.set(key, { status: "failed", summary: null });
-                return next;
-              });
+              setEntries(updateEntry(key, { status: "failed", summary: null }));
             }
           } catch {
             // Network error — keep polling
@@ -107,14 +96,10 @@ export function useResearch() {
 
         pollTimers.current.set(key, timer);
       } catch {
-        setEntries((prev) => {
-          const next = new Map(prev);
-          next.set(key, { status: "failed", summary: null });
-          return next;
-        });
+        setEntries(updateEntry(key, { status: "failed", summary: null }));
       }
     })();
-  }, [entries, stopPolling]);
+  }, [stopPolling]);
 
   const getStatus = useCallback(
     (rep: Representative): ResearchStatus => {

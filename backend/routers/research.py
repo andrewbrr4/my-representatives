@@ -18,6 +18,21 @@ limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
 
+def _cost_config() -> dict:
+    """Read cost-tracking env vars once per research task."""
+    input_cost_env = os.environ.get("ANTHROPIC_INPUT_COST_PER_M")
+    output_cost_env = os.environ.get("ANTHROPIC_OUTPUT_COST_PER_M")
+    search_cost_env = os.environ.get("COST_PER_SEARCH")
+    return {
+        "model": os.environ.get("CLAUDE_MODEL"),
+        "input_cost_per_m": Decimal(input_cost_env) if input_cost_env else None,
+        "output_cost_per_m": Decimal(output_cost_env) if output_cost_env else None,
+        "search_tool": os.environ.get("SEARCH_TOOL", "tavily"),
+        "cost_per_search": Decimal(search_cost_env) if search_cost_env else None,
+        "environment": os.environ.get("ENVIRONMENT", "dev"),
+    }
+
+
 async def _run_research(research_id: str, req: ResearchRequest) -> None:
     """Background task: research one rep, write to store + cache + DB."""
     store = get_research_store()
@@ -37,16 +52,7 @@ async def _run_research(research_id: str, req: ResearchRequest) -> None:
         return
 
     # Persist costs
-    model = os.environ.get("CLAUDE_MODEL")
-    input_cost_env = os.environ.get("ANTHROPIC_INPUT_COST_PER_M")
-    output_cost_env = os.environ.get("ANTHROPIC_OUTPUT_COST_PER_M")
-    search_cost_env = os.environ.get("COST_PER_SEARCH")
-    input_cost_per_m = Decimal(input_cost_env) if input_cost_env else None
-    output_cost_per_m = Decimal(output_cost_env) if output_cost_env else None
-    search_tool = os.environ.get("SEARCH_TOOL", "tavily")
-    cost_per_search = Decimal(search_cost_env) if search_cost_env else None
-    environment = os.environ.get("ENVIRONMENT", "dev")
-
+    cfg = _cost_config()
     try:
         await save_research_task(
             research_id=research_id,
@@ -55,23 +61,18 @@ async def _run_research(research_id: str, req: ResearchRequest) -> None:
             output_tokens=usage.output_tokens,
             tool_calls=usage.tool_calls,
             status="done" if summary else "failed",
-            model=model,
-            input_cost_per_m=input_cost_per_m,
-            output_cost_per_m=output_cost_per_m,
-            search_tool=search_tool,
-            cost_per_search=cost_per_search,
-            environment=environment,
+            **cfg,
         )
         await save_transactions(
             research_task_id=research_id,
-            model=model,
+            model=cfg["model"],
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
-            input_cost_per_m=input_cost_per_m,
-            output_cost_per_m=output_cost_per_m,
-            search_tool=search_tool,
+            input_cost_per_m=cfg["input_cost_per_m"],
+            output_cost_per_m=cfg["output_cost_per_m"],
+            search_tool=cfg["search_tool"],
             tool_calls=usage.tool_calls,
-            cost_per_search=cost_per_search,
+            cost_per_search=cfg["cost_per_search"],
         )
         logger.info(f"Research {research_id}: saved to database")
     except Exception as e:
