@@ -52,19 +52,21 @@ cd frontend && npx shadcn@latest add <component-name>
 1. `POST /api/research` accepts a `ResearchRequest` (contains one `Representative`)
 2. Checks `RepCache` first — if cached, returns immediately with `status: "complete"` + summary
 3. Creates task in `InMemoryResearchStore`, spawns `asyncio.create_task` for background research
-4. Background task calls `research_representative(rep)` from `research/pipeline.py`, writes results to store + `RepCache`, persists costs via `save_research_task()` + `save_transactions()`
-5. `GET /api/research/{research_id}` — client polls for task completion, returns `ResearchResponse`
+4. Background task calls `research_representative(rep, store, research_id)` from `research/pipeline.py` — each section agent writes its result to the store as soon as it finishes, persists costs via `save_research_task()` + `save_transactions()`
+5. `GET /api/research/{research_id}` — client polls for task progress, returns `ResearchResponse` with partial summary (sections arrive incrementally as each agent completes)
+6. Task status transitions: `"pending"` → `"in_progress"` (first section done) → `"complete"` (all 7 done). Frontend renders completed sections immediately and shows skeleton placeholders for pending ones.
 
 **Research pipeline** (`research/pipeline.py`) runs **7 per-section research agents** concurrently using LangChain + Langfuse tracing:
 - Each section (background, policy_positions, recent_legislative_record, accomplishments, controversies, recent_press, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a Tavily `web_search` tool and returns structured output with per-section citations
 - Section prompts are stored in `research/prompts/` (system + user template per section)
 - Each agent is limited to 5 web searches and `recursion_limit=15`
+- Each agent writes its result to the `InMemoryResearchStore` immediately on completion via `store.complete_section()`, enabling incremental delivery to the frontend
 - A separate `UsageTracker` callback handler (`research/usage.py`) runs alongside Langfuse on each agent, tracking input/output tokens and tool calls independently
 - Per-rep usage is aggregated and logged; per-research-task totals are persisted to the `research_tasks` table in Postgres via `db.py`
 
 **Store layer** (`store/`):
 - `interfaces.py` — `RepCacheInterface` ABC
-- `research_store.py` — `InMemoryResearchStore` for tracking single-rep research tasks (TTL-based cleanup)
+- `research_store.py` — `InMemoryResearchStore` for tracking single-rep research tasks (TTL-based cleanup). Supports per-section updates via `complete_section()` — each section writes independently, status auto-transitions as sections land
 - `redis.py` — `RedisRepCache` (used when `REDIS_URL` is set)
 - `dependencies.py` — lazy singletons: `get_rep_cache()`, `get_research_store()`
 
@@ -75,9 +77,9 @@ All models are in `backend/models.py`. Backend imports use bare module names (no
 **Frontend (React + TypeScript + Vite + Tailwind v4 + shadcn/ui):** Single-page app with two states: search and results.
 
 - `src/hooks/useRepresentatives.ts` — manages lookup API call state (loading, error, data); pure fetch, no polling
-- `src/hooks/useResearch.ts` — manages per-rep on-demand research state; keyed by `name|office`, handles POST + polling per rep, deduplicates requests
+- `src/hooks/useResearch.ts` — manages per-rep on-demand research state; keyed by `name|office`, handles POST + polling per rep, deduplicates requests. Updates partial summary on each poll so sections render incrementally.
 - `src/components/AddressSearch.tsx` — address input form
-- `src/components/RepCard.tsx` — representative card with photo, badge, contacts, and "Generate AI Research" button that triggers on-demand research (4 states: idle, loading, complete, failed); research results are collapsible
+- `src/components/RepCard.tsx` — representative card with photo, badge, contacts, and "Generate AI Research" button that triggers on-demand research (4 states: idle, loading, complete, failed). During loading, all section headings appear immediately with skeleton placeholders; each section's content renders as it arrives from polling. Research results are collapsible.
 - `src/components/SkeletonCard.tsx` — loading placeholder
 - `src/types/index.ts` — TypeScript interfaces mirroring backend Pydantic models
 - `src/components/ui/` — shadcn components (owned copies, not library imports)

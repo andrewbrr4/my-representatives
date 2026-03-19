@@ -4,19 +4,21 @@ import os
 import time
 from dataclasses import dataclass, field
 
-from models import ResearchSummary
+from models import Citation, ResearchSummary
 
 logger = logging.getLogger(__name__)
 
 RESEARCH_TTL_SECONDS = int(os.getenv("JOB_TTL_SECONDS", "1800"))
 MAX_TASKS = 1000
+TOTAL_SECTIONS = 7
 
 
 @dataclass
 class ResearchTask:
     research_id: str
-    status: str = "pending"  # "pending" | "complete" | "failed"
-    summary: ResearchSummary | None = None
+    status: str = "pending"  # "pending" | "in_progress" | "complete" | "failed"
+    summary: ResearchSummary = field(default_factory=ResearchSummary)
+    completed_sections: int = 0
     created_at: float = field(default_factory=time.time)
 
 
@@ -36,12 +38,36 @@ class InMemoryResearchStore:
         async with self._lock:
             return self._tasks.get(research_id)
 
+    async def complete_section(
+        self,
+        research_id: str,
+        section_name: str,
+        content: str | list[str],
+        citations: list[Citation],
+    ) -> None:
+        """Write one completed section to the task. Auto-transitions status."""
+        async with self._lock:
+            task = self._tasks.get(research_id)
+            if not task:
+                return
+            object.__setattr__(task.summary, section_name, content)
+            object.__setattr__(task.summary, f"{section_name}_citations", citations)
+            # Re-run validator so empty content gets "Information not found."
+            task.summary = ResearchSummary.model_validate(task.summary.model_dump())
+            task.completed_sections += 1
+            if task.status == "pending":
+                task.status = "in_progress"
+            if task.completed_sections >= TOTAL_SECTIONS:
+                task.status = "complete"
+
     async def complete(self, research_id: str, summary: ResearchSummary) -> None:
+        """Mark task fully complete with a complete summary (used for cache hits)."""
         async with self._lock:
             task = self._tasks.get(research_id)
             if task:
                 task.status = "complete"
                 task.summary = summary
+                task.completed_sections = TOTAL_SECTIONS
 
     async def fail(self, research_id: str) -> None:
         async with self._lock:

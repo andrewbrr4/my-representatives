@@ -71,6 +71,11 @@ export function useResearch() {
           return;
         }
 
+        // Set partial summary immediately (all-null sections show as skeletons)
+        if (data.summary) {
+          setEntries(updateEntry(key, { status: "loading", summary: data.summary }));
+        }
+
         // Poll for completion
         const timer = setInterval(async () => {
           try {
@@ -85,6 +90,11 @@ export function useResearch() {
             if (pollData.status === "complete") {
               stopPolling(key);
               setEntries(updateEntry(key, { status: "complete", summary: pollData.summary }));
+            } else if (pollData.status === "in_progress" || pollData.status === "pending") {
+              // Partial results — update summary while still polling
+              if (pollData.summary) {
+                setEntries(updateEntry(key, { status: "loading", summary: pollData.summary }));
+              }
             } else if (pollData.status === "failed") {
               stopPolling(key);
               setEntries(updateEntry(key, { status: "failed", summary: null }));

@@ -23,6 +23,7 @@ from models import (
     SectionResult,
 )
 from research.usage import UsageStats, UsageTracker
+from store.research_store import InMemoryResearchStore
 
 logger = logging.getLogger(__name__)
 
@@ -191,42 +192,53 @@ async def run_section_agent(
 
 
 @observe(name="research-pipeline")
-async def research_representative(rep: Representative) -> tuple[ResearchSummary | None, UsageStats]:
-    """Run 7 focused section agents concurrently, assemble into ResearchSummary."""
+async def research_representative(
+    rep: Representative,
+    store: InMemoryResearchStore | None = None,
+    research_id: str | None = None,
+) -> tuple[ResearchSummary | None, UsageStats]:
+    """Run 7 focused section agents concurrently, writing each section to store as it completes."""
     total_usage = UsageStats()
+    usage_lock = asyncio.Lock()
     logger.info(f"Queued research for {rep.name}")
+
+    async def _run_and_store(section: SectionConfig) -> None:
+        """Run one section agent and write result to store immediately."""
+        try:
+            content, citations, usage = await run_section_agent(rep, section)
+        except Exception as e:
+            logger.error(
+                f"Section '{section.name}' failed for {rep.name}: {e}",
+                exc_info=e,
+            )
+            content = "" if section.content_field == "content" else []
+            citations = []
+            usage = UsageStats()
+
+        async with usage_lock:
+            nonlocal total_usage
+            total_usage += usage
+
+        if store and research_id:
+            await store.complete_section(research_id, section.name, content, citations)
+
     async with _semaphore:
         logger.info(f"Starting research for {rep.name}")
         try:
-            results = await asyncio.gather(
-                *(run_section_agent(rep, section) for section in SECTIONS),
-                return_exceptions=True,
-            )
-
-            summary_kwargs: dict = {}
-            for section, result in zip(SECTIONS, results):
-                if isinstance(result, Exception):
-                    logger.error(
-                        f"Section '{section.name}' failed for {rep.name}: {result}",
-                        exc_info=result,
-                    )
-                    if section.content_field == "content":
-                        summary_kwargs[section.name] = ""
-                    else:
-                        summary_kwargs[section.name] = []
-                    summary_kwargs[f"{section.name}_citations"] = []
-                else:
-                    content, citations, usage = result
-                    summary_kwargs[section.name] = content
-                    summary_kwargs[f"{section.name}_citations"] = citations
-                    total_usage += usage
+            await asyncio.gather(*(_run_and_store(section) for section in SECTIONS))
 
             logger.info(
                 f"Research for {rep.name}: "
                 f"{total_usage.input_tokens} in / {total_usage.output_tokens} out / "
                 f"{total_usage.tool_calls} tool calls"
             )
-            return ResearchSummary(**summary_kwargs), total_usage
+
+            # Read the assembled summary from the store
+            if store and research_id:
+                task = await store.get(research_id)
+                return task.summary if task else None, total_usage
+
+            return None, total_usage
         except Exception as e:
             logger.error(f"Research failed for {rep.name}: {e}", exc_info=True)
             return None, total_usage

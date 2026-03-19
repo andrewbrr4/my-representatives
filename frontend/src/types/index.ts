@@ -12,19 +12,19 @@ export interface Citation {
 }
 
 export interface ResearchSummary {
-  background: string;
+  background: string | null;
   background_citations: Citation[];
-  policy_positions: string;
+  policy_positions: string | null;
   policy_positions_citations: Citation[];
-  recent_legislative_record: string[];
+  recent_legislative_record: string[] | null;
   recent_legislative_record_citations: Citation[];
-  accomplishments: string[];
+  accomplishments: string[] | null;
   accomplishments_citations: Citation[];
-  controversies: string[];
+  controversies: string[] | null;
   controversies_citations: Citation[];
-  recent_press: string[];
+  recent_press: string[] | null;
   recent_press_citations: Citation[];
-  top_donors: string[];
+  top_donors: string[] | null;
   top_donors_citations: Citation[];
 }
 
@@ -43,6 +43,6 @@ export interface RepresentativesResponse {
 
 export interface ResearchResponse {
   research_id: string;
-  status: "pending" | "complete" | "failed";
+  status: "pending" | "in_progress" | "complete" | "failed";
   summary: ResearchSummary | null;
 }
