@@ -12,11 +12,11 @@ The result is a feedback loop: representatives face little accountability betwee
 
 ## What MyReps Does
 
-MyReps makes it trivially easy to find out who represents you — at every level of government — and what they've been up to. Enter your address, and within minutes you have:
+MyReps makes it trivially easy to find out who represents you — at every level of government — and what they've been up to. Enter your address and you instantly see:
 
 - Every elected official who represents you, from the President down to your city council member
-- Current, AI-researched summaries of what each one has been doing: their background, recent news, policy positions, and committee work
 - Direct contact information — phone numbers, emails, and websites — so you can actually reach them
+- On-demand, AI-researched summaries for any rep you want to learn more about: their background, recent news, policy positions, and committee work
 
 ## Why This Matters
 

@@ -16,7 +16,7 @@ async def create_transaction(body: TransactionCreate):
         billing_model=body.billing_model,
         amount_usd=body.amount_usd,
         description=body.description,
-        job_id=body.job_id,
+        research_task_id=body.research_task_id,
     )
     return result
 

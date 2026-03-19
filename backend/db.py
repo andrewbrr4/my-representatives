@@ -56,13 +56,10 @@ async def close_pool() -> None:
         logger.info("Postgres connection pool closed")
 
 
-async def save_job(
+async def save_research_task(
     *,
-    job_id: str,
-    address: str,
-    reps_found: int,
-    reps_researched: int,
-    reps_cached: int,
+    research_id: str,
+    representative: str,
     input_tokens: int,
     output_tokens: int,
     tool_calls: int,
@@ -74,20 +71,18 @@ async def save_job(
     cost_per_search: Decimal | None = None,
     environment: str | None = None,
 ) -> None:
-    """Insert a row into the jobs table."""
+    """Insert a row into the research_tasks table."""
     pool = await get_pool()
     await pool.execute(
         """
-        INSERT INTO jobs (id, address, reps_found, reps_researched, reps_cached,
-                          input_tokens, output_tokens, tool_calls, status,
-                          model, input_cost_per_m, output_cost_per_m,
-                          search_tool, cost_per_search, environment)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        INSERT INTO research_tasks (id, representative, input_tokens, output_tokens,
+                          tool_calls, status, model, input_cost_per_m,
+                          output_cost_per_m, search_tool, cost_per_search, environment)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         """,
-        job_id, address, reps_found, reps_researched, reps_cached,
-        input_tokens, output_tokens, tool_calls, status,
-        model, input_cost_per_m, output_cost_per_m,
-        search_tool, cost_per_search, environment,
+        research_id, representative, input_tokens, output_tokens,
+        tool_calls, status, model, input_cost_per_m,
+        output_cost_per_m, search_tool, cost_per_search, environment,
     )
 
 
@@ -96,7 +91,7 @@ _M = Decimal("1000000")
 
 async def save_transactions(
     *,
-    job_id: str,
+    research_task_id: str,
     model: str | None,
     input_tokens: int,
     output_tokens: int,
@@ -118,13 +113,13 @@ async def save_transactions(
         await pool.execute(
             """
             INSERT INTO transactions (type, source, billing_model, amount_usd,
-                                      description, job_id)
+                                      description, research_task_id)
             VALUES ('outflow', $1, 'per_request', $2, $3, $4)
             """,
             source,
             llm_cost,
             f"{input_tokens} input + {output_tokens} output tokens",
-            job_id,
+            research_task_id,
         )
     else:
         logger.warning(
@@ -137,13 +132,13 @@ async def save_transactions(
         await pool.execute(
             """
             INSERT INTO transactions (type, source, billing_model, amount_usd,
-                                      description, job_id)
+                                      description, research_task_id)
             VALUES ('outflow', $1, 'per_request', $2, $3, $4)
             """,
             source,
             total_search_cost,
             f"{tool_calls} web searches",
-            job_id,
+            research_task_id,
         )
     elif not cost_per_search:
         logger.warning("Cost per search not provided, skipping search transaction")
@@ -156,17 +151,17 @@ async def save_manual_transaction(
     billing_model: str,
     amount_usd: float,
     description: str | None = None,
-    job_id: str | None = None,
+    research_task_id: str | None = None,
 ) -> dict:
     """Insert a manual transaction and return id + created_at."""
     pool = await get_pool()
     row = await pool.fetchrow(
         """
-        INSERT INTO transactions (type, source, billing_model, amount_usd, description, job_id)
+        INSERT INTO transactions (type, source, billing_model, amount_usd, description, research_task_id)
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id, created_at
         """,
-        type, source, billing_model, Decimal(str(amount_usd)), description, job_id,
+        type, source, billing_model, Decimal(str(amount_usd)), description, research_task_id,
     )
     return {"id": row["id"], "created_at": row["created_at"]}
 

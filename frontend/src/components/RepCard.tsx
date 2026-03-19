@@ -1,4 +1,6 @@
-import type { Representative, Citation } from "@/types";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import type { Representative, ResearchSummary, Citation } from "@/types";
+import type { ResearchStatus } from "@/hooks/useResearch";
 import {
   Card,
   CardContent,
@@ -6,7 +8,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function renderInline(
@@ -85,6 +93,20 @@ function ListSection({ title, items, citations }: ListSectionProps) {
   );
 }
 
+function ResearchContent({ summary }: { summary: ResearchSummary }) {
+  return (
+    <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
+      <ParagraphSection title="Background" content={summary.background} citations={summary.background_citations ?? []} />
+      <ParagraphSection title="Policy Positions" content={summary.policy_positions} citations={summary.policy_positions_citations ?? []} />
+      <ListSection title="Recent Legislative Record" items={summary.recent_legislative_record} citations={summary.recent_legislative_record_citations ?? []} />
+      <ListSection title="Accomplishments" items={summary.accomplishments} citations={summary.accomplishments_citations ?? []} />
+      <ListSection title="Controversies" items={summary.controversies} citations={summary.controversies_citations ?? []} />
+      <ListSection title="Other Recent Press" items={summary.recent_press} citations={summary.recent_press_citations ?? []} />
+      <ListSection title="Top Donors" items={summary.top_donors} citations={summary.top_donors_citations ?? []} />
+    </div>
+  );
+}
+
 const levelColors: Record<string, string> = {
   federal: "bg-blue-600 text-white hover:bg-blue-700",
   state: "bg-amber-600 text-white hover:bg-amber-700",
@@ -93,9 +115,12 @@ const levelColors: Record<string, string> = {
 
 interface RepCardProps {
   rep: Representative;
+  researchStatus: ResearchStatus;
+  summary: ResearchSummary | null;
+  onResearch: () => void;
 }
 
-export function RepCard({ rep }: RepCardProps) {
+export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardProps) {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="flex flex-row items-start gap-4 space-y-0">
@@ -124,28 +149,6 @@ export function RepCard({ rep }: RepCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {rep.summary === undefined ? (
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-        ) : rep.summary ? (
-          <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
-            <ParagraphSection title="Background" content={rep.summary.background} citations={rep.summary.background_citations ?? []} />
-            <ParagraphSection title="Policy Positions" content={rep.summary.policy_positions} citations={rep.summary.policy_positions_citations ?? []} />
-            <ListSection title="Recent Legislative Record" items={rep.summary.recent_legislative_record} citations={rep.summary.recent_legislative_record_citations ?? []} />
-            <ListSection title="Accomplishments" items={rep.summary.accomplishments} citations={rep.summary.accomplishments_citations ?? []} />
-            <ListSection title="Controversies" items={rep.summary.controversies} citations={rep.summary.controversies_citations ?? []} />
-            <ListSection title="Other Recent Press" items={rep.summary.recent_press} citations={rep.summary.recent_press_citations ?? []} />
-            <ListSection title="Top Donors" items={rep.summary.top_donors} citations={rep.summary.top_donors_citations ?? []} />
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground italic">
-            Research unavailable for this representative.
-          </p>
-        )}
-
         {/* Contact links */}
         <div className="flex gap-3 text-sm flex-wrap">
           {rep.contact.website && (
@@ -175,6 +178,48 @@ export function RepCard({ rep }: RepCardProps) {
             </a>
           )}
         </div>
+
+        {/* Research states */}
+        {researchStatus === "idle" && (
+          <Button onClick={onResearch} variant="outline" className="w-full">
+            Generate AI Research
+          </Button>
+        )}
+
+        {researchStatus === "loading" && (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground italic">
+              Scraping the web for information about your representative, sit tight...
+            </p>
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
+        )}
+
+        {researchStatus === "complete" && summary && (
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
+              <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
+              <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
+              AI Research
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <ResearchContent summary={summary} />
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        {researchStatus === "failed" && (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground italic">
+              Research unavailable for this representative.
+            </p>
+            <Button onClick={onResearch} variant="outline" size="sm">
+              Retry
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

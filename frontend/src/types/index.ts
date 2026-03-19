@@ -35,28 +35,15 @@ export interface Representative {
   party: string | null;
   photo_url: string | null;
   contact: Contact;
-  summary: ResearchSummary | null | undefined; // undefined=pending, null=failed
+  summary: ResearchSummary | null;
 }
 
 export interface RepresentativesResponse {
   representatives: Representative[];
 }
 
-export interface LookupResponse {
-  job_id: string;
-  representatives: Representative[];
-}
-
-export interface JobResearchEntry {
-  index: number;
+export interface ResearchResponse {
+  research_id: string;
   status: "pending" | "complete" | "failed";
   summary: ResearchSummary | null;
-}
-
-export interface JobStatusResponse {
-  job_id: string;
-  status: "lookup" | "researching" | "done" | "error";
-  representatives: Representative[] | null;
-  research: JobResearchEntry[] | null;
-  error_detail: string | null;
 }
