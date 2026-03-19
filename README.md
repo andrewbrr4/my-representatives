@@ -13,7 +13,7 @@ Find your elected representatives at every level of government — federal, stat
    - **Federal:** Census Geocoder (free) → US Congress API for senators + house rep
    - **State + municipal:** Cicero API for all other elected officials
 3. Representatives are returned immediately via SSE; AI research runs in the background
-4. For each rep, 7 focused Claude agents research different sections (background, policy positions, legislative record, etc.) using Tavily web search
+4. For each rep, 7 focused Claude agents research different sections (background, policy positions, legislative record, etc.) using web search (Tavily or Serper, configurable via `SEARCH_TOOL`)
 5. Research results stream back as they complete; if you disconnect, poll `/api/jobs/{job_id}` to recover
 
 ## Prerequisites
@@ -28,12 +28,16 @@ Create a `.env` file at the project root:
 
 ```env
 ANTHROPIC_API_KEY=...          # console.anthropic.com
-TAVILY_API_KEY=...             # tavily.com (free tier available)
 US_CONGRESS_API_KEY=...        # api.congress.gov (free)
 CICERO_API_KEY=...             # cicerodata.com (paid, state + municipal data)
 GOOGLE_CIVIC_API_KEY=...       # Google Cloud Console (future election/ballot data)
 CLAUDE_MODEL=claude-sonnet-4-6 # model for research agents
 RESEARCH_MAX_TOKENS=32768      # max tokens per section agent
+
+# Web search provider — "tavily" (default) or "serper"
+SEARCH_TOOL=tavily
+TAVILY_API_KEY=...             # tavily.com (required if SEARCH_TOOL=tavily)
+# SERPER_API_KEY=...           # serper.dev (required if SEARCH_TOOL=serper)
 
 # Langfuse tracing (optional)
 LANGFUSE_SECRET_KEY=...
@@ -48,10 +52,11 @@ DATABASE_URL=postgresql://postgres:<password>@127.0.0.1:5432/postgres
 # DB_USER=postgres
 # DB_PASSWORD=<password>
 
-# Cost tracking (for transactions ledger)
+# Cost tracking (recorded per job for historical analysis)
 ANTHROPIC_INPUT_COST_PER_M=3      # USD per million input tokens
 ANTHROPIC_OUTPUT_COST_PER_M=15    # USD per million output tokens
-COST_PER_SEARCH=0.008      # USD per search
+COST_PER_SEARCH=0.008             # USD per search (0.008 for Tavily, ~0.001 for Serper)
+ENVIRONMENT=dev                   # "dev" or "prod" — recorded in jobs table
 ```
 
 The frontend also needs a `frontend/.env`:
@@ -69,6 +74,8 @@ VITE_GOOGLE_PLACES_API_KEY=... # Google Places API (New) — restrict by HTTP re
 | `JOB_TTL_SECONDS` | `1800` (30min) | How long job state is kept in memory |
 | `DISABLE_REP_CACHE` | `false` | Skip research cache globally (useful for testing pipeline changes) |
 | `REDIS_URL` | _(none)_ | When set, uses Redis for job store + rep cache; otherwise in-memory |
+| `SEARCH_TOOL` | `tavily` | Search provider: `tavily` or `serper` |
+| `ENVIRONMENT` | `dev` | Recorded in jobs table to distinguish dev vs prod usage |
 
 ## Running Locally
 
@@ -124,7 +131,7 @@ docker compose up --build
 - **Frontend:** React + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui
 - **Backend:** FastAPI (Python 3.13+)
 - **LLM:** Anthropic Claude with tool use (model configurable via `CLAUDE_MODEL`)
-- **Web Search:** Tavily API
+- **Web Search:** Tavily or Serper (configurable via `SEARCH_TOOL`)
 - **Representative Data:** US Congress API (federal) + Cicero API (state/municipal)
 - **Database:** Cloud SQL PostgreSQL (usage tracking)
 - **Caching:** Redis via Memorystore (production) / in-memory (local dev)
