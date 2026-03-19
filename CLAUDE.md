@@ -54,8 +54,7 @@ Request flow:
    - If the client disconnects, research keeps running; client can poll `GET /api/jobs/{job_id}` to recover
    - `RepCache` (in-memory, 24h TTL) avoids redundant AI calls for previously-researched reps
 5. `research/pipeline.py` runs **7 per-section research agents** concurrently using LangChain + Langfuse tracing:
-   - Each section (background, policy_positions, recent_legislative_record, accomplishments, controversies, recent_press, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a `web_search` tool and returns structured output with per-section citations
-   - `research/search.py` provides a pluggable search provider (set `SEARCH_TOOL` env var: `tavily` or `serper`). Includes retry logic with exponential backoff for rate limits.
+   - Each section (background, policy_positions, recent_legislative_record, accomplishments, controversies, recent_press, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a Tavily `web_search` tool and returns structured output with per-section citations
    - Section prompts are stored in `research/prompts/` (system + user template per section)
    - Each agent is limited to 5 web searches and `recursion_limit=15`
    - A separate `UsageTracker` callback handler (`research/usage.py`) runs alongside Langfuse on each agent, tracking input/output tokens and tool calls independently
@@ -84,14 +83,12 @@ Frontend talks to backend via `fetch()` to `http://localhost:8000`. CORS is conf
 
 Required in `.env` at project root:
 - `ANTHROPIC_API_KEY`
-- `TAVILY_API_KEY` — required when `SEARCH_TOOL=tavily` (default)
-- `SERPER_API_KEY` — required when `SEARCH_TOOL=serper`
+- `TAVILY_API_KEY`
 - `CICERO_API_KEY` — [cicerodata.com](https://www.cicerodata.com/) (paid, state + municipal elected official data)
 - `US_CONGRESS_API_KEY` — [api.congress.gov](https://api.congress.gov/) (free, federal legislators)
 - `GOOGLE_CIVIC_API_KEY` — kept for future election/ballot data via `voterinfo` endpoint
 - `VITE_GOOGLE_PLACES_API_KEY` — Google Places API key for address autocomplete (frontend env var in `frontend/.env`; must have Places API (New) enabled in GCP console; restrict by HTTP referrer for security)
 - `CLAUDE_MODEL` — model ID for the research agent (e.g. `claude-sonnet-4-20250514`)
-- `SEARCH_TOOL` — which search provider to use: `tavily` (default) or `serper`
 - `US_CONGRESS_REPS_ONLY` — set to `true` to skip Cicero API and only return US congressional reps (useful for faster testing)
 - `RESEARCH_MAX_TOKENS` — max token output for each section research agent
 - `LANGFUSE_SECRET_KEY` — Langfuse tracing secret key
@@ -108,7 +105,7 @@ Required in `.env` at project root:
 - `DB_PASSWORD` — Postgres password. Used with `DB_SOCKET_PATH` on Cloud Run, and by `docker-compose.yml` to construct `DATABASE_URL`.
 - `ANTHROPIC_INPUT_COST_PER_M` — Anthropic input token cost in USD per million tokens (e.g. `3` for Sonnet 4)
 - `ANTHROPIC_OUTPUT_COST_PER_M` — Anthropic output token cost in USD per million tokens (e.g. `15` for Sonnet 4)
-- `COST_PER_SEARCH` — cost per web search in USD (e.g. `0.008` for Tavily, `0.001` for Serper)
+- `COST_PER_SEARCH` — Tavily cost per search in USD (e.g. `0.008`)
 - `ENVIRONMENT` — `dev` or `prod` (default `dev`). Recorded in the `jobs` table for filtering.
 
 Backend loads these via `python-dotenv` at startup.

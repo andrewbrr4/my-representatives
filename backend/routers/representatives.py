@@ -13,7 +13,6 @@ from services.cicero import get_state_local_representatives
 from services.congress import get_federal_representatives
 from db import save_job, save_transactions
 from research.pipeline import research_representative
-from research.search import get_search_tool_name
 from research.usage import UsageStats
 from store.dependencies import get_job_store, get_rep_cache
 
@@ -81,7 +80,7 @@ async def _run_all_research(job_id: str, address: str, reps: list[Representative
     search_cost_env = os.environ.get("COST_PER_SEARCH")
     input_cost_per_m = Decimal(input_cost_env) if input_cost_env else None
     output_cost_per_m = Decimal(output_cost_env) if output_cost_env else None
-    search_tool = get_search_tool_name()
+    search_tool = "tavily"
     cost_per_search = Decimal(search_cost_env) if search_cost_env else None
     environment = os.environ.get("ENVIRONMENT", "dev")
 
