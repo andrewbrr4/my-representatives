@@ -33,7 +33,6 @@ _semaphore = asyncio.Semaphore(2)
 # Limit concurrent Tavily searches to avoid rate limits
 _search_semaphore = asyncio.Semaphore(3)
 
-
 _MAX_SEARCH_RETRIES = 5
 _RETRY_BASE_DELAY = 5.0  # seconds, doubles each retry
 

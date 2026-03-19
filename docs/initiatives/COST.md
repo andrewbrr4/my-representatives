@@ -116,7 +116,7 @@ Job abc123: research complete — 8 reps (2 cached, 6 researched) — 45,231 inp
 
 ### Phase 2 — Transactions ledger (implemented)
 
-Anthropic and Tavily outflow transactions are written to the `transactions` table inline at request time, alongside `save_job`. Cost is computed from token counts and tool calls using env var pricing (`ANTHROPIC_INPUT_COST_PER_M`, `ANTHROPIC_OUTPUT_COST_PER_M`, `TAVILY_COST_PER_SEARCH`). See `db.py:save_transactions()`.
+Anthropic and Tavily outflow transactions are written to the `transactions` table inline at request time, alongside `save_job`. Cost is computed from token counts and tool calls using env var pricing (`ANTHROPIC_INPUT_COST_PER_M`, `ANTHROPIC_OUTPUT_COST_PER_M`, `COST_PER_SEARCH`). See `db.py:save_transactions()`.
 
 **Design decision: two tables, two purposes.**
 
