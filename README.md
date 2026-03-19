@@ -70,6 +70,7 @@ VITE_GOOGLE_PLACES_API_KEY=... # Google Places API (New) — restrict by HTTP re
 | `JOB_TTL_SECONDS` | `1800` (30min) | How long job state is kept in memory |
 | `DISABLE_REP_CACHE` | `false` | Skip research cache globally (useful for testing pipeline changes) |
 | `REDIS_URL` | _(none)_ | When set, uses Redis for job store + rep cache; otherwise in-memory |
+| `SEARCH_TOOL` | `tavily` | Search provider name, recorded in jobs table for cost tracking |
 | `ENVIRONMENT` | `dev` | Recorded in jobs table to distinguish dev vs prod usage |
 
 ## Running Locally

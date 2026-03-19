@@ -89,6 +89,7 @@ Required in `.env` at project root:
 - `GOOGLE_CIVIC_API_KEY` — kept for future election/ballot data via `voterinfo` endpoint
 - `VITE_GOOGLE_PLACES_API_KEY` — Google Places API key for address autocomplete (frontend env var in `frontend/.env`; must have Places API (New) enabled in GCP console; restrict by HTTP referrer for security)
 - `CLAUDE_MODEL` — model ID for the research agent (e.g. `claude-sonnet-4-20250514`)
+- `SEARCH_TOOL` — which search provider is in use (default `tavily`). Recorded in the `jobs` table for cost tracking.
 - `US_CONGRESS_REPS_ONLY` — set to `true` to skip Cicero API and only return US congressional reps (useful for faster testing)
 - `RESEARCH_MAX_TOKENS` — max token output for each section research agent
 - `LANGFUSE_SECRET_KEY` — Langfuse tracing secret key

@@ -80,7 +80,7 @@ async def _run_all_research(job_id: str, address: str, reps: list[Representative
     search_cost_env = os.environ.get("COST_PER_SEARCH")
     input_cost_per_m = Decimal(input_cost_env) if input_cost_env else None
     output_cost_per_m = Decimal(output_cost_env) if output_cost_env else None
-    search_tool = "tavily"
+    search_tool = os.environ.get("SEARCH_TOOL", "tavily")
     cost_per_search = Decimal(search_cost_env) if search_cost_env else None
     environment = os.environ.get("ENVIRONMENT", "dev")
 
