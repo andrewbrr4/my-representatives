@@ -31,9 +31,9 @@ Reuses the same shape as `Representative` so RepCard can render both. Additional
 | photo_url | str \| None | Photo URL (from Civic API, may be null) |
 | contest_name | str | Full contest name (e.g., "U.S. Senate - Texas") |
 | incumbent | bool | Whether the candidate is the incumbent |
-| level | str | federal / state / local |
+| level | str | federal / state / municipal (consistent with `Representative.level`) |
 
-The `Candidate` model must be compatible with the existing `POST /api/research` endpoint — the research pipeline identifies reps by name + office, which works for candidates too.
+**Research compatibility:** The frontend converts a `Candidate` to a `Representative` shape (dropping `contest_name`, `incumbent`; mapping `level` values) before POSTing to `POST /api/research`. The research pipeline only needs `name` and `office` to run its web search agents. No changes to the research endpoint or `ResearchRequest` model.
 
 ### Contest
 
@@ -42,7 +42,7 @@ Groups candidates under a single race.
 | Field | Type | Description |
 |-------|------|-------------|
 | office | str | Office name |
-| level | str | federal / state / local |
+| level | str | federal / state / municipal (consistent with `Representative.level`) |
 | district_name | str \| None | District (e.g., "Texas's 25th") |
 | candidates | list[Candidate] | Candidates in this race |
 
@@ -71,6 +71,27 @@ Top-level grouping for an election event.
 | Field | Type | Description |
 |-------|------|-------------|
 | elections | list[Election] | All upcoming elections for this address |
+
+### ElectionResearchSummary
+
+The election-level research output. Different from `ResearchSummary` (which has 7 rep-specific sections).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| overview_and_significance | str \| None | What this election is and why it matters locally |
+| key_issues_and_context | str \| None | Top issues driving races, local context |
+| voter_information | str \| None | Registration deadlines, early voting, ID requirements |
+| citations | list[Citation] | Sources across all sections (reuses existing `Citation` model) |
+
+### ElectionResearchResponse
+
+Returned by `GET /api/election-research/{research_id}`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| research_id | str | Task ID |
+| status | str | pending / in_progress / complete / failed |
+| summary | ElectionResearchSummary \| None | Partial or complete summary |
 
 ## Backend
 
@@ -103,7 +124,7 @@ New lightweight research pipeline for per-election AI context. Follows the same 
 - Returns `{ research_id: string, status: "pending" }`
 
 **Polling:** `GET /api/election-research/{research_id}`
-- Same response shape as rep research: status + partial summary with completed sections
+- Returns `ElectionResearchResponse` (see Data Models): `research_id`, `status`, and partial `ElectionResearchSummary` with completed sections filled in as they arrive
 
 **Sections (3, run concurrently):**
 
@@ -112,16 +133,17 @@ New lightweight research pipeline for per-election AI context. Follows the same 
 3. **Voter Information** — registration deadlines, early voting dates, ID requirements, procedural changes
 
 **Implementation details:**
-- Uses the same `InMemoryResearchStore` for task tracking
+- Uses `InMemoryResearchStore` for task tracking, but `TOTAL_SECTIONS` must be parameterized. Add a `total_sections` parameter to task creation so the store knows when a 3-section election task is complete vs a 7-section rep task. The store's `complete_section()` logic and status transition (`pending` → `in_progress` → `complete`) remain the same.
 - Same `UsageTracker` callback + Langfuse tracing
 - Each section agent: `ChatAnthropic` + Tavily `web_search` (same as rep research)
 - Fewer searches needed per section (3-4 max vs 5 for rep research)
-- Cached in `RepCache` keyed by election name + date + address hash
-- **Auto-triggered** when the elections endpoint is called — no user action needed
+- **Caching:** New `ElectionCacheInterface` (parallel to `RepCacheInterface`) with `get(election_name, date, address_hash)` → `ElectionResearchSummary | None` and corresponding `put()`. Implemented in Redis when `REDIS_URL` is set, no-op otherwise (same pattern as rep cache).
+- **Auto-triggered** when the elections endpoint is called — no user action needed. Capped at 3 elections max per request to bound cost. If more than 3 elections are returned, only the nearest 3 get auto-researched; the rest show a "Generate election context" button.
+- **Cost tracking:** Election research tasks are persisted to the existing `research_tasks` table with a `task_type` field distinguishing `"rep"` vs `"election"`. Requires a migration to add this column (nullable, defaults to `"rep"` for existing rows).
 
 ### Candidate research
 
-No changes. Candidates use the existing `POST /api/research` endpoint. A `Candidate` is shaped like a `Representative`, and the research pipeline searches by name + office, which works for candidates.
+No changes to the backend. The frontend converts a `Candidate` to a `Representative` shape before calling `POST /api/research` (see Data Models section). The research pipeline searches by name + office, which works for candidates.
 
 ## Frontend
 
@@ -141,6 +163,10 @@ Address and rep data live in a React context provider wrapping both routes:
 - `AddressContext` — holds the searched address, persists across tab switches
 - Rep data stays in `useRepresentatives` hook (unchanged)
 - Election data in a new `useElections` hook (fires on Elections tab mount)
+
+### Route guards
+
+If a user navigates directly to `/reps` or `/elections` without an address (e.g., page refresh, direct URL), redirect to `/`. The address is stored in React context (in-memory) — no persistence to URL params or session storage. This matches the existing UX where a refresh means re-entering the address. Keeping it simple; persistence can be added later if needed.
 
 ### Navigation
 
