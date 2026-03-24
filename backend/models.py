@@ -81,6 +81,91 @@ class RepresentativesResponse(BaseModel):
     representatives: list[Representative]
 
 
+class PollingLocation(BaseModel):
+    name: str
+    address: str
+    hours: str | None = None
+
+
+class Candidate(BaseModel):
+    name: str
+    office: str
+    level: str  # "federal" | "state" | "municipal"
+    party: str | None = None
+    photo_url: str | None = None
+    contest_name: str = ""
+    incumbent: bool = False
+
+    def to_representative(self) -> "Representative":
+        """Convert to Representative shape for the research endpoint."""
+        return Representative(
+            name=self.name,
+            office=self.office,
+            level=self.level,
+            party=self.party,
+            photo_url=self.photo_url,
+        )
+
+
+class Contest(BaseModel):
+    office: str
+    level: str  # "federal" | "state" | "municipal"
+    district_name: str | None = None
+    candidates: list[Candidate] = []
+
+
+class VoterInfo(BaseModel):
+    """Parsed from Google Civic API state[].electionAdministrationBody. No research needed."""
+    registration_url: str | None = None
+    absentee_url: str | None = None
+    ballot_info_url: str | None = None
+    polling_location_url: str | None = None
+    early_vote_sites: list[PollingLocation] = []
+    drop_off_locations: list[PollingLocation] = []
+    mail_only: bool = False
+    admin_body_name: str | None = None
+    admin_body_url: str | None = None
+
+
+class Election(BaseModel):
+    name: str
+    date: str  # ISO format
+    election_type: str  # "primary" | "general" | "runoff"
+    polling_location: PollingLocation | None = None
+    voter_info: VoterInfo | None = None
+    contests: list[Contest] = []
+
+
+class ElectionsResponse(BaseModel):
+    elections: list[Election]
+    research_ids: dict[str, str] = Field(default_factory=dict)  # key: "election_name|date" → research_id
+
+
+class ElectionResearchSummary(BaseModel):
+    """Two sections: election_context (sync LLM, no search) + key_issues_and_significance (async, web search)."""
+    election_context: str | None = None
+    key_issues_and_significance: str | None = None
+    citations: list[Citation] = Field(default_factory=list)
+
+    SECTION_NAMES: list[str] = Field(default=[
+        "election_context", "key_issues_and_significance",
+    ], exclude=True)
+
+
+class ElectionResearchRequest(BaseModel):
+    election_name: str
+    election_date: str
+    election_type: str
+    state: str
+    address: str
+
+
+class ElectionResearchResponse(BaseModel):
+    research_id: str
+    status: Literal["pending", "in_progress", "complete", "failed"]
+    summary: ElectionResearchSummary | None = None
+
+
 class ResearchRequest(BaseModel):
     representative: Representative
 
