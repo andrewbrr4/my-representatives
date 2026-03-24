@@ -20,13 +20,9 @@
 | `backend/models.py` (modify) | Add `Candidate`, `Contest`, `PollingLocation`, `Election`, `ElectionsResponse`, `ElectionResearchSummary`, `ElectionResearchRequest`, `ElectionResearchResponse` |
 | `backend/services/elections.py` (create) | Google Civic API client — fetches elections, contests, candidates for an address |
 | `backend/routers/elections.py` (create) | `POST /api/elections` endpoint + `POST /api/election-research` + `GET /api/election-research/{id}` |
-| `backend/research/election_pipeline.py` (create) | 3-section election research pipeline (overview, key issues, voter info) |
-| `backend/research/prompts/election_overview_system.txt` (create) | System prompt for election overview section |
-| `backend/research/prompts/election_overview_user.txt` (create) | User prompt for election overview section |
-| `backend/research/prompts/election_key_issues_system.txt` (create) | System prompt for key issues section |
-| `backend/research/prompts/election_key_issues_user.txt` (create) | User prompt for key issues section |
-| `backend/research/prompts/election_voter_info_system.txt` (create) | System prompt for voter info section |
-| `backend/research/prompts/election_voter_info_user.txt` (create) | User prompt for voter info section |
+| `backend/research/election_pipeline.py` (create) | Election research: 1 sync LLM call (context) + 1 web search agent (key issues) |
+| `backend/research/prompts/election_key_issues_system.txt` (create) | System prompt for key issues agent |
+| `backend/research/prompts/election_key_issues_user.txt` (create) | User prompt for key issues agent |
 | `backend/store/interfaces.py` (modify) | Add `ElectionCacheInterface` ABC |
 | `backend/store/research_store.py` (modify) | Parameterize `TOTAL_SECTIONS` → per-task `total_sections` |
 | `backend/store/redis.py` (modify) | Add `RedisElectionCache` |
@@ -97,11 +93,25 @@ class Contest(BaseModel):
     candidates: list[Candidate] = []
 
 
+class VoterInfo(BaseModel):
+    """Parsed from Google Civic API state[].electionAdministrationBody. No research needed."""
+    registration_url: str | None = None
+    absentee_url: str | None = None
+    ballot_info_url: str | None = None
+    polling_location_url: str | None = None
+    early_vote_sites: list[PollingLocation] = []
+    drop_off_locations: list[PollingLocation] = []
+    mail_only: bool = False
+    admin_body_name: str | None = None
+    admin_body_url: str | None = None
+
+
 class Election(BaseModel):
     name: str
     date: str  # ISO format
     election_type: str  # "primary" | "general" | "runoff"
     polling_location: PollingLocation | None = None
+    voter_info: VoterInfo | None = None
     contests: list[Contest] = []
 
 
@@ -111,13 +121,13 @@ class ElectionsResponse(BaseModel):
 
 
 class ElectionResearchSummary(BaseModel):
-    overview_and_significance: str | None = None
-    key_issues_and_context: str | None = None
-    voter_information: str | None = None
+    """Two sections: election_context (sync LLM, no search) + key_issues_and_significance (async, web search)."""
+    election_context: str | None = None
+    key_issues_and_significance: str | None = None
     citations: list[Citation] = Field(default_factory=list)
 
     SECTION_NAMES: list[str] = Field(default=[
-        "overview_and_significance", "key_issues_and_context", "voter_information",
+        "election_context", "key_issues_and_significance",
     ], exclude=True)
 
 
@@ -396,6 +406,7 @@ from models import (
     Election,
     ElectionsResponse,
     PollingLocation,
+    VoterInfo,
 )
 
 logger = logging.getLogger(__name__)
@@ -493,6 +504,25 @@ def _parse_civic_response(data: dict) -> ElectionsResponse:
             candidates=candidates,
         ))
 
+    # Parse voter info from state administration body
+    voter_info = _parse_voter_info(data)
+
+    # Parse early vote sites and drop-off locations into voter_info
+    for site in data.get("earlyVoteSites", []):
+        addr = site.get("address", {})
+        voter_info.early_vote_sites.append(PollingLocation(
+            name=addr.get("locationName", "Early Vote Site"),
+            address=_format_civic_address(addr),
+            hours=site.get("pollingHours"),
+        ))
+    for loc in data.get("dropOffLocations", []):
+        addr = loc.get("address", {})
+        voter_info.drop_off_locations.append(PollingLocation(
+            name=addr.get("locationName", "Drop-off Location"),
+            address=_format_civic_address(addr),
+            hours=loc.get("pollingHours"),
+        ))
+
     # Determine election type from name
     election_name = election_data.get("name", "Unknown Election")
     election_type = _infer_election_type(election_name)
@@ -502,10 +532,32 @@ def _parse_civic_response(data: dict) -> ElectionsResponse:
         date=election_data.get("electionDay", ""),
         election_type=election_type,
         polling_location=polling_location,
+        voter_info=voter_info,
         contests=contests,
     )
 
     return ElectionsResponse(elections=[election])
+
+
+def _parse_voter_info(data: dict) -> VoterInfo:
+    """Extract voter info from Civic API state[].electionAdministrationBody."""
+    states = data.get("state", [])
+    if not states:
+        return VoterInfo()
+
+    admin = states[0].get("electionAdministrationBody", {})
+    if not admin:
+        return VoterInfo()
+
+    return VoterInfo(
+        registration_url=admin.get("electionRegistrationUrl"),
+        absentee_url=admin.get("absenteeVotingInfoUrl"),
+        ballot_info_url=admin.get("ballotInfoUrl"),
+        polling_location_url=admin.get("votingLocationFinderUrl"),
+        mail_only=data.get("mailOnly", False),
+        admin_body_name=admin.get("name"),
+        admin_body_url=admin.get("electionInfoUrl"),
+    )
 
 
 def _format_civic_address(addr: dict) -> str:
@@ -550,51 +602,26 @@ git commit -m "feat: add Google Civic API elections service"
 
 **Files:**
 - Create: `backend/research/election_pipeline.py`
-- Create: 6 prompt files in `backend/research/prompts/`
+- Create: 2 prompt files in `backend/research/prompts/`
+
+Simplified pipeline: 1 sync LLM call (election context, no web search) + 1 research agent (key issues, web search). Voter info comes from the Civic API, not research.
 
 - [ ] **Step 1: Create election research prompts**
 
-Create `backend/research/prompts/election_overview_system.txt`:
+Only one pair needed — for the key issues agent that uses web search.
+
+Create `backend/research/prompts/election_key_issues_system.txt`:
 ```
-You are a nonpartisan political research assistant focused on providing context about an upcoming election. Your job is to explain what this election is, why it matters, and what's at stake.
+You are a nonpartisan political research assistant. Your job is to identify key issues and assess the political significance of an upcoming election.
 
 Today's date is ${current_date}.
 
 ## Instructions
 
 1. Perform up to 4 web searches to research this election.
-2. Write a concise summary (3-5 sentences) explaining:
-   - What this election is (type, scope)
-   - Why it matters for this area (balance of power, key races)
-   - What's at stake (policy implications, redistricting impact, etc.)
-3. Embed inline citation markers like [1], [2] after each factual claim.
-
-## Rules
-
-- Every factual claim must cite a search result — do not fabricate sources or URLs
-- Be nonpartisan and factual
-- Keep it concise — short, direct sentences
-- Plain text only, no html or markdown allowed
-- citations[0] corresponds to [1], citations[1] to [2], etc.
-- Max 4 web searches total
-```
-
-Create `backend/research/prompts/election_overview_user.txt`:
-```
-Research the upcoming election: $election_name, scheduled for $election_date in $state. This is a $election_type election. The user's address is in: $address. Explain what this election is and why it matters for voters in this area.
-```
-
-Create `backend/research/prompts/election_key_issues_system.txt`:
-```
-You are a nonpartisan political research assistant focused on identifying key issues in an upcoming election. Your job is to surface the most important issues driving races in this election cycle.
-
-Today's date is ${current_date}.
-
-## Instructions
-
-1. Perform up to 4 web searches to identify key issues.
 2. Write a concise summary (3-5 sentences) covering:
-   - Top 2-3 issues driving races in this election
+   - What's politically at stake (balance of power, key competitive races)
+   - Top 2-3 issues driving races in this election cycle
    - Local context that shapes how voters in this area think about these issues
 3. Embed inline citation markers like [1], [2] after each factual claim.
 
@@ -610,49 +637,17 @@ Today's date is ${current_date}.
 
 Create `backend/research/prompts/election_key_issues_user.txt`:
 ```
-What are the key issues in the $election_name ($election_date) in $state? The user lives near: $address. Identify the top issues driving races and relevant local context.
-```
-
-Create `backend/research/prompts/election_voter_info_system.txt`:
-```
-You are a nonpartisan voter information assistant. Your job is to provide practical voting information for an upcoming election.
-
-Today's date is ${current_date}.
-
-## Instructions
-
-1. Perform up to 4 web searches to find voter logistics info.
-2. Write a concise summary (3-5 sentences) covering:
-   - Voter registration deadline (if not yet passed)
-   - Early voting dates and options
-   - Voter ID requirements
-   - Any notable procedural changes for this election
-3. Embed inline citation markers like [1], [2] after each factual claim.
-
-## Rules
-
-- Every factual claim must cite a search result — do not fabricate sources or URLs
-- Be factual and helpful
-- Keep it concise — short, direct sentences
-- Plain text only, no html or markdown allowed
-- citations[0] corresponds to [1], citations[1] to [2], etc.
-- Max 4 web searches total
-```
-
-Create `backend/research/prompts/election_voter_info_user.txt`:
-```
-Find practical voter information for the $election_name ($election_date) in $state. The user lives near: $address. Cover registration deadlines, early voting, ID requirements, and any procedural changes.
+Research the political significance and key issues of the $election_name ($election_date) in $state. This is a $election_type election. The user lives near: $address. What's at stake and what issues are driving the races?
 ```
 
 - [ ] **Step 2: Create `backend/research/election_pipeline.py`**
 
 ```python
-"""Election research pipeline — 3 concurrent section agents for election context."""
+"""Election research pipeline — sync context generation + async key issues research."""
 
 import asyncio
 import logging
 import os
-from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from string import Template
@@ -672,48 +667,40 @@ logger = logging.getLogger(__name__)
 
 _PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
-# Reuse the concurrency semaphore from the rep pipeline
 _semaphore = asyncio.Semaphore(2)
 
-ELECTION_TOTAL_SECTIONS = 3
+ELECTION_TOTAL_SECTIONS = 2  # election_context (sync) + key_issues_and_significance (async)
 
 
-@dataclass
-class ElectionSectionConfig:
-    name: str  # must match ElectionResearchSummary field name
-    system_prompt_file: str
-    user_prompt_file: str
+async def generate_election_context(
+    election_name: str,
+    election_date: str,
+    election_type: str,
+    state: str,
+) -> str:
+    """Generate election type context from LLM training data. No web search needed."""
+    model = ChatAnthropic(
+        model=os.environ["CLAUDE_MODEL"],
+        max_tokens=512,
+    )
+    prompt = (
+        f"In 2-3 sentences, explain what a {election_type} election is and what it means "
+        f"for voters. This is the {election_name} on {election_date} in {state}. "
+        f"Be concise, nonpartisan, and factual. Plain text only."
+    )
+    response = await model.ainvoke([HumanMessage(content=prompt)])
+    return response.content
 
 
-ELECTION_SECTIONS: list[ElectionSectionConfig] = [
-    ElectionSectionConfig(
-        name="overview_and_significance",
-        system_prompt_file="election_overview_system.txt",
-        user_prompt_file="election_overview_user.txt",
-    ),
-    ElectionSectionConfig(
-        name="key_issues_and_context",
-        system_prompt_file="election_key_issues_system.txt",
-        user_prompt_file="election_key_issues_user.txt",
-    ),
-    ElectionSectionConfig(
-        name="voter_information",
-        system_prompt_file="election_voter_info_system.txt",
-        user_prompt_file="election_voter_info_user.txt",
-    ),
-]
-
-
-@observe(name="election-section-agent")
-async def run_election_section_agent(
+@observe(name="election-key-issues-agent")
+async def research_key_issues(
     election_name: str,
     election_date: str,
     election_type: str,
     state: str,
     address: str,
-    section: ElectionSectionConfig,
 ) -> tuple[str, list[Citation], UsageStats]:
-    """Run a focused agent for one section of election research."""
+    """Run one research agent with web search to find key issues and political significance."""
     langfuse_handler = CallbackHandler()
     usage_tracker = UsageTracker()
     model = ChatAnthropic(
@@ -727,10 +714,10 @@ async def run_election_section_agent(
     )
 
     system_template = Template(
-        (_PROMPTS_DIR / section.system_prompt_file).read_text()
+        (_PROMPTS_DIR / "election_key_issues_system.txt").read_text()
     )
     user_template = Template(
-        (_PROMPTS_DIR / section.user_prompt_file).read_text()
+        (_PROMPTS_DIR / "election_key_issues_user.txt").read_text()
     )
 
     system_prompt = system_template.substitute(current_date=date.today().isoformat())
@@ -752,13 +739,13 @@ async def run_election_section_agent(
         config={
             "callbacks": [langfuse_handler, usage_tracker],
             "recursion_limit": 15,
-            "run_name": f"election:{section.name}:{election_name}",
+            "run_name": f"election:key_issues:{election_name}",
         },
     )
 
     structured = result["structured_response"]
     logger.info(
-        f"Election section '{section.name}' complete for {election_name}: "
+        f"Key issues research complete for {election_name}: "
         f"{len(structured.citations)} citations"
     )
     return structured.content, structured.citations, usage_tracker.stats
@@ -774,51 +761,50 @@ async def research_election(
     store: InMemoryResearchStore | None = None,
     research_id: str | None = None,
 ) -> tuple[ElectionResearchSummary | None, UsageStats]:
-    """Run 3 focused section agents concurrently for election context."""
+    """Generate election context (sync LLM) then research key issues (async web search)."""
     total_usage = UsageStats()
-    usage_lock = asyncio.Lock()
-    logger.info(f"Queued election research for {election_name}")
+    logger.info(f"Starting election research for {election_name}")
 
-    async def _run_and_store(section: ElectionSectionConfig) -> None:
+    # Step 1: Generate election context from training data (fast, no web search)
+    try:
+        context = await generate_election_context(
+            election_name, election_date, election_type, state
+        )
+    except Exception as e:
+        logger.error(f"Election context generation failed: {e}", exc_info=True)
+        context = ""
+
+    if store and research_id:
+        await store.complete_section(research_id, "election_context", context, [])
+
+    # Step 2: Research key issues with web search (slower)
+    async with _semaphore:
         try:
-            content, citations, usage = await run_election_section_agent(
-                election_name, election_date, election_type, state, address, section
+            content, citations, usage = await research_key_issues(
+                election_name, election_date, election_type, state, address
             )
+            total_usage += usage
         except Exception as e:
-            logger.error(
-                f"Election section '{section.name}' failed for {election_name}: {e}",
-                exc_info=e,
-            )
+            logger.error(f"Key issues research failed for {election_name}: {e}", exc_info=True)
             content = ""
             citations = []
-            usage = UsageStats()
-
-        async with usage_lock:
-            nonlocal total_usage
-            total_usage += usage
 
         if store and research_id:
-            await store.complete_section(research_id, section.name, content, citations)
-
-    async with _semaphore:
-        logger.info(f"Starting election research for {election_name}")
-        try:
-            await asyncio.gather(*(_run_and_store(s) for s in ELECTION_SECTIONS))
-
-            logger.info(
-                f"Election research for {election_name}: "
-                f"{total_usage.input_tokens} in / {total_usage.output_tokens} out / "
-                f"{total_usage.tool_calls} tool calls"
+            await store.complete_section(
+                research_id, "key_issues_and_significance", content, citations
             )
 
-            if store and research_id:
-                task = await store.get(research_id)
-                return task.summary if task else None, total_usage
+    logger.info(
+        f"Election research for {election_name}: "
+        f"{total_usage.input_tokens} in / {total_usage.output_tokens} out / "
+        f"{total_usage.tool_calls} tool calls"
+    )
 
-            return None, total_usage
-        except Exception as e:
-            logger.error(f"Election research failed for {election_name}: {e}", exc_info=True)
-            return None, total_usage
+    if store and research_id:
+        task = await store.get(research_id)
+        return task.summary if task else None, total_usage
+
+    return None, total_usage
 ```
 
 - [ ] **Step 3: Verify the module imports**
@@ -829,8 +815,8 @@ Expected: `OK`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend/research/election_pipeline.py backend/research/prompts/election_*
-git commit -m "feat: add election research pipeline with 3-section agents"
+git add backend/research/election_pipeline.py backend/research/prompts/election_key_issues_*
+git commit -m "feat: add election research pipeline (1 LLM context + 1 web search agent)"
 ```
 
 ---
@@ -1545,6 +1531,7 @@ export interface Election {
   date: string;
   election_type: string;
   polling_location: PollingLocation | null;
+  voter_info: VoterInfo | null;
   contests: Contest[];
 }
 
@@ -1553,10 +1540,21 @@ export interface ElectionsResponse {
   research_ids: Record<string, string>;  // "election_name|date" → research_id
 }
 
+export interface VoterInfo {
+  registration_url: string | null;
+  absentee_url: string | null;
+  ballot_info_url: string | null;
+  polling_location_url: string | null;
+  early_vote_sites: PollingLocation[];
+  drop_off_locations: PollingLocation[];
+  mail_only: boolean;
+  admin_body_name: string | null;
+  admin_body_url: string | null;
+}
+
 export interface ElectionResearchSummary {
-  overview_and_significance: string | null;
-  key_issues_and_context: string | null;
-  voter_information: string | null;
+  election_context: string | null;
+  key_issues_and_significance: string | null;
   citations: Citation[];
 }
 
@@ -2008,18 +2006,13 @@ export function ElectionCard({
             <CollapsibleContent>
               <div className="space-y-3 mt-2 p-4 rounded-lg bg-muted/30 border">
                 {renderElectionSection(
-                  "Overview & Significance",
-                  researchSummary?.overview_and_significance ?? null,
-                  researchSummary?.citations ?? []
+                  "About This Election",
+                  researchSummary?.election_context ?? null,
+                  []  /* no citations — generated from training data */
                 )}
                 {renderElectionSection(
-                  "Key Issues & Context",
-                  researchSummary?.key_issues_and_context ?? null,
-                  researchSummary?.citations ?? []
-                )}
-                {renderElectionSection(
-                  "Voter Information",
-                  researchSummary?.voter_information ?? null,
+                  "Key Issues & Significance",
+                  researchSummary?.key_issues_and_significance ?? null,
                   researchSummary?.citations ?? []
                 )}
               </div>
@@ -2035,6 +2028,35 @@ export function ElectionCard({
             <div className="text-sm text-muted-foreground">{election.polling_location.address}</div>
             {election.polling_location.hours && (
               <div className="text-sm text-muted-foreground">Hours: {election.polling_location.hours}</div>
+            )}
+          </div>
+        )}
+
+        {/* Voter Info (from Civic API, not research) */}
+        {election.voter_info && (
+          <div className="p-3 rounded-lg bg-muted/30 border space-y-2">
+            <h4 className="text-xs font-medium text-muted-foreground">Voter Resources</h4>
+            <div className="flex flex-wrap gap-3 text-sm">
+              {election.voter_info.registration_url && (
+                <a href={election.voter_info.registration_url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary/80">Register to Vote</a>
+              )}
+              {election.voter_info.absentee_url && (
+                <a href={election.voter_info.absentee_url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary/80">Absentee/Mail-In Voting</a>
+              )}
+              {election.voter_info.ballot_info_url && (
+                <a href={election.voter_info.ballot_info_url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary/80">Ballot Information</a>
+              )}
+            </div>
+            {election.voter_info.mail_only && (
+              <p className="text-xs text-muted-foreground">This is a mail-only election.</p>
+            )}
+            {election.voter_info.early_vote_sites.length > 0 && (
+              <div>
+                <h5 className="text-xs text-muted-foreground font-medium mt-2">Early Vote Sites</h5>
+                {election.voter_info.early_vote_sites.map((site, i) => (
+                  <div key={i} className="text-sm">{site.name} — {site.address}{site.hours ? ` (${site.hours})` : ""}</div>
+                ))}
+              </div>
             )}
           </div>
         )}

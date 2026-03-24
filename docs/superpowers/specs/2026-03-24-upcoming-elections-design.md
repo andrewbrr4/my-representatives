@@ -56,6 +56,7 @@ Top-level grouping for an election event.
 | date | str | Election date (ISO format) |
 | election_type | str | primary / general / runoff |
 | polling_location | PollingLocation \| None | Nearest polling place |
+| voter_info | VoterInfo \| None | Registration, absentee, early voting info from Civic API |
 | contests | list[Contest] | Races on the ballot |
 
 ### PollingLocation
@@ -66,6 +67,22 @@ Top-level grouping for an election event.
 | address | str | Full address |
 | hours | str \| None | Polling hours |
 
+### VoterInfo
+
+Parsed directly from the Google Civic API `state[].electionAdministrationBody` response. No research needed.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| registration_url | str \| None | URL for voter registration info |
+| absentee_url | str \| None | URL for absentee/mail-in ballot info |
+| ballot_info_url | str \| None | URL for ballot information |
+| polling_location_url | str \| None | URL for polling location finder |
+| early_vote_sites | list[PollingLocation] | Early voting locations with addresses/hours |
+| drop_off_locations | list[PollingLocation] | Ballot drop-off locations |
+| mail_only | bool | Whether this is a mail-only election |
+| admin_body_name | str \| None | Name of election administration body |
+| admin_body_url | str \| None | URL for election administration body |
+
 ### ElectionsResponse
 
 | Field | Type | Description |
@@ -74,14 +91,16 @@ Top-level grouping for an election event.
 
 ### ElectionResearchSummary
 
-The election-level research output. Different from `ResearchSummary` (which has 7 rep-specific sections).
+The election-level research output. Simplified from the original 3-section design:
+- **Election type context** is generated from a single LLM call with no web search (the model knows what primaries, generals, and runoffs are from training data)
+- **Key issues & significance** is the only section that uses web search via a research agent
+- **Voter info** comes directly from the Civic API (see `VoterInfo` model), not research
 
 | Field | Type | Description |
 |-------|------|-------------|
-| overview_and_significance | str \| None | What this election is and why it matters locally |
-| key_issues_and_context | str \| None | Top issues driving races, local context |
-| voter_information | str \| None | Registration deadlines, early voting, ID requirements |
-| citations | list[Citation] | Sources across all sections (reuses existing `Citation` model) |
+| election_context | str \| None | What this election type is and what it means (LLM-generated, no web search) |
+| key_issues_and_significance | str \| None | Key issues, political significance, what's at stake (web-researched) |
+| citations | list[Citation] | Sources for the key_issues_and_significance section |
 
 ### ElectionResearchResponse
 
@@ -117,26 +136,30 @@ Calls the Google Civic Information API v2 `voterinfo` endpoint.
 
 ### Election research pipeline
 
-New lightweight research pipeline for per-election AI context. Follows the same patterns as rep research (background task, polling, incremental sections).
+Simplified pipeline with two components — one needs web search, one doesn't:
+
+**Component 1: Election context (no web search)**
+- A single LLM call (no tools) that explains what this election type means, based on the election name, type, and date. The model knows what primaries, generals, and runoffs are from training data.
+- Generated synchronously in the elections endpoint — no background task or polling needed.
+- Written to `election_context` field of `ElectionResearchSummary`.
+
+**Component 2: Key issues & significance (web search)**
+- One research agent that uses Tavily web search to find what's politically at stake in this specific election.
+- Follows the same background task + polling pattern as rep research.
 
 **Endpoint:** `POST /api/election-research`
 - Accepts an election object (name, date, type, state/location context)
 - Returns `{ research_id: string, status: "pending" }`
 
 **Polling:** `GET /api/election-research/{research_id}`
-- Returns `ElectionResearchResponse` (see Data Models): `research_id`, `status`, and partial `ElectionResearchSummary` with completed sections filled in as they arrive
+- Returns `ElectionResearchResponse` (see Data Models)
 
-**Sections (3, run concurrently):**
-
-1. **Overview & Significance** — what this election is, why it matters for this area, what's at stake (balance of power shifts, redistricting impact, etc.)
-2. **Key Issues & Context** — top issues driving races this cycle, local context shaping the vote
-3. **Voter Information** — registration deadlines, early voting dates, ID requirements, procedural changes
+**Voter info** is not researched — it comes directly from the Civic API `state[].electionAdministrationBody` response and is parsed into the `VoterInfo` model at lookup time.
 
 **Implementation details:**
-- Uses `InMemoryResearchStore` for task tracking, but `TOTAL_SECTIONS` must be parameterized. Add a `total_sections` parameter to task creation so the store knows when a 3-section election task is complete vs a 7-section rep task. The store's `complete_section()` logic and status transition (`pending` → `in_progress` → `complete`) remain the same.
+- Uses `InMemoryResearchStore` for task tracking. Only 2 sections to track (`election_context` + `key_issues_and_significance`), but `election_context` is written synchronously before the background task starts. The store needs parameterized `total_sections` (2 for election research vs 7 for rep research).
+- Key issues agent: `ChatAnthropic` + Tavily `web_search`, limited to 4 searches
 - Same `UsageTracker` callback + Langfuse tracing
-- Each section agent: `ChatAnthropic` + Tavily `web_search` (same as rep research)
-- Fewer searches needed per section (3-4 max vs 5 for rep research)
 - **Caching:** New `ElectionCacheInterface` (parallel to `RepCacheInterface`) with `get(election_name, date, address_hash)` → `ElectionResearchSummary | None` and corresponding `put()`. Implemented in Redis when `REDIS_URL` is set, no-op otherwise (same pattern as rep cache).
 - **Auto-triggered** when the elections endpoint is called — no user action needed. Capped at 3 elections max per request to bound cost. If more than 3 elections are returned, only the nearest 3 get auto-researched; the rest show a "Generate election context" button.
 - **Cost tracking:** Election research tasks are persisted to the existing `research_tasks` table with a `task_type` field distinguishing `"rep"` vs `"election"`. Requires a migration to add this column (nullable, defaults to `"rep"` for existing rows).
