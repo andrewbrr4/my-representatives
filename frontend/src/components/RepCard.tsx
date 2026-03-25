@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function renderInline(
+export function renderInline(
   text: string,
   citations: Citation[],
 ): React.ReactNode {
@@ -110,7 +110,7 @@ function ListSection({ title, items, citations }: ListSectionProps) {
   );
 }
 
-function ResearchContent({ summary }: { summary: ResearchSummary }) {
+export function ResearchContent({ summary }: { summary: ResearchSummary }) {
   return (
     <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
       <ParagraphSection title="Background" content={summary.background} citations={summary.background_citations ?? []} />
