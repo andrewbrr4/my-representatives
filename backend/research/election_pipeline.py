@@ -12,7 +12,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain.agents import create_agent
 from langfuse.langchain import CallbackHandler
 
-from models import Citation, ElectionResearchSummary, SectionResult
+from models import Citation, ElectionResearchSummary, ListSectionResult
 from research.pipeline import web_search  # reuse the same search tool
 from research.usage import UsageStats, UsageTracker
 from store.research_store import InMemoryResearchStore
@@ -52,7 +52,7 @@ async def research_key_issues(
     election_type: str,
     state: str,
     address: str,
-) -> tuple[str, list[Citation], UsageStats]:
+) -> tuple[list[str], list[Citation], UsageStats]:
     """Run one research agent with web search to find key issues and political significance."""
     langfuse_handler = CallbackHandler()
     usage_tracker = UsageTracker()
@@ -80,7 +80,7 @@ async def research_key_issues(
     agent = create_agent(
         model,
         tools=[web_search],
-        response_format=SectionResult,
+        response_format=ListSectionResult,
     )
 
     result = await agent.ainvoke(
@@ -102,7 +102,7 @@ async def research_key_issues(
         f"Key issues research complete for {election_name}: "
         f"{len(structured.citations)} citations"
     )
-    return structured.content, structured.citations, usage_tracker.stats
+    return structured.items, structured.citations, usage_tracker.stats
 
 
 async def research_election(
@@ -139,7 +139,7 @@ async def research_election(
             total_usage += usage
         except Exception as e:
             logger.error(f"Key issues research failed for {election_name}: {e}", exc_info=True)
-            content = ""
+            content = []
             citations = []
 
         if store and research_id:

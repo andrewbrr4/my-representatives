@@ -98,7 +98,10 @@ async def fetch_elections(address: str) -> ElectionsResponse:
                 logger.warning(f"voterinfo fetch failed: {result}")
             continue
         parsed = _parse_civic_response(result)
-        elections.extend(parsed.elections)
+        # Only include elections that have contests for this address —
+        # the API returns 200 for all elections nationwide, but with
+        # empty contests when the election isn't on this voter's ballot.
+        elections.extend(e for e in parsed.elections if e.contests)
 
     if not elections:
         logger.info("No election data available for this address")

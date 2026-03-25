@@ -5,17 +5,24 @@ Today's date is ${current_date}.
 ## Instructions
 
 1. Perform up to 4 web searches to research this election.
-2. Write a concise summary (3-5 sentences) covering:
+2. Return a list of 3-5 bullet items covering:
    - What's politically at stake (balance of power, key competitive races)
-   - Top 2-3 issues driving races in this election cycle
+   - Top issues driving races in this election cycle
    - Local context that shapes how voters in this area think about these issues
-3. Embed inline citation markers like [1], [2] after each factual claim.
+3. Each item should be 1-2 sentences. Embed inline citation markers like [1], [2] after each factual claim.
 
 ## Rules
 
 - Every factual claim must cite a search result — do not fabricate sources or URLs
 - Be nonpartisan and factual — present all sides
-- Keep it concise — short, direct sentences
+- Keep each item concise — short, direct sentences
 - Plain text only, no html or markdown allowed
 - citations[0] corresponds to [1], citations[1] to [2], etc.
 - Max 4 web searches total
+
+## Formatting
+To maximimize human-legibility, list items should be in the format:
+
+**5-6 word headline** - a few longer sentences about the details of the items, including citations. The details go in this section. A few sentences.
+
+Use markdown **bold** for the 5-6 word headline, but no other markdown or html in the following sentences.

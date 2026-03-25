@@ -26,11 +26,15 @@ function daysUntil(dateStr: string): number {
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function renderElectionSection(
-  title: string,
-  content: string | null,
-  citations: Citation[]
-) {
+function ElectionParagraphSection({
+  title,
+  content,
+  citations,
+}: {
+  title: string;
+  content: string | null;
+  citations: Citation[];
+}) {
   if (content === null) {
     return (
       <div>
@@ -46,6 +50,38 @@ function renderElectionSection(
     <div>
       <h4 className="text-xs font-medium text-muted-foreground mb-1">{title}</h4>
       <p className="text-sm leading-relaxed">{renderInline(content, citations)}</p>
+    </div>
+  );
+}
+
+function ElectionListSection({
+  title,
+  items,
+  citations,
+}: {
+  title: string;
+  items: string[] | null;
+  citations: Citation[];
+}) {
+  if (items === null) {
+    return (
+      <div>
+        <h4 className="text-xs font-medium text-muted-foreground mb-1">{title}</h4>
+        <div className="space-y-1">
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-5/6" />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <h4 className="text-xs font-medium text-muted-foreground mb-1">{title}</h4>
+      <ul className="list-disc pl-5 space-y-1 text-sm leading-relaxed">
+        {items.map((item, i) => (
+          <li key={i}>{renderInline(item, citations)}</li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -107,16 +143,16 @@ export function ElectionCard({
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="space-y-3 mt-2 p-4 rounded-lg bg-muted/30 border">
-                {renderElectionSection(
-                  "About This Election",
-                  researchSummary?.election_context ?? null,
-                  []
-                )}
-                {renderElectionSection(
-                  "Key Issues & Significance",
-                  researchSummary?.key_issues_and_significance ?? null,
-                  researchSummary?.citations ?? []
-                )}
+                <ElectionParagraphSection
+                  title="About This Election"
+                  content={researchSummary?.election_context ?? null}
+                  citations={[]}
+                />
+                <ElectionListSection
+                  title="Key Issues & Significance"
+                  items={researchSummary?.key_issues_and_significance ?? null}
+                  citations={researchSummary?.citations ?? []}
+                />
               </div>
             </CollapsibleContent>
           </Collapsible>

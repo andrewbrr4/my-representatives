@@ -98,7 +98,7 @@ export interface ElectionsResponse {
 
 export interface ElectionResearchSummary {
   election_context: string | null;
-  key_issues_and_significance: string | null;
+  key_issues_and_significance: string[] | null;
   citations: Citation[];
 }
 

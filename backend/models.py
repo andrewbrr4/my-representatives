@@ -144,7 +144,7 @@ class ElectionsResponse(BaseModel):
 class ElectionResearchSummary(BaseModel):
     """Two sections: election_context (sync LLM, no search) + key_issues_and_significance (async, web search)."""
     election_context: str | None = None
-    key_issues_and_significance: str | None = None
+    key_issues_and_significance: list[str] | None = None
     citations: list[Citation] = Field(default_factory=list)
 
     SECTION_NAMES: list[str] = Field(default=[
