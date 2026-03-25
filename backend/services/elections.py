@@ -1,5 +1,6 @@
 """Google Civic Information API client for election data."""
 
+import asyncio
 import hashlib
 import logging
 import os
@@ -18,6 +19,9 @@ from models import (
 logger = logging.getLogger(__name__)
 
 _CIVIC_API_BASE = "https://www.googleapis.com/civicinfo/v2"
+
+# The VIP Test Election (id=2000) is always present — skip it
+_SKIP_ELECTION_IDS = {"2000"}
 
 # Map Google Civic API office levels to our level values
 _LEVEL_MAP = {
@@ -38,27 +42,68 @@ def address_hash(address: str) -> str:
 
 
 async def fetch_elections(address: str) -> ElectionsResponse:
-    """Fetch upcoming elections and ballot info for an address from Google Civic API."""
+    """Fetch upcoming elections and ballot info for an address from Google Civic API.
+
+    Two-step flow:
+    1. GET /elections to discover all known election IDs
+    2. GET /voterinfo?electionId={id} for each, to get ballot data for this address
+    """
     api_key = os.environ.get("GOOGLE_CIVIC_API_KEY")
     if not api_key:
         logger.warning("GOOGLE_CIVIC_API_KEY not set, returning empty elections")
         return ElectionsResponse(elections=[])
 
     async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(
-            f"{_CIVIC_API_BASE}/voterinfo",
-            params={"address": address, "key": api_key},
+        # Step 1: Discover elections
+        elections_resp = await client.get(
+            f"{_CIVIC_API_BASE}/elections",
+            params={"key": api_key},
         )
+        elections_resp.raise_for_status()
+        election_list = elections_resp.json().get("elections", [])
 
-        if resp.status_code == 400:
-            # No elections upcoming for this address
-            logger.info(f"No elections found for address (400 response)")
+        # Filter out test elections
+        election_ids = [
+            e["id"] for e in election_list
+            if e.get("id") not in _SKIP_ELECTION_IDS
+        ]
+
+        if not election_ids:
+            logger.info("No real elections found from /elections endpoint")
             return ElectionsResponse(elections=[])
 
-        resp.raise_for_status()
-        data = resp.json()
+        logger.info(f"Found {len(election_ids)} elections, fetching voterinfo for each")
 
-    return _parse_civic_response(data)
+        # Step 2: Fetch voterinfo for each election concurrently
+        async def _fetch_voterinfo(election_id: str) -> dict | None:
+            resp = await client.get(
+                f"{_CIVIC_API_BASE}/voterinfo",
+                params={"address": address, "key": api_key, "electionId": election_id},
+            )
+            if resp.status_code == 400:
+                # This election has no data for this address
+                return None
+            resp.raise_for_status()
+            return resp.json()
+
+        results = await asyncio.gather(
+            *[_fetch_voterinfo(eid) for eid in election_ids],
+            return_exceptions=True,
+        )
+
+    elections = []
+    for result in results:
+        if result is None or isinstance(result, Exception):
+            if isinstance(result, Exception):
+                logger.warning(f"voterinfo fetch failed: {result}")
+            continue
+        parsed = _parse_civic_response(result)
+        elections.extend(parsed.elections)
+
+    if not elections:
+        logger.info("No election data available for this address")
+
+    return ElectionsResponse(elections=elections)
 
 
 def _parse_civic_response(data: dict) -> ElectionsResponse:
