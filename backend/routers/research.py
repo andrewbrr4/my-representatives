@@ -55,7 +55,7 @@ async def _run_research(research_id: str, req: ResearchRequest) -> None:
     try:
         await save_research_task(
             research_id=research_id,
-            representative=f"{rep.name} ({rep.office})",
+            target=f"{rep.name} ({rep.office})",
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
             tool_calls=usage.tool_calls,

@@ -72,7 +72,7 @@ async def _run_election_research(
     try:
         await save_research_task(
             research_id=research_id,
-            representative=f"Election: {req.election_name}",
+            target=f"{req.election_name}|{req.election_date}",
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
             tool_calls=usage.tool_calls,
