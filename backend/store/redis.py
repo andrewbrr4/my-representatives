@@ -3,8 +3,8 @@ import os
 
 import redis.asyncio as redis
 
-from models import ResearchSummary
-from store.interfaces import RepCacheInterface
+from models import ElectionResearchSummary, ResearchSummary
+from store.interfaces import ElectionCacheInterface, RepCacheInterface
 
 logger = logging.getLogger(__name__)
 
@@ -48,4 +48,34 @@ class RedisRepCache(RepCacheInterface):
 
     async def cleanup(self) -> None:
         # Redis handles TTL-based expiry automatically.
+        pass
+
+
+def _election_cache_key(election_name: str, election_date: str, address_hash: str) -> str:
+    return f"electioncache:{election_name.lower().strip()}|{election_date}|{address_hash}"
+
+
+class RedisElectionCache(ElectionCacheInterface):
+    def __init__(self, client: redis.Redis) -> None:
+        self._r = client
+
+    async def get(self, election_name: str, election_date: str, address_hash: str) -> ElectionResearchSummary | None:
+        key = _election_cache_key(election_name, election_date, address_hash)
+        try:
+            data = await self._r.get(key)
+        except Exception as e:
+            logger.error(f"Redis GET failed for election {election_name}: {e}")
+            return None
+        if data is None:
+            return None
+        return ElectionResearchSummary.model_validate_json(data)
+
+    async def put(self, election_name: str, election_date: str, address_hash: str, summary: ElectionResearchSummary) -> None:
+        key = _election_cache_key(election_name, election_date, address_hash)
+        try:
+            await self._r.set(key, summary.model_dump_json(), ex=REP_CACHE_TTL_SECONDS)
+        except Exception as e:
+            logger.error(f"Redis SET failed for election {election_name}: {e}")
+
+    async def cleanup(self) -> None:
         pass
