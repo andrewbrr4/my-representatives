@@ -8,6 +8,7 @@ export function useRepresentatives() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const fetchedAddressRef = useRef<string | null>(null);
 
   // Clean up on unmount
   useEffect(() => {
@@ -40,6 +41,7 @@ export function useRepresentatives() {
 
       const { representatives }: RepresentativesResponse = await resp.json();
       setRepresentatives(representatives);
+      fetchedAddressRef.current = address;
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -48,5 +50,5 @@ export function useRepresentatives() {
     }
   }, []);
 
-  return { representatives, loading, error, lookup };
+  return { representatives, loading, error, lookup, fetchedAddress: fetchedAddressRef.current };
 }
