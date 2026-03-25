@@ -70,6 +70,7 @@ async def save_research_task(
     search_tool: str | None = None,
     cost_per_search: Decimal | None = None,
     environment: str | None = None,
+    task_type: str = "rep",
 ) -> None:
     """Insert a row into the research_tasks table."""
     pool = await get_pool()
@@ -77,12 +78,12 @@ async def save_research_task(
         """
         INSERT INTO research_tasks (id, representative, input_tokens, output_tokens,
                           tool_calls, status, model, input_cost_per_m,
-                          output_cost_per_m, search_tool, cost_per_search, environment)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                          output_cost_per_m, search_tool, cost_per_search, environment, task_type)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         """,
         research_id, representative, input_tokens, output_tokens,
         tool_calls, status, model, input_cost_per_m,
-        output_cost_per_m, search_tool, cost_per_search, environment,
+        output_cost_per_m, search_tool, cost_per_search, environment, task_type,
     )
 
 
