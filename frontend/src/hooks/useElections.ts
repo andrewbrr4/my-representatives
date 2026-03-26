@@ -9,6 +9,7 @@ export function useElections() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetchedAddress = useRef<string | null>(null);
+  const hasData = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -19,7 +20,7 @@ export function useElections() {
 
   const fetchElections = useCallback(async (address: string) => {
     // Deduplicate: don't re-fetch for same address
-    if (fetchedAddress.current === address && elections.length > 0) return;
+    if (fetchedAddress.current === address && hasData.current) return;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -45,13 +46,14 @@ export function useElections() {
       setElections(data.elections);
       setResearchIds(data.research_ids);
       fetchedAddress.current = address;
+      hasData.current = true;
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
-  }, [elections.length]);
+  }, []);
 
   return { elections, researchIds, loading, error, fetchElections };
 }

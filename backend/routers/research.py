@@ -2,12 +2,12 @@ import asyncio
 import logging
 import os
 import uuid
-from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from config import cost_config
 from db import save_research_task, save_transactions
 from models import ResearchRequest, ResearchResponse
 from research.pipeline import research_representative
@@ -16,21 +16,6 @@ from store.dependencies import get_rep_cache, get_research_store
 logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
-
-
-def _cost_config() -> dict:
-    """Read cost-tracking env vars once per research task."""
-    input_cost_env = os.environ.get("ANTHROPIC_INPUT_COST_PER_M")
-    output_cost_env = os.environ.get("ANTHROPIC_OUTPUT_COST_PER_M")
-    search_cost_env = os.environ.get("COST_PER_SEARCH")
-    return {
-        "model": os.environ.get("CLAUDE_MODEL"),
-        "input_cost_per_m": Decimal(input_cost_env) if input_cost_env else None,
-        "output_cost_per_m": Decimal(output_cost_env) if output_cost_env else None,
-        "search_tool": os.environ.get("SEARCH_TOOL", "tavily"),
-        "cost_per_search": Decimal(search_cost_env) if search_cost_env else None,
-        "environment": os.environ.get("ENVIRONMENT", "dev"),
-    }
 
 
 async def _run_research(research_id: str, req: ResearchRequest) -> None:
@@ -51,7 +36,7 @@ async def _run_research(research_id: str, req: ResearchRequest) -> None:
         return
 
     # Persist costs
-    cfg = _cost_config()
+    cfg = cost_config()
     try:
         await save_research_task(
             research_id=research_id,

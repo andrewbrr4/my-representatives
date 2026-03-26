@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -48,10 +48,10 @@ class ResearchSummary(BaseModel):
 
     _NOT_FOUND = "Information not found."
 
-    SECTION_NAMES: list[str] = Field(default=[
+    SECTION_NAMES: ClassVar[list[str]] = [
         "background", "policy_positions", "recent_legislative_record",
         "accomplishments", "controversies", "recent_press", "top_donors",
-    ], exclude=True)
+    ]
 
     @model_validator(mode="after")
     def fill_missing_fields(self) -> "ResearchSummary":
@@ -147,9 +147,9 @@ class ElectionResearchSummary(BaseModel):
     key_issues_and_significance: list[str] | None = None
     citations: list[Citation] = Field(default_factory=list)
 
-    SECTION_NAMES: list[str] = Field(default=[
+    SECTION_NAMES: ClassVar[list[str]] = [
         "election_context", "key_issues_and_significance",
-    ], exclude=True)
+    ]
 
 
 class ElectionResearchRequest(BaseModel):

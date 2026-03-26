@@ -20,6 +20,8 @@ from store.research_store import InMemoryResearchStore
 logger = logging.getLogger(__name__)
 
 _PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
+_KEY_ISSUES_SYSTEM_TEMPLATE = Template((_PROMPTS_DIR / "election_key_issues_system.txt").read_text())
+_KEY_ISSUES_USER_TEMPLATE = Template((_PROMPTS_DIR / "election_key_issues_user.txt").read_text())
 
 _semaphore = asyncio.Semaphore(2)
 
@@ -61,15 +63,8 @@ async def research_key_issues(
         max_tokens=int(os.environ.get("RESEARCH_MAX_TOKENS", "4096")),
     )
 
-    system_template = Template(
-        (_PROMPTS_DIR / "election_key_issues_system.txt").read_text()
-    )
-    user_template = Template(
-        (_PROMPTS_DIR / "election_key_issues_user.txt").read_text()
-    )
-
-    system_prompt = system_template.substitute(current_date=date.today().isoformat())
-    user_prompt = user_template.substitute(
+    system_prompt = _KEY_ISSUES_SYSTEM_TEMPLATE.substitute(current_date=date.today().isoformat())
+    user_prompt = _KEY_ISSUES_USER_TEMPLATE.substitute(
         election_name=election_name,
         election_date=election_date,
         election_type=election_type,

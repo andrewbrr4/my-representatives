@@ -2,12 +2,12 @@ import asyncio
 import logging
 import os
 import uuid
-from decimal import Decimal
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from config import cost_config
 from db import save_research_task, save_transactions
 from models import (
     AddressRequest,
@@ -25,20 +25,6 @@ limiter = Limiter(key_func=get_remote_address)
 router = APIRouter()
 
 MAX_AUTO_RESEARCH = 3
-
-
-def _cost_config() -> dict:
-    input_cost_env = os.environ.get("ANTHROPIC_INPUT_COST_PER_M")
-    output_cost_env = os.environ.get("ANTHROPIC_OUTPUT_COST_PER_M")
-    search_cost_env = os.environ.get("COST_PER_SEARCH")
-    return {
-        "model": os.environ.get("CLAUDE_MODEL"),
-        "input_cost_per_m": Decimal(input_cost_env) if input_cost_env else None,
-        "output_cost_per_m": Decimal(output_cost_env) if output_cost_env else None,
-        "search_tool": os.environ.get("SEARCH_TOOL", "tavily"),
-        "cost_per_search": Decimal(search_cost_env) if search_cost_env else None,
-        "environment": os.environ.get("ENVIRONMENT", "dev"),
-    }
 
 
 async def _run_election_research(
@@ -68,7 +54,7 @@ async def _run_election_research(
         await store.fail(research_id)
         return
 
-    cfg = _cost_config()
+    cfg = cost_config()
     try:
         await save_research_task(
             research_id=research_id,
@@ -176,7 +162,6 @@ async def start_election_research(
 
 @router.get("/api/election-research/{research_id}")
 async def get_election_research(research_id: str) -> ElectionResearchResponse:
-    from fastapi import HTTPException
     task = await get_research_store().get(research_id)
     if task is None:
         raise HTTPException(status_code=404, detail="Election research task not found or expired.")
