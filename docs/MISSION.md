@@ -17,12 +17,13 @@ MyReps makes it trivially easy to find out who represents you — at every level
 - Every elected official who represents you, from the President down to your city council member
 - Direct contact information — phone numbers, emails, and websites — so you can actually reach them
 - On-demand, AI-researched summaries for any rep you want to learn more about: their background, recent news, policy positions, and committee work
+- Upcoming elections relevant to your address — with ballot contests, candidates, voter info, and AI-researched context on what's at stake
 
 ## Why This Matters
 
 Democracy works better when people pay attention — not just at the ballot box, but between elections. A phone call to a representative's office carries real weight. An informed voter asking pointed questions at a town hall changes the dynamic. But none of that happens if people don't know who their representatives are or what they're doing.
 
-MyReps exists to lower the barrier from "I should probably look into this" to "now I know, and here's how to reach them."
+MyReps exists to lower the barrier from "I should probably look into this" to "now I know, and here's how to reach them." And when elections come around, it ensures voters know what's on their ballot and what's at stake — not just the headline races, but every contest they'll be voting on.
 
 ## Design Principles
 

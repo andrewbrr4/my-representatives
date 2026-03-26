@@ -39,6 +39,7 @@ GitHub Sponsors has a webhook that fires on each new sponsorship. Stripe has web
 | **Tavily** | Web search tool calls during research | Per-request (searches) | Langfuse traces record each `web_search` tool call as a span; cost estimated from search count × plan tier rate | Automatable — count from Langfuse, multiply by known rate |
 | **Cicero** | State + municipal representative lookups | Bulk credits (pre-purchased) | Manual log entry on each top-up | Manual — bulk purchase model, no per-request cost attribution |
 | **Google Cloud** | Cloud Run (backend + frontend), Artifact Registry, networking | Subscription / usage-based | GCP Cloud Billing API (`cloudbilling.googleapis.com`) — query cost and usage data by service and SKU without needing a data warehouse | Automatable via scheduled API call |
+| **Google Civic** | Election/ballot data via Civic Information API | Free (quota-limited) | N/A — no cost | N/A |
 | **US Congress API** | Federal representative lookups | Free | N/A — no cost | N/A |
 | **Census Geocoder** | Address → congressional district geocoding | Free | N/A — no cost | N/A |
 
