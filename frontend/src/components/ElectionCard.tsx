@@ -150,7 +150,12 @@ export function ElectionCard({
                 />
                 <ElectionListSection
                   title="Key Issues & Significance"
-                  items={researchSummary?.key_issues_and_significance ?? null}
+                  items={
+                    // Only reveal once the preceding section is complete
+                    researchSummary?.election_context != null
+                      ? (researchSummary?.key_issues_and_significance ?? null)
+                      : null
+                  }
                   citations={researchSummary?.citations ?? []}
                 />
               </div>

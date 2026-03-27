@@ -109,8 +109,8 @@ All models are in `backend/models.py`. Backend imports use bare module names (no
 - `src/hooks/useElectionResearch.ts` — polls election research progress per election
 - `src/components/AddressSearch.tsx` — address input form
 - `src/components/RepCard.tsx` — representative card with research button. Exports `ResearchContent` and `renderInline` for reuse. During loading, all section headings appear immediately with skeleton placeholders; sections render in display order (a section stays skeleton until all preceding sections are complete, so the user always sees a top-down fill even though agents complete out-of-order). Research results are collapsible.
-- `src/components/ElectionCard.tsx` — election card with AI context, polling location, voter info, ballot contests
-- `src/components/CandidateCard.tsx` — compact candidate card reusing `ResearchContent` from RepCard
+- `src/components/ElectionCard.tsx` — election card with AI context, polling location, voter info, ballot contests. Election research sections also render in display order (key issues stays skeleton until election context is complete).
+- `src/components/CandidateCard.tsx` — compact candidate card reusing `ResearchContent` from RepCard (inherits ordered section rendering)
 - `src/components/SkeletonCard.tsx` — loading placeholder
 - `src/types/index.ts` — TypeScript interfaces mirroring backend Pydantic models (rep + election types)
 - `src/components/ui/` — shadcn components (owned copies, not library imports)

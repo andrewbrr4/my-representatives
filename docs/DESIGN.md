@@ -18,9 +18,9 @@ Research is **on-demand** — only triggered for reps the user explicitly wants 
 ### Elections
 1. User switches to the Elections tab (available after entering an address).
 2. The backend calls the Google Civic Information API (`voterinfo` endpoint) with the user's address to discover upcoming elections, ballot contests, candidates, and voter info.
-3. Up to 3 elections are automatically researched via the election research pipeline (2 sections: election context via sync LLM call + key issues/significance via web search agent).
+3. Up to 3 elections are automatically researched via the election research pipeline (2 sections: election context via sync LLM call + key issues/significance via web search agent). Sections render in display order, same as rep cards.
 4. Each election card shows AI-generated context, voter info (registration links, absentee info, early voting sites, drop-off locations), and ballot contests with candidates.
-5. Candidates can be individually researched using the same on-demand representative research pipeline.
+5. Candidates can be individually researched using the same on-demand representative research pipeline (including ordered section rendering).
 
 The election research pipeline is lighter than rep research — 2 sections vs 7, with only one requiring web search. Election research is cached per election+address combination.
 

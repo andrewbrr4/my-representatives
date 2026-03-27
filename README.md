@@ -15,7 +15,7 @@ Find your elected representatives at every level of government — federal, stat
    - **State + municipal:** Cicero API for all other elected officials
 3. Representatives appear instantly with basic info and contact links
 4. Click "Generate AI Research" on any rep to trigger on-demand research — 7 focused Claude agents research different sections (background, policy positions, legislative record, etc.) using Tavily web search
-5. Research results stream into the card section-by-section as each agent completes; cached for 3 days
+5. Research results stream into the card section-by-section as agents complete, always rendered top-down (a section stays as a skeleton until all preceding sections are done); cached for 3 days
 
 ### Elections
 1. Switch to the Elections tab after entering your address
