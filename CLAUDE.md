@@ -94,19 +94,20 @@ cd frontend && npx shadcn@latest add <component-name>
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
-**Frontend (React + TypeScript + Vite + Tailwind v4 + shadcn/ui + React Router v7):** Multi-page app with React Router. Routes: `/` (search), `/reps` (representatives), `/elections` (upcoming elections). Address state shared via `AddressContext`. Routes `/reps` and `/elections` are guarded by `RequireAddress` — redirects to `/` if no address.
+**Frontend (React + TypeScript + Vite + Tailwind v4 + shadcn/ui + React Router v7 + TanStack Query v5):** Multi-page app with React Router. Routes: `/` (search), `/reps` (representatives), `/elections` (upcoming elections). Address state shared via `AddressContext`. Routes `/reps` and `/elections` are guarded by `RequireAddress` — redirects to `/` if no address. TanStack Query provides client-side caching — data persists across route changes so switching tabs is instant.
 
-- `src/main.tsx` — wraps app in `BrowserRouter` + `AddressProvider`
+- `src/main.tsx` — wraps app in `BrowserRouter` + `QueryClientProvider` + `AddressProvider`
+- `src/lib/queryClient.ts` — `QueryClient` singleton (retry: 1, refetchOnWindowFocus: false)
 - `src/App.tsx` — React Router routes with `RequireAddress` guard and `ResultsLayout` wrapper
 - `src/contexts/AddressContext.tsx` — shared address state; `setAddress` navigates to `/reps`, `clearAddress` navigates to `/`
 - `src/components/TabNav.tsx` — `NavLink`-based tab bar for `/reps` and `/elections`
 - `src/pages/SearchPage.tsx` — landing page with welcome message and address input
 - `src/pages/RepresentativesPage.tsx` — representative results grouped by level (federal/state/municipal)
 - `src/pages/ElectionsPage.tsx` — elections tab; fetches elections on mount, auto-polls election research, converts candidates to reps for candidate research
-- `src/hooks/useRepresentatives.ts` — manages lookup API call state; `fetchedAddress` dedup prevents re-fetch on tab switch
-- `src/hooks/useResearch.ts` — manages per-rep on-demand research state; keyed by `name|office`, handles POST + polling per rep
-- `src/hooks/useElections.ts` — fetches `POST /api/elections`, returns elections + research IDs
-- `src/hooks/useElectionResearch.ts` — polls election research progress per election
+- `src/hooks/useRepresentativesQuery.ts` — TanStack Query hook for rep lookup; cache key `["representatives", address]`, staleTime 5min
+- `src/hooks/useElectionsQuery.ts` — TanStack Query hook for elections lookup; cache key `["elections", address]`, staleTime 5min
+- `src/hooks/useResearchQuery.ts` — manages per-rep on-demand research state; uses `queryClient.setQueryData` for cache persistence, manual `setInterval` polling for in-progress research, keyed by `["research", "name|office"]`. On remount, scans cache and restarts polling for in-progress entries. Shared across reps and elections pages (candidate research uses same cache).
+- `src/hooks/useElectionResearchQuery.ts` — polls election research progress per election; same cache/polling pattern as useResearchQuery, keyed by `["election-research", "name|date"]`
 - `src/components/AddressSearch.tsx` — address input form
 - `src/components/RepCard.tsx` — representative card with research button. Exports `ResearchContent` and `renderInline` for reuse. During loading, all section headings appear immediately with skeleton placeholders; sections render in display order (a section stays skeleton until all preceding sections are complete, so the user always sees a top-down fill even though agents complete out-of-order). Research results are collapsible.
 - `src/components/ElectionCard.tsx` — election card with AI context, polling location, voter info, ballot contests. Election research sections also render in display order (key issues stays skeleton until election context is complete).
