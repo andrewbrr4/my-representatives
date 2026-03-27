@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAddress } from "@/contexts/AddressContext";
-import { useElections } from "@/hooks/useElections";
-import { useElectionResearch } from "@/hooks/useElectionResearch";
-import { useResearch } from "@/hooks/useResearch";
+import { useElectionsQuery } from "@/hooks/useElectionsQuery";
+import { useElectionResearchQuery as useElectionResearch } from "@/hooks/useElectionResearchQuery";
+import { useResearchQuery as useResearch } from "@/hooks/useResearchQuery";
 import { ElectionCard } from "@/components/ElectionCard";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import type { Candidate, Representative } from "@/types";
@@ -20,13 +20,11 @@ function candidateToRep(candidate: Candidate): Representative {
 
 export function ElectionsPage() {
   const { address } = useAddress();
-  const { elections, researchIds, loading, error, fetchElections } = useElections();
+  const { data, isLoading, error } = useElectionsQuery(address);
+  const elections = data?.elections ?? [];
+  const researchIds = useMemo(() => data?.researchIds ?? {}, [data?.researchIds]);
   const { trackElectionResearch, getElectionStatus, getElectionSummary } = useElectionResearch();
   const { requestResearch, getStatus, getSummary } = useResearch();
-
-  useEffect(() => {
-    if (address) fetchElections(address);
-  }, [address, fetchElections]);
 
   // Start polling for auto-triggered election research once we have research IDs
   useEffect(() => {
@@ -43,7 +41,7 @@ export function ElectionsPage() {
 
   return (
     <>
-      {loading && (
+      {isLoading && (
         <div className="space-y-4">
           <p className="text-center text-sm text-muted-foreground">
             Looking up upcoming elections…
@@ -58,11 +56,11 @@ export function ElectionsPage() {
 
       {error && (
         <div className="text-center p-6 rounded-lg bg-destructive/10 text-destructive">
-          {error}
+          {error.message}
         </div>
       )}
 
-      {!loading && elections.length === 0 && !error && (
+      {!isLoading && elections.length === 0 && !error && (
         <div className="text-center p-8">
           <p className="text-muted-foreground">
             No upcoming elections found for your address.

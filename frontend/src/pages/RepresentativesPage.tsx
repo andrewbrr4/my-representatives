@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { RepCard } from "@/components/RepCard";
 import { SkeletonCard } from "@/components/SkeletonCard";
@@ -7,8 +6,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { useRepresentatives } from "@/hooks/useRepresentatives";
-import { useResearch } from "@/hooks/useResearch";
+import { useRepresentativesQuery } from "@/hooks/useRepresentativesQuery";
+import { useResearchQuery as useResearch } from "@/hooks/useResearchQuery";
 import { useAddress } from "@/contexts/AddressContext";
 import type { Representative } from "@/types";
 
@@ -28,20 +27,15 @@ function groupByLevel(reps: Representative[]) {
 
 export function RepresentativesPage() {
   const { address } = useAddress();
-  const { representatives, loading, error, lookup, fetchedAddress } = useRepresentatives();
+  const { data: representatives = [], isLoading, error } = useRepresentativesQuery(address);
   const { requestResearch, getStatus, getSummary } = useResearch();
-
-  useEffect(() => {
-    // Only fetch if address changed (prevents re-fetch on tab switch)
-    if (address && address !== fetchedAddress) lookup(address);
-  }, [address, lookup, fetchedAddress]);
 
   const hasResults = representatives.length > 0;
   const groups = groupByLevel(representatives);
 
   return (
     <>
-      {loading && !hasResults && (
+      {isLoading && !hasResults && (
         <div className="space-y-4">
           <p className="text-center text-sm text-muted-foreground">
             Looking up your representatives…
@@ -56,7 +50,7 @@ export function RepresentativesPage() {
 
       {error && (
         <div className="text-center p-6 rounded-lg bg-destructive/10 text-destructive">
-          {error}
+          {error.message}
         </div>
       )}
 
