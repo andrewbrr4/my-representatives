@@ -50,28 +50,6 @@ export function useElectionResearchQuery() {
     queryClient.setQueryData<number>(["election-research-version"], (v) => (v ?? 0) + 1);
   }, [queryClient]);
 
-  // On mount, restart polling for any in-progress entries (survives route changes)
-  useEffect(() => {
-    const cache = queryClient.getQueryCache().getAll();
-    for (const query of cache) {
-      const key = query.queryKey;
-      if (key[0] === "election-research" && key.length === 2 && typeof key[1] === "string") {
-        const entry = query.state.data as ElectionResearchEntry | undefined;
-        if (entry?.status === "loading" && entry.researchId) {
-          startPolling(key[1], entry.researchId);
-        }
-      }
-    }
-
-    const timers = pollTimers.current;
-    return () => {
-      for (const timer of timers.values()) {
-        clearInterval(timer);
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const stopPolling = useCallback((key: string) => {
     const timer = pollTimers.current.get(key);
     if (timer) {
@@ -118,6 +96,28 @@ export function useElectionResearchQuery() {
     },
     [stopPolling, setEntry, bumpVersion]
   );
+
+  // On mount, restart polling for any in-progress entries (survives route changes)
+  // On unmount, clear all poll timers
+  useEffect(() => {
+    const cache = queryClient.getQueryCache().getAll();
+    for (const query of cache) {
+      const qk = query.queryKey;
+      if (qk[0] === "election-research" && qk.length === 2 && typeof qk[1] === "string") {
+        const entry = query.state.data as ElectionResearchEntry | undefined;
+        if (entry?.status === "loading" && entry.researchId) {
+          startPolling(qk[1], entry.researchId);
+        }
+      }
+    }
+
+    return () => {
+      for (const timer of pollTimers.current.values()) {
+        clearInterval(timer);
+      }
+      pollTimers.current.clear();
+    };
+  }, [queryClient, startPolling]);
 
   const trackElectionResearch = useCallback(
     (electionName: string, electionDate: string, researchId: string) => {
