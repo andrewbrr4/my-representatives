@@ -79,7 +79,7 @@ All models are in `backend/models.py`. Backend imports use bare module names (no
 - `src/hooks/useRepresentatives.ts` — manages lookup API call state (loading, error, data); pure fetch, no polling
 - `src/hooks/useResearch.ts` — manages per-rep on-demand research state; keyed by `name|office`, handles POST + polling per rep, deduplicates requests. Updates partial summary on each poll so sections render incrementally.
 - `src/components/AddressSearch.tsx` — address input form
-- `src/components/RepCard.tsx` — representative card with photo, badge, contacts, and "Generate AI Research" button that triggers on-demand research (4 states: idle, loading, complete, failed). During loading, all section headings appear immediately with skeleton placeholders; each section's content renders as it arrives from polling. Research results are collapsible.
+- `src/components/RepCard.tsx` — representative card with photo, badge, contacts, and "Generate AI Research" button that triggers on-demand research (4 states: idle, loading, complete, failed). During loading, all section headings appear immediately with skeleton placeholders; sections render in display order (a section stays skeleton until all preceding sections are complete, so the user always sees a top-down fill even though agents complete out-of-order). Research results are collapsible.
 - `src/components/SkeletonCard.tsx` — loading placeholder
 - `src/types/index.ts` — TypeScript interfaces mirroring backend Pydantic models
 - `src/components/ui/` — shadcn components (owned copies, not library imports)

@@ -110,16 +110,54 @@ function ListSection({ title, items, citations }: ListSectionProps) {
   );
 }
 
+// Sections in display order — content is only revealed once all preceding sections are complete.
+const SECTION_ORDER: {
+  key: keyof ResearchSummary;
+  citationsKey: keyof ResearchSummary;
+  title: string;
+  kind: "paragraph" | "list";
+}[] = [
+  { key: "background", citationsKey: "background_citations", title: "Background", kind: "paragraph" },
+  { key: "policy_positions", citationsKey: "policy_positions_citations", title: "Policy Positions", kind: "paragraph" },
+  { key: "recent_legislative_record", citationsKey: "recent_legislative_record_citations", title: "Recent Legislative Record", kind: "list" },
+  { key: "accomplishments", citationsKey: "accomplishments_citations", title: "Accomplishments", kind: "list" },
+  { key: "controversies", citationsKey: "controversies_citations", title: "Controversies", kind: "list" },
+  { key: "recent_press", citationsKey: "recent_press_citations", title: "Other Recent Press", kind: "list" },
+  { key: "top_donors", citationsKey: "top_donors_citations", title: "Top Donors", kind: "list" },
+];
+
 function ResearchContent({ summary }: { summary: ResearchSummary }) {
+  // Find the first section that hasn't completed yet — everything after it stays skeleton
+  let allPriorComplete = true;
+
   return (
     <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
-      <ParagraphSection title="Background" content={summary.background} citations={summary.background_citations ?? []} />
-      <ParagraphSection title="Policy Positions" content={summary.policy_positions} citations={summary.policy_positions_citations ?? []} />
-      <ListSection title="Recent Legislative Record" items={summary.recent_legislative_record} citations={summary.recent_legislative_record_citations ?? []} />
-      <ListSection title="Accomplishments" items={summary.accomplishments} citations={summary.accomplishments_citations ?? []} />
-      <ListSection title="Controversies" items={summary.controversies} citations={summary.controversies_citations ?? []} />
-      <ListSection title="Other Recent Press" items={summary.recent_press} citations={summary.recent_press_citations ?? []} />
-      <ListSection title="Top Donors" items={summary.top_donors} citations={summary.top_donors_citations ?? []} />
+      {SECTION_ORDER.map((section) => {
+        const content = summary[section.key];
+        const citations = (summary[section.citationsKey] as Citation[]) ?? [];
+        // Only reveal this section's content if all prior sections are complete
+        const showContent = allPriorComplete && content !== null;
+        if (content === null) allPriorComplete = false;
+
+        if (section.kind === "paragraph") {
+          return (
+            <ParagraphSection
+              key={section.key}
+              title={section.title}
+              content={showContent ? (content as string) : null}
+              citations={citations}
+            />
+          );
+        }
+        return (
+          <ListSection
+            key={section.key}
+            title={section.title}
+            items={showContent ? (content as string[]) : null}
+            citations={citations}
+          />
+        );
+      })}
     </div>
   );
 }
