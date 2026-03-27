@@ -7,7 +7,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useRepresentativesQuery } from "@/hooks/useRepresentativesQuery";
-import { useResearch } from "@/hooks/useResearch";
+import { useResearchQuery as useResearch } from "@/hooks/useResearchQuery";
 import { useAddress } from "@/contexts/AddressContext";
 import type { Representative } from "@/types";
 

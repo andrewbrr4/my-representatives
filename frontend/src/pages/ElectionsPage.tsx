@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useAddress } from "@/contexts/AddressContext";
 import { useElectionsQuery } from "@/hooks/useElectionsQuery";
 import { useElectionResearch } from "@/hooks/useElectionResearch";
-import { useResearch } from "@/hooks/useResearch";
+import { useResearchQuery as useResearch } from "@/hooks/useResearchQuery";
 import { ElectionCard } from "@/components/ElectionCard";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import type { Candidate, Representative } from "@/types";
