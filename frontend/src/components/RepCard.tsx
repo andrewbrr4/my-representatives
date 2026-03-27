@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { Representative, ResearchSummary, Citation } from "@/types";
-import type { ResearchStatus } from "@/hooks/useResearch";
+import type { ResearchStatus } from "@/hooks/useResearchQuery";
 import {
   Card,
   CardContent,

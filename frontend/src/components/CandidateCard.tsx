@@ -1,5 +1,5 @@
 import type { Candidate, ResearchSummary } from "@/types";
-import type { ResearchStatus } from "@/hooks/useResearch";
+import type { ResearchStatus } from "@/hooks/useResearchQuery";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

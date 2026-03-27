@@ -51,8 +51,9 @@ export function useElectionResearchQuery() {
   }, [queryClient]);
 
   useEffect(() => {
+    const timers = pollTimers.current;
     return () => {
-      for (const timer of pollTimers.current.values()) {
+      for (const timer of timers.values()) {
         clearInterval(timer);
       }
     };

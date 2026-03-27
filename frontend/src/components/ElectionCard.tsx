@@ -4,8 +4,8 @@ import type {
   Candidate,
   Citation,
 } from "@/types";
-import type { ElectionResearchStatus } from "@/hooks/useElectionResearch";
-import type { ResearchStatus } from "@/hooks/useResearch";
+import type { ElectionResearchStatus } from "@/hooks/useElectionResearchQuery";
+import type { ResearchStatus } from "@/hooks/useResearchQuery";
 import type { ResearchSummary } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAddress } from "@/contexts/AddressContext";
 import { useElectionsQuery } from "@/hooks/useElectionsQuery";
 import { useElectionResearchQuery as useElectionResearch } from "@/hooks/useElectionResearchQuery";
@@ -22,7 +22,7 @@ export function ElectionsPage() {
   const { address } = useAddress();
   const { data, isLoading, error } = useElectionsQuery(address);
   const elections = data?.elections ?? [];
-  const researchIds = data?.researchIds ?? {};
+  const researchIds = useMemo(() => data?.researchIds ?? {}, [data?.researchIds]);
   const { trackElectionResearch, getElectionStatus, getElectionSummary } = useElectionResearch();
   const { requestResearch, getStatus, getSummary } = useResearch();
 
