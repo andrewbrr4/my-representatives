@@ -11,7 +11,7 @@ For the product vision and principles that inform these decisions, see [MISSION.
 2. Third-party APIs return a list of representatives at every level of government.
 3. The user sees a card for each representative with basic info and a "Learn More" button.
 4. When the user clicks "Learn More" on a specific rep, a research agent crawls the web to gather information about that representative.
-5. Research results stream into the card section-by-section as each of 7 parallel agents completes, so the user sees content arriving incrementally rather than waiting for everything to finish.
+5. Research results stream into the card section-by-section as each of 7 parallel agents completes. Sections are revealed in display order — a section stays as a skeleton placeholder until all preceding sections are complete, so the user always sees a clean top-down fill rather than content appearing in random order.
 
 Research is **on-demand** — only triggered for reps the user explicitly wants to learn about. This cuts API costs ~80%+ compared to researching every rep on every lookup, since most users only care about a few of their ~15+ representatives.
 
