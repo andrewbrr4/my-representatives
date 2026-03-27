@@ -131,7 +131,7 @@ docker compose up --build
 
 ## Tech Stack
 
-- **Frontend:** React + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui
+- **Frontend:** React + TypeScript + Vite + Tailwind CSS v4 + shadcn/ui + TanStack Query
 - **Backend:** FastAPI (Python 3.13+)
 - **LLM:** Anthropic Claude with tool use (model configurable via `CLAUDE_MODEL`)
 - **Web Search:** Tavily API
