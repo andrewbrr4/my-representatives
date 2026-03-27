@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useAddress } from "@/contexts/AddressContext";
 import { useElectionsQuery } from "@/hooks/useElectionsQuery";
-import { useElectionResearch } from "@/hooks/useElectionResearch";
+import { useElectionResearchQuery as useElectionResearch } from "@/hooks/useElectionResearchQuery";
 import { useResearchQuery as useResearch } from "@/hooks/useResearchQuery";
 import { ElectionCard } from "@/components/ElectionCard";
 import { SkeletonCard } from "@/components/SkeletonCard";

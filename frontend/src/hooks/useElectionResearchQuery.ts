@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ElectionResearchSummary, ElectionResearchResponse } from "@/types";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -16,30 +17,44 @@ interface ElectionResearchEntry {
   summary: ElectionResearchSummary | null;
 }
 
-function updateEntry(
-  key: string,
-  entry: ElectionResearchEntry,
-): (prev: Map<string, ElectionResearchEntry>) => Map<string, ElectionResearchEntry> {
-  return (prev) => {
-    const next = new Map(prev);
-    next.set(key, entry);
-    return next;
-  };
-}
-
-export function useElectionResearch() {
-  const [entries, setEntries] = useState<Map<string, ElectionResearchEntry>>(new Map());
-  const entriesRef = useRef(entries);
-  entriesRef.current = entries;
+export function useElectionResearchQuery() {
+  const queryClient = useQueryClient();
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
-  // Clean up all poll timers on unmount
+  const getEntry = useCallback(
+    (key: string): ElectionResearchEntry => {
+      return queryClient.getQueryData<ElectionResearchEntry>(["election-research", key]) ?? {
+        status: "idle",
+        researchId: null,
+        summary: null,
+      };
+    },
+    [queryClient]
+  );
+
+  const setEntry = useCallback(
+    (key: string, entry: ElectionResearchEntry) => {
+      queryClient.setQueryData(["election-research", key], entry);
+    },
+    [queryClient]
+  );
+
+  const cacheVersion = useQuery({
+    queryKey: ["election-research-version"],
+    queryFn: () => 0,
+    initialData: 0,
+    staleTime: Infinity,
+  });
+
+  const bumpVersion = useCallback(() => {
+    queryClient.setQueryData<number>(["election-research-version"], (v) => (v ?? 0) + 1);
+  }, [queryClient]);
+
   useEffect(() => {
     return () => {
       for (const timer of pollTimers.current.values()) {
         clearInterval(timer);
       }
-      pollTimers.current.clear();
     };
   }, []);
 
@@ -53,26 +68,32 @@ export function useElectionResearch() {
 
   const startPolling = useCallback(
     (key: string, researchId: string) => {
+      if (pollTimers.current.has(key)) return;
+
       const timer = setInterval(async () => {
         try {
           const resp = await fetch(`${API_URL}/api/election-research/${researchId}`);
           if (!resp.ok) {
             stopPolling(key);
-            setEntries(updateEntry(key, { status: "failed", researchId, summary: null }));
+            setEntry(key, { status: "failed", researchId, summary: null });
+            bumpVersion();
             return;
           }
 
           const data: ElectionResearchResponse = await resp.json();
           if (data.status === "complete") {
             stopPolling(key);
-            setEntries(updateEntry(key, { status: "complete", researchId, summary: data.summary }));
+            setEntry(key, { status: "complete", researchId, summary: data.summary });
+            bumpVersion();
           } else if (data.status === "in_progress" || data.status === "pending") {
             if (data.summary) {
-              setEntries(updateEntry(key, { status: "loading", researchId, summary: data.summary }));
+              setEntry(key, { status: "loading", researchId, summary: data.summary });
+              bumpVersion();
             }
           } else if (data.status === "failed") {
             stopPolling(key);
-            setEntries(updateEntry(key, { status: "failed", researchId, summary: null }));
+            setEntry(key, { status: "failed", researchId, summary: null });
+            bumpVersion();
           }
         } catch {
           // Network error — keep polling
@@ -81,33 +102,36 @@ export function useElectionResearch() {
 
       pollTimers.current.set(key, timer);
     },
-    [stopPolling]
+    [stopPolling, setEntry, bumpVersion]
   );
 
   const trackElectionResearch = useCallback(
     (electionName: string, electionDate: string, researchId: string) => {
       const key = electionKey(electionName, electionDate);
-      const existing = entriesRef.current.get(key);
-      if (existing && (existing.status === "complete" || existing.status === "loading")) return;
+      const existing = getEntry(key);
+      if (existing.status === "complete" || existing.status === "loading") return;
 
-      setEntries(updateEntry(key, { status: "loading", researchId, summary: null }));
+      setEntry(key, { status: "loading", researchId, summary: null });
+      bumpVersion();
       startPolling(key, researchId);
     },
-    [startPolling]
+    [getEntry, setEntry, bumpVersion, startPolling]
   );
 
   const getElectionStatus = useCallback(
     (electionName: string, electionDate: string): ElectionResearchStatus => {
-      return entries.get(electionKey(electionName, electionDate))?.status ?? "idle";
+      void cacheVersion.data;
+      return getEntry(electionKey(electionName, electionDate)).status;
     },
-    [entries]
+    [getEntry, cacheVersion.data]
   );
 
   const getElectionSummary = useCallback(
     (electionName: string, electionDate: string): ElectionResearchSummary | null => {
-      return entries.get(electionKey(electionName, electionDate))?.summary ?? null;
+      void cacheVersion.data;
+      return getEntry(electionKey(electionName, electionDate)).summary;
     },
-    [entries]
+    [getEntry, cacheVersion.data]
   );
 
   return { trackElectionResearch, getElectionStatus, getElectionSummary };
