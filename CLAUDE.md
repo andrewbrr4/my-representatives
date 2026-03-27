@@ -38,7 +38,7 @@ cd frontend && npx shadcn@latest add <component-name>
 
 ## Architecture
 
-**Backend (FastAPI, Python 3.13+):** Two main endpoints — `POST /api/representatives` (lookup) and `POST /api/research` (on-demand per-rep research).
+**Backend (FastAPI, Python 3.13+):** Main endpoints — `POST /api/representatives` (lookup), `POST /api/research` (on-demand per-rep research), `POST /api/elections` (election lookup + auto-research), `POST /api/election-research` (manual election research), `GET /api/election-research/{id}` (poll election research).
 
 **Lookup flow** (`routers/representatives.py`):
 1. Receives address → fans out two lookups concurrently:
@@ -64,24 +64,55 @@ cd frontend && npx shadcn@latest add <component-name>
 - A separate `UsageTracker` callback handler (`research/usage.py`) runs alongside Langfuse on each agent, tracking input/output tokens and tool calls independently
 - Per-rep usage is aggregated and logged; per-research-task totals are persisted to the `research_tasks` table in Postgres via `db.py`
 
-**Store layer** (`store/`):
-- `interfaces.py` — `RepCacheInterface` ABC
-- `research_store.py` — `InMemoryResearchStore` for tracking single-rep research tasks (TTL-based cleanup). Supports per-section updates via `complete_section()` — each section writes independently, status auto-transitions as sections land
-- `redis.py` — `RedisRepCache` (used when `REDIS_URL` is set)
-- `dependencies.py` — lazy singletons: `get_rep_cache()`, `get_research_store()`
+**Elections flow** (`routers/elections.py`):
+1. `POST /api/elections` receives address → calls Google Civic API (`services/elections.py`) for upcoming elections, contests, candidates, and voter info
+2. Auto-triggers election research for up to 3 elections (checks election cache first)
+3. Returns `ElectionsResponse` with elections + `research_ids` map so frontend knows which tasks to poll
+4. `POST /api/election-research` — manually trigger research for a single election
+5. `GET /api/election-research/{id}` — poll for election research progress
 
-**Database** (`db.py`) manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Supports two connection modes: `DB_SOCKET_PATH` for Unix socket (Cloud Run with Cloud SQL proxy sidecar) or `DATABASE_URL` DSN (local dev via Cloud SQL Auth Proxy). Contains `save_research_task()` for persisting per-rep research usage data (including model, token costs, search tool, cost per search, and environment) and `save_transactions()` for writing LLM/search cost outflows to the `transactions` ledger. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
+**Election research pipeline** (`research/election_pipeline.py`) runs **2 sections**:
+- `election_context` — sync LLM call (no web search), explains the election type from training data (512 max tokens)
+- `key_issues_and_significance` — one research agent with Tavily web search, finds political significance and key issues
+- Prompts in `research/prompts/election_key_issues_*.txt`
+- `ELECTION_TOTAL_SECTIONS = 2` — used when creating `InMemoryResearchStore` tasks
+- `ElectionResearchSummary` has flat `citations` list (not per-section like `ResearchSummary`)
+
+**Google Civic API service** (`services/elections.py`):
+- Calls `voterinfo` endpoint for election data, contests, candidates
+- Parses voter info from `state[].electionAdministrationBody` (registration URLs, absentee info, early vote sites, drop-off locations)
+- `_infer_election_type()` checks "runoff" before "primary" (a "primary runoff" → runoff)
+- `address_hash()` for deterministic cache keys
+
+**Store layer** (`store/`):
+- `interfaces.py` — `RepCacheInterface` and `ElectionCacheInterface` ABCs
+- `research_store.py` — `InMemoryResearchStore` for tracking research tasks (TTL-based cleanup). Parameterized: `total_sections` per task (7 for reps, 2 for elections), `summary` type is generic `PydanticBaseModel`. `complete_section()` uses `hasattr` to handle per-section citations (rep) vs flat citations (election)
+- `redis.py` — `RedisRepCache` and `RedisElectionCache` (used when `REDIS_URL` is set)
+- `dependencies.py` — lazy singletons: `get_rep_cache()`, `get_election_cache()`, `get_research_store()`
+
+**Database** (`db.py`) manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Supports two connection modes: `DB_SOCKET_PATH` for Unix socket (Cloud Run with Cloud SQL proxy sidecar) or `DATABASE_URL` DSN (local dev via Cloud SQL Auth Proxy). Contains `save_research_task()` for persisting research usage data (including model, token costs, search tool, cost per search, environment, and `task_type` — "rep" or "election") and `save_transactions()` for writing LLM/search cost outflows to the `transactions` ledger. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
-**Frontend (React + TypeScript + Vite + Tailwind v4 + shadcn/ui):** Single-page app with two states: search and results.
+**Frontend (React + TypeScript + Vite + Tailwind v4 + shadcn/ui + React Router v7):** Multi-page app with React Router. Routes: `/` (search), `/reps` (representatives), `/elections` (upcoming elections). Address state shared via `AddressContext`. Routes `/reps` and `/elections` are guarded by `RequireAddress` — redirects to `/` if no address.
 
-- `src/hooks/useRepresentatives.ts` — manages lookup API call state (loading, error, data); pure fetch, no polling
-- `src/hooks/useResearch.ts` — manages per-rep on-demand research state; keyed by `name|office`, handles POST + polling per rep, deduplicates requests. Updates partial summary on each poll so sections render incrementally.
+- `src/main.tsx` — wraps app in `BrowserRouter` + `AddressProvider`
+- `src/App.tsx` — React Router routes with `RequireAddress` guard and `ResultsLayout` wrapper
+- `src/contexts/AddressContext.tsx` — shared address state; `setAddress` navigates to `/reps`, `clearAddress` navigates to `/`
+- `src/components/TabNav.tsx` — `NavLink`-based tab bar for `/reps` and `/elections`
+- `src/pages/SearchPage.tsx` — landing page with welcome message and address input
+- `src/pages/RepresentativesPage.tsx` — representative results grouped by level (federal/state/municipal)
+- `src/pages/ElectionsPage.tsx` — elections tab; fetches elections on mount, auto-polls election research, converts candidates to reps for candidate research
+- `src/hooks/useRepresentatives.ts` — manages lookup API call state; `fetchedAddress` dedup prevents re-fetch on tab switch
+- `src/hooks/useResearch.ts` — manages per-rep on-demand research state; keyed by `name|office`, handles POST + polling per rep
+- `src/hooks/useElections.ts` — fetches `POST /api/elections`, returns elections + research IDs
+- `src/hooks/useElectionResearch.ts` — polls election research progress per election
 - `src/components/AddressSearch.tsx` — address input form
-- `src/components/RepCard.tsx` — representative card with photo, badge, contacts, and "Generate AI Research" button that triggers on-demand research (4 states: idle, loading, complete, failed). During loading, all section headings appear immediately with skeleton placeholders; each section's content renders as it arrives from polling. Research results are collapsible.
+- `src/components/RepCard.tsx` — representative card with research button. Exports `ResearchContent` and `renderInline` for reuse. During loading, all section headings appear immediately with skeleton placeholders; sections render in display order (a section stays skeleton until all preceding sections are complete, so the user always sees a top-down fill even though agents complete out-of-order). Research results are collapsible.
+- `src/components/ElectionCard.tsx` — election card with AI context, polling location, voter info, ballot contests. Election research sections also render in display order (key issues stays skeleton until election context is complete).
+- `src/components/CandidateCard.tsx` — compact candidate card reusing `ResearchContent` from RepCard (inherits ordered section rendering)
 - `src/components/SkeletonCard.tsx` — loading placeholder
-- `src/types/index.ts` — TypeScript interfaces mirroring backend Pydantic models
+- `src/types/index.ts` — TypeScript interfaces mirroring backend Pydantic models (rep + election types)
 - `src/components/ui/` — shadcn components (owned copies, not library imports)
 - `@/` path alias maps to `src/` (configured in both vite.config.ts and tsconfig.app.json)
 
@@ -94,7 +125,7 @@ Required in `.env` at project root:
 - `TAVILY_API_KEY`
 - `CICERO_API_KEY` — [cicerodata.com](https://www.cicerodata.com/) (paid, state + municipal elected official data)
 - `US_CONGRESS_API_KEY` — [api.congress.gov](https://api.congress.gov/) (free, federal legislators)
-- `GOOGLE_CIVIC_API_KEY` — kept for future election/ballot data via `voterinfo` endpoint
+- `GOOGLE_CIVIC_API_KEY` — Google Civic Information API v2 for election/ballot data via `voterinfo` endpoint
 - `VITE_GOOGLE_PLACES_API_KEY` — Google Places API key for address autocomplete (frontend env var in `frontend/.env`; must have Places API (New) enabled in GCP console; restrict by HTTP referrer for security)
 - `CLAUDE_MODEL` — model ID for the research agent (e.g. `claude-sonnet-4-20250514`)
 - `SEARCH_TOOL` — which search provider is in use (default `tavily`). Recorded in the `research_tasks` table for cost tracking.

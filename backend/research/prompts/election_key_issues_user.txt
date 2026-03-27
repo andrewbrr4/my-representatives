@@ -1,0 +1,1 @@
+Research the political significance and key issues of the $election_name ($election_date) in $state. This is a $election_type election. The user lives near: $address. What's at stake and what issues are driving the races?

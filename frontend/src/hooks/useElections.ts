@@ -1,33 +1,36 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { Representative, RepresentativesResponse } from "@/types";
+import type { Election, ElectionsResponse } from "@/types";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-export function useRepresentatives() {
-  const [representatives, setRepresentatives] = useState<Representative[]>([]);
+export function useElections() {
+  const [elections, setElections] = useState<Election[]>([]);
+  const [researchIds, setResearchIds] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fetchedAddress = useRef<string | null>(null);
+  const hasData = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
-  const fetchedAddressRef = useRef<string | null>(null);
 
-  // Clean up on unmount
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
     };
   }, []);
 
-  const lookup = useCallback(async (address: string) => {
+  const fetchElections = useCallback(async (address: string) => {
+    // Deduplicate: don't re-fetch for same address
+    if (fetchedAddress.current === address && hasData.current) return;
+
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
     setLoading(true);
     setError(null);
-    setRepresentatives([]);
 
     try {
-      const resp = await fetch(`${API_URL}/api/representatives`, {
+      const resp = await fetch(`${API_URL}/api/elections`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address }),
@@ -39,9 +42,11 @@ export function useRepresentatives() {
         throw new Error(data?.detail || `Request failed (${resp.status})`);
       }
 
-      const { representatives }: RepresentativesResponse = await resp.json();
-      setRepresentatives(representatives);
-      fetchedAddressRef.current = address;
+      const data: ElectionsResponse = await resp.json();
+      setElections(data.elections);
+      setResearchIds(data.research_ids);
+      fetchedAddress.current = address;
+      hasData.current = true;
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -50,5 +55,5 @@ export function useRepresentatives() {
     }
   }, []);
 
-  return { representatives, loading, error, lookup, fetchedAddress: fetchedAddressRef.current };
+  return { elections, researchIds, loading, error, fetchElections };
 }

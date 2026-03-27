@@ -18,7 +18,7 @@ Today's date is ${current_date}.
 - Max 5 web searches total
 
 ## Formatting
-To maximum human-legibility, list items should be in the format:
+To maximimize human-legibility, list items should be in the format:
 
 **5-6 word headline** - a few longer sentences about the details of the items, including citations. The details go in this section. A few sentences.
 

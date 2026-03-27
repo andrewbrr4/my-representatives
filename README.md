@@ -8,13 +8,21 @@ Find your elected representatives at every level of government — federal, stat
 
 ## How It Works
 
+### Representatives
 1. Enter your address
 2. The backend resolves your address to representatives via two concurrent lookups:
    - **Federal:** Census Geocoder (free) → US Congress API for senators + house rep
    - **State + municipal:** Cicero API for all other elected officials
 3. Representatives appear instantly with basic info and contact links
 4. Click "Generate AI Research" on any rep to trigger on-demand research — 7 focused Claude agents research different sections (background, policy positions, legislative record, etc.) using Tavily web search
-5. Research results appear on the card once complete; cached for 3 days
+5. Research results stream into the card section-by-section as agents complete, always rendered top-down (a section stays as a skeleton until all preceding sections are done); cached for 3 days
+
+### Elections
+1. Switch to the Elections tab after entering your address
+2. The backend calls the Google Civic API to find upcoming elections, ballot contests, candidates, and voter info for your address
+3. Up to 3 elections are automatically researched by AI (election context + key issues/significance)
+4. Election cards show voter info (registration links, absentee info, early voting sites, drop-off locations) and ballot contests with candidates
+5. Click on any candidate to trigger the same on-demand AI research used for representatives
 
 ## Prerequisites
 
@@ -31,7 +39,7 @@ ANTHROPIC_API_KEY=...          # console.anthropic.com
 TAVILY_API_KEY=...             # tavily.com (free tier available)
 US_CONGRESS_API_KEY=...        # api.congress.gov (free)
 CICERO_API_KEY=...             # cicerodata.com (paid, state + municipal data)
-GOOGLE_CIVIC_API_KEY=...       # Google Cloud Console (future election/ballot data)
+GOOGLE_CIVIC_API_KEY=...       # Google Cloud Console (election/ballot data via Civic Information API)
 CLAUDE_MODEL=claude-sonnet-4-6 # model for research agents
 RESEARCH_MAX_TOKENS=32768      # max tokens per section agent
 
@@ -128,6 +136,7 @@ docker compose up --build
 - **LLM:** Anthropic Claude with tool use (model configurable via `CLAUDE_MODEL`)
 - **Web Search:** Tavily API
 - **Representative Data:** US Congress API (federal) + Cicero API (state/municipal)
+- **Election Data:** Google Civic Information API (elections, ballot contests, candidates, voter info)
 - **Database:** Cloud SQL PostgreSQL (usage tracking)
 - **Caching:** Redis via Memorystore (production) / in-memory (local dev)
 - **Tracing:** Langfuse

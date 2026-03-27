@@ -37,6 +37,7 @@ API keys are stored in Secret Manager and mounted as env vars in Cloud Run, not 
 | `TAVILY_API_KEY` | `TAVILY_API_KEY` | Backend — web search tool |
 | `CICERO_API_KEY` | `CICERO_API_KEY` | Backend — state/municipal rep lookups |
 | `US_CONGRESS_API_KEY` | `US_CONGRESS_API_KEY` | Backend — federal rep lookups |
+| `GOOGLE_CIVIC_API_KEY` | `GOOGLE_CIVIC_API_KEY` | Backend — election/ballot data via Civic Information API |
 | `LANGFUSE_SECRET_KEY` | `LANGFUSE_SECRET_KEY` | Backend — tracing |
 | `LANGFUSE_PUBLIC_KEY` | `LANGFUSE_PUBLIC_KEY` | Backend — tracing |
 
@@ -50,6 +51,11 @@ Non-secret env vars (set directly on Cloud Run):
 - `LANGFUSE_BASE_URL` — Langfuse endpoint
 - `REP_CACHE_TTL_SECONDS` — cache TTL (default 259200 / 3 days)
 - `JOB_TTL_SECONDS` — research task TTL (default 1800)
+- `ANTHROPIC_INPUT_COST_PER_M` — USD per million input tokens (cost tracking)
+- `ANTHROPIC_OUTPUT_COST_PER_M` — USD per million output tokens (cost tracking)
+- `COST_PER_SEARCH` — USD per Tavily search (cost tracking)
+- `SEARCH_TOOL` — search provider name (default `tavily`)
+- `ENVIRONMENT` — `dev` or `prod` (recorded in research_tasks)
 
 | Secret name | Env var | Used by |
 |------------|---------|---------|
@@ -59,10 +65,18 @@ Non-secret env vars (set directly on Cloud Run):
 
 ```
 Internet → Cloud Run (frontend) → Cloud Run (backend) → Memorystore Redis
-                                                      → External APIs (Anthropic, Tavily, Cicero, Congress, Census)
+                                                      → Cloud SQL PostgreSQL
+                                                      → External APIs (Anthropic, Tavily, Cicero, Congress, Census, Google Civic)
 ```
 
 Cloud Run backend connects to Redis via Direct VPC egress on the `default` network. Only traffic to private IPs is routed through the VPC; external API calls go directly over the internet.
+
+### Cloud SQL for PostgreSQL
+- **Purpose:** Persists research usage data (`research_tasks`), financial ledger (`transactions`), and future tables (feedback, etc.)
+- **Instance:** `my-representatives-489301:us-central1:my-representatives`
+- **Region:** us-central1
+- **Connection from Cloud Run:** Cloud SQL proxy sidecar → Unix socket at `/cloudsql/my-representatives-489301:us-central1:my-representatives`
+- **Connection from local dev:** Cloud SQL Auth Proxy → `localhost:5432`
 
 ## Local Development
 

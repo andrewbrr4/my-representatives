@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { Representative, ResearchSummary, ResearchResponse } from "@/types";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -31,6 +31,16 @@ export function useResearch() {
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
+
+  // Clean up all poll timers on unmount
+  useEffect(() => {
+    return () => {
+      for (const timer of pollTimers.current.values()) {
+        clearInterval(timer);
+      }
+      pollTimers.current.clear();
+    };
+  }, []);
 
   const stopPolling = useCallback((key: string) => {
     const timer = pollTimers.current.get(key);
