@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 
@@ -121,9 +122,8 @@ async def get_federal_representatives(address: str) -> list[Representative]:
 
         logger.info(f"Found {len(relevant)} federal reps for {state}-{district}")
 
-        # Fetch full details for each relevant member
-        representatives = []
-        for m in relevant:
+        # Fetch full details for each relevant member (concurrently)
+        async def _fetch_detail(m: dict) -> Representative:
             try:
                 url = m["url"]
                 if not url.startswith("http"):
@@ -133,10 +133,12 @@ async def get_federal_representatives(address: str) -> list[Representative]:
                 )
                 detail_resp.raise_for_status()
                 detail = detail_resp.json().get("member", {})
-                representatives.append(_member_to_representative(detail))
+                return _member_to_representative(detail)
             except Exception as e:
                 logger.warning(f"Failed to fetch detail for {m.get('name')}: {e}")
                 # Fall back to list-level data (less info but still usable)
-                representatives.append(_member_to_representative(m))
+                return _member_to_representative(m)
+
+        representatives = list(await asyncio.gather(*[_fetch_detail(m) for m in relevant]))
 
     return representatives

@@ -5,7 +5,7 @@ MyReps runs on Google Cloud Platform (GCP) in the `us-east1` region.
 ## Services
 
 ### Cloud Run — Backend (`my-reps-backend`)
-- **Image:** Built from `backend/Dockerfile` (Python 3.12-slim, uvicorn, 2 workers)
+- **Image:** Built from `backend/Dockerfile` (Python 3.13-slim, uvicorn, 1 worker)
 - **Port:** 8080
 - **Region:** us-east1
 - **VPC:** Direct VPC egress to `default` network (required for Redis access)
