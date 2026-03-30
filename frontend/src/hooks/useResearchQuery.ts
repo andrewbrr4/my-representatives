@@ -24,6 +24,7 @@ interface ResearchEntry {
 export function useResearchQuery() {
   const queryClient = useQueryClient();
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
+  const mountedRef = useRef(false);
 
   const getEntry = useCallback(
     (key: string): ResearchEntry => {
@@ -66,6 +67,8 @@ export function useResearchQuery() {
   const startPolling = useCallback(
     (key: string, researchId: string) => {
       if (pollTimers.current.has(key)) return;
+      // Don't start polling if the hook is unmounted — the remount effect will pick it up
+      if (!mountedRef.current) return;
 
       const timer = setInterval(async () => {
         try {
@@ -105,6 +108,7 @@ export function useResearchQuery() {
   // On mount, restart polling for any in-progress entries (survives route changes)
   // On unmount, clear all poll timers
   useEffect(() => {
+    mountedRef.current = true;
     const cache = queryClient.getQueryCache().getAll();
     for (const query of cache) {
       const qk = query.queryKey;
@@ -117,6 +121,7 @@ export function useResearchQuery() {
     }
 
     return () => {
+      mountedRef.current = false;
       for (const timer of pollTimers.current.values()) {
         clearInterval(timer);
       }
@@ -155,10 +160,9 @@ export function useResearchQuery() {
             return;
           }
 
-          if (data.summary) {
-            setEntry(key, { status: "loading", summary: data.summary, researchId: data.research_id });
-            bumpVersion();
-          }
+          // Always persist the researchId so remount can restart polling
+          setEntry(key, { status: "loading", summary: data.summary ?? null, researchId: data.research_id });
+          bumpVersion();
 
           startPolling(key, data.research_id);
         } catch {
