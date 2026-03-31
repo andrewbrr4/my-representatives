@@ -1,6 +1,6 @@
 # Infrastructure
 
-MyReps runs on Google Cloud Platform (GCP) in the `us-east1` region.
+MyReps runs on Google Cloud Platform (GCP) in the `us-east1` region. Production URL: **https://knowmyreps.org**
 
 ## Services
 
@@ -8,6 +8,7 @@ MyReps runs on Google Cloud Platform (GCP) in the `us-east1` region.
 - **Image:** Built from `backend/Dockerfile` (Python 3.13-slim, uvicorn, 1 worker)
 - **Port:** 8080
 - **Region:** us-east1
+- **Domain:** `api.knowmyreps.org`
 - **VPC:** Direct VPC egress to `default` network (required for Redis access)
 - **Traffic routing:** Route only private IPs to VPC
 - **Cloud SQL connection:** Add the Cloud SQL instance (`my-representatives-489301:us-central1:my-representatives`) to the service. Cloud Run injects a proxy sidecar that exposes a Unix socket at `/cloudsql/my-representatives-489301:us-central1:my-representatives`. The backend connects via `DB_SOCKET_PATH` env var (see below).
@@ -17,7 +18,8 @@ MyReps runs on Google Cloud Platform (GCP) in the `us-east1` region.
 ### Cloud Run — Frontend (`my-reps-frontend`)
 - **Image:** Built from `frontend/Dockerfile` (Node 22 build → Nginx)
 - **Port:** 8080
-- **Build args:** `VITE_API_URL` (backend Cloud Run URL), `VITE_GOOGLE_PLACES_API_KEY`
+- **Domain:** `knowmyreps.org`
+- **Build args:** `VITE_API_URL` (backend URL, e.g. `https://api.knowmyreps.org`), `VITE_GOOGLE_PLACES_API_KEY`
 
 ### Memorystore for Redis
 - **Purpose:** Persistent rep research cache (3-day TTL) shared across backend workers
@@ -61,12 +63,20 @@ Non-secret env vars (set directly on Cloud Run):
 |------------|---------|---------|
 | `DB_PASSWORD` | `DB_PASSWORD` | Backend — Cloud SQL password (used with `DB_SOCKET_PATH`) |
 
+## Custom Domain
+
+- **Domain:** `knowmyreps.org` (registered via Google Cloud Domains)
+- **DNS:** Managed in Cloud DNS (zone: `knowmyreps-org`)
+- **Frontend:** `knowmyreps.org` → Cloud Run `my-reps-frontend` (A + AAAA records)
+- **Backend API:** `api.knowmyreps.org` → Cloud Run `my-reps-backend` (CNAME → `ghs.googlehosted.com.`)
+- **SSL:** Managed automatically by Cloud Run domain mappings
+
 ## Networking
 
 ```
-Internet → Cloud Run (frontend) → Cloud Run (backend) → Memorystore Redis
-                                                      → Cloud SQL PostgreSQL
-                                                      → External APIs (Anthropic, Tavily, Cicero, Congress, Census, Google Civic)
+Internet → knowmyreps.org (Cloud Run frontend) → api.knowmyreps.org (Cloud Run backend) → Memorystore Redis
+                                                                                         → Cloud SQL PostgreSQL
+                                                                                         → External APIs (Anthropic, Tavily, Cicero, Congress, Census, Google Civic)
 ```
 
 Cloud Run backend connects to Redis via Direct VPC egress on the `default` network. Only traffic to private IPs is routed through the VPC; external API calls go directly over the internet.
@@ -123,7 +133,7 @@ gcloud run deploy my-reps-backend --image us-east1-docker.pkg.dev/<PROJECT_ID>/m
 
 # Frontend
 docker build -t us-east1-docker.pkg.dev/<PROJECT_ID>/my-reps/frontend \
-  --build-arg VITE_API_URL=<BACKEND_URL> \
+  --build-arg VITE_API_URL=https://api.knowmyreps.org \
   --build-arg VITE_GOOGLE_PLACES_API_KEY=<KEY> \
   ./frontend
 docker push us-east1-docker.pkg.dev/<PROJECT_ID>/my-reps/frontend
