@@ -1,4 +1,4 @@
-# MyReps
+# MyReps — [knowmyreps.org](https://knowmyreps.org)
 
 Find your elected representatives at every level of government — federal, state, and municipal — with on-demand AI-researched summaries.
 
