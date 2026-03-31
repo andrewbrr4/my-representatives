@@ -18,7 +18,7 @@ function ResultsLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold tracking-tight mb-2">MyReps</h1>
+          <h1 className="text-4xl font-bold tracking-tight mb-2">KnowMyReps</h1>
           <p className="text-muted-foreground">
             Find your elected representatives at every level of government.
           </p>
