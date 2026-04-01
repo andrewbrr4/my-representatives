@@ -1,0 +1,1 @@
+Research where $name, who serves as $office, stands on the issue of $issue_label. Search the web for their voting record, public statements, and any relevant funding connections on this issue, then provide a concise summary.
