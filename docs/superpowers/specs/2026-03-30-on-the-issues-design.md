@@ -262,7 +262,7 @@ No changes to existing research pipelines, store logic, or existing routers.
 | `backend/research/prompts/issue_match_system.txt` | System prompt for issue classifier (single LLM call, no tools) |
 | `backend/research/prompts/issue_stance_system.txt` | System prompt for stance research agent |
 | `backend/research/prompts/issue_stance_user.txt` | User prompt template for stance research agent |
-| `backend/migrations/004_create_issues_table.sql` | Creates `issues` table + seeds initial taxonomy |
+| `backend/migrations/003_create_issues_table.sql` | Creates `issues` table + seeds initial taxonomy |
 
 ## Future Vision
 
