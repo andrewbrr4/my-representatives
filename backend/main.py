@@ -19,8 +19,9 @@ from routers.representatives import router
 from routers.research import router as research_router
 from routers.transactions import router as transactions_router
 from routers.elections import router as elections_router
+from routers.issues import router as issues_router
 from db import close_pool
-from store.dependencies import get_election_cache, get_rep_cache, get_research_store
+from store.dependencies import get_election_cache, get_issue_cache, get_rep_cache, get_research_store
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
                 await get_research_store().cleanup()
                 await get_rep_cache().cleanup()
                 await get_election_cache().cleanup()
+                await get_issue_cache().cleanup()
             except Exception as e:
                 logger.error(f"Cleanup error: {e}")
 
@@ -100,3 +102,4 @@ app.include_router(router)
 app.include_router(research_router)
 app.include_router(transactions_router)
 app.include_router(elections_router)
+app.include_router(issues_router)
