@@ -3,8 +3,8 @@ import os
 
 import redis.asyncio as redis
 
-from models import ElectionResearchSummary, ResearchSummary
-from store.interfaces import ElectionCacheInterface, RepCacheInterface
+from models import ElectionResearchSummary, IssueStanceSummary, ResearchSummary
+from store.interfaces import ElectionCacheInterface, IssueCacheInterface, RepCacheInterface
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +76,36 @@ class RedisElectionCache(ElectionCacheInterface):
             await self._r.set(key, summary.model_dump_json(), ex=REP_CACHE_TTL_SECONDS)
         except Exception as e:
             logger.error(f"Redis SET failed for election {election_name}: {e}")
+
+    async def cleanup(self) -> None:
+        pass
+
+
+def _issue_cache_key(name: str, office: str, issue_id: str) -> str:
+    return f"issuecache:{name.lower().strip()}|{office.lower().strip()}|{issue_id}"
+
+
+class RedisIssueCache(IssueCacheInterface):
+    def __init__(self, client: redis.Redis) -> None:
+        self._r = client
+
+    async def get(self, name: str, office: str, issue_id: str) -> IssueStanceSummary | None:
+        key = _issue_cache_key(name, office, issue_id)
+        try:
+            data = await self._r.get(key)
+        except Exception as e:
+            logger.error(f"Redis GET failed for issue {name}/{issue_id}: {e}")
+            return None
+        if data is None:
+            return None
+        return IssueStanceSummary.model_validate_json(data)
+
+    async def put(self, name: str, office: str, issue_id: str, summary: IssueStanceSummary) -> None:
+        key = _issue_cache_key(name, office, issue_id)
+        try:
+            await self._r.set(key, summary.model_dump_json(), ex=REP_CACHE_TTL_SECONDS)
+        except Exception as e:
+            logger.error(f"Redis SET failed for issue {name}/{issue_id}: {e}")
 
     async def cleanup(self) -> None:
         pass

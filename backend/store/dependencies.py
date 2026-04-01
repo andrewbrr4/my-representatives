@@ -1,8 +1,8 @@
 import logging
 import os
 
-from models import ElectionResearchSummary, ResearchSummary
-from store.interfaces import ElectionCacheInterface, RepCacheInterface
+from models import ElectionResearchSummary, IssueStanceSummary, ResearchSummary
+from store.interfaces import ElectionCacheInterface, IssueCacheInterface, RepCacheInterface
 from store.research_store import InMemoryResearchStore
 
 logger = logging.getLogger(__name__)
@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 _rep_cache: RepCacheInterface | None = None
 _research_store: InMemoryResearchStore | None = None
 _election_cache: ElectionCacheInterface | None = None
+_issue_cache: IssueCacheInterface | None = None
 
 
 class NoOpRepCache(RepCacheInterface):
@@ -61,6 +62,30 @@ def get_election_cache() -> ElectionCacheInterface:
             _election_cache = NoOpElectionCache()
             logger.info("Election cache disabled (no REDIS_URL)")
     return _election_cache
+
+
+class NoOpIssueCache(IssueCacheInterface):
+    async def get(self, name: str, office: str, issue_id: str) -> IssueStanceSummary | None:
+        return None
+
+    async def put(self, name: str, office: str, issue_id: str, summary: IssueStanceSummary) -> None:
+        pass
+
+    async def cleanup(self) -> None:
+        pass
+
+
+def get_issue_cache() -> IssueCacheInterface:
+    global _issue_cache
+    if _issue_cache is None:
+        if os.getenv("REDIS_URL"):
+            from store.redis import RedisIssueCache, create_redis_client
+            _issue_cache = RedisIssueCache(create_redis_client())
+            logger.info("Using Redis issue cache")
+        else:
+            _issue_cache = NoOpIssueCache()
+            logger.info("Issue cache disabled (no REDIS_URL)")
+    return _issue_cache
 
 
 def get_research_store() -> InMemoryResearchStore:
