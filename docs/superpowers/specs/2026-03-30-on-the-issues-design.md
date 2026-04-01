@@ -31,24 +31,22 @@ Users will type the same issue many different ways: "AI", "artificial intelligen
 
 ### Solution: taxonomy + LLM matching
 
-A static taxonomy file (`backend/research/issues_taxonomy.json`) contains known political issues:
+The taxonomy lives in a Postgres `issues` table:
 
-```json
-[
-  {
-    "id": "artificial_intelligence",
-    "label": "Artificial Intelligence",
-    "aliases": ["AI", "machine learning", "tech regulation"]
-  },
-  {
-    "id": "gun_control",
-    "label": "Gun Control",
-    "aliases": ["guns", "2nd amendment", "second amendment", "firearm regulation", "gun rights"]
-  }
-]
+```sql
+CREATE TABLE issues (
+    id TEXT PRIMARY KEY,              -- e.g. "artificial_intelligence"
+    label TEXT NOT NULL,              -- e.g. "Artificial Intelligence"
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 ```
 
-An LLM call (using `CLAUDE_MODEL` per project convention) classifies user input into one of three buckets:
+A seed migration populates the initial set of known issues. The classifier loads the full taxonomy at request time (the table is small — 30-50 rows — so no caching layer needed initially; can add brief in-memory TTL cache later if needed).
+
+Storing in Postgres (not a static JSON file) means the taxonomy can evolve without deploys — future features like auto-promoting popular novel issues or admin management just write to this table.
+
+An LLM call (using `CLAUDE_MODEL` per project convention) with a dedicated prompt file (`backend/research/prompts/issue_match_system.txt`) classifies user input into one of three buckets. This is a single structured LLM call (not an agent) — no tools, no web search. At request time, the prompt template's `${issues_list}` placeholder is populated with current active issues loaded from the `issues` table (via `db.get_issues_taxonomy()`), so the classifier always reflects the latest taxonomy without restarts. The LLM returns structured output (`IssueMatchResult`):
 
 1. **Known issue** — matches a taxonomy entry. Returns canonical `id` and `label`. Cache-friendly.
 2. **Novel legitimate issue** — a real political issue not in the taxonomy (e.g. "Iran War" during a new conflict). The LLM generates a canonical `id` and `label`. Accepted but less likely to get cache hits.
@@ -251,7 +249,7 @@ Minimal changes to existing code:
 - **`store/interfaces.py`** — add `IssueCacheInterface`
 - **`store/redis.py`** — add `RedisIssueCache` and `NoOpIssueCache`
 - **`store/dependencies.py`** — add `get_issue_cache()` singleton
-- **`db.py`** — no changes needed (`task_type` column already accepts arbitrary strings)
+- **`db.py`** — add `get_issues_taxonomy()` to load all active issues from the `issues` table (`task_type` column already accepts arbitrary strings for cost tracking)
 
 No changes to existing research pipelines, store logic, or existing routers.
 
@@ -261,9 +259,10 @@ No changes to existing research pipelines, store logic, or existing routers.
 |------|---------|
 | `backend/routers/issues.py` | Router with 3 endpoints |
 | `backend/research/issue_pipeline.py` | Single-agent research pipeline |
-| `backend/research/issues_taxonomy.json` | Static issue taxonomy |
-| `backend/research/prompts/issue_stance_system.txt` | System prompt for stance agent |
-| `backend/research/prompts/issue_stance_user.txt` | User prompt template |
+| `backend/research/prompts/issue_match_system.txt` | System prompt for issue classifier (single LLM call, no tools) |
+| `backend/research/prompts/issue_stance_system.txt` | System prompt for stance research agent |
+| `backend/research/prompts/issue_stance_user.txt` | User prompt template for stance research agent |
+| `backend/migrations/004_create_issues_table.sql` | Creates `issues` table + seeds initial taxonomy |
 
 ## Future Vision
 
