@@ -195,3 +195,42 @@ class TransactionOut(BaseModel):
     research_task_id: str | None
     created_at: datetime
     balance_after: Decimal | None
+
+
+# --- On the Issues models ---
+
+
+class IssueStanceSummary(BaseModel):
+    """Single-section summary: where a rep stands on a specific issue."""
+    stance_summary: list[str] | None = None
+    citations: list[Citation] = Field(default_factory=list)
+
+    SECTION_NAMES: ClassVar[list[str]] = ["stance_summary"]
+
+
+class IssueInfo(BaseModel):
+    id: str
+    label: str
+
+
+class IssueMatchRequest(BaseModel):
+    query: str
+
+
+class IssueMatchResponse(BaseModel):
+    matched: bool
+    issue: IssueInfo | None = None
+    novel: bool = False
+    message: str | None = None
+
+
+class IssueResearchRequest(BaseModel):
+    representative: Representative
+    issue_id: str
+    issue_label: str
+
+
+class IssueResearchResponse(BaseModel):
+    research_id: str
+    status: Literal["pending", "in_progress", "complete", "failed"]
+    summary: IssueStanceSummary | None = None
