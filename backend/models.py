@@ -205,8 +205,6 @@ class IssueStanceSummary(BaseModel):
     stance_summary: list[str] | None = None
     citations: list[Citation] = Field(default_factory=list)
 
-    SECTION_NAMES: ClassVar[list[str]] = ["stance_summary"]
-
 
 class IssueInfo(BaseModel):
     id: str
