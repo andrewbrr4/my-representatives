@@ -175,3 +175,12 @@ async def list_transactions(limit: int = 50) -> list[dict]:
         limit,
     )
     return [dict(r) for r in rows]
+
+
+async def get_issues_taxonomy() -> list[dict]:
+    """Return all active issues from the taxonomy, ordered by label."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        "SELECT id, label FROM issues WHERE active = true ORDER BY label"
+    )
+    return [dict(r) for r in rows]
