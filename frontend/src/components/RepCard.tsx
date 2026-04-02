@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { Representative, ResearchSummary, Citation } from "@/types";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
+import { IssueSearch } from "@/components/IssueSearch";
 import {
   Card,
   CardContent,
@@ -117,12 +118,10 @@ const SECTION_ORDER: {
   title: string;
   kind: "paragraph" | "list";
 }[] = [
-  { key: "background", citationsKey: "background_citations", title: "Background", kind: "paragraph" },
-  { key: "policy_positions", citationsKey: "policy_positions_citations", title: "Policy Positions", kind: "paragraph" },
+  { key: "policy_positions", citationsKey: "policy_positions_citations", title: "Policy Positions", kind: "list" },
   { key: "recent_legislative_record", citationsKey: "recent_legislative_record_citations", title: "Recent Legislative Record", kind: "list" },
   { key: "accomplishments", citationsKey: "accomplishments_citations", title: "Accomplishments", kind: "list" },
   { key: "controversies", citationsKey: "controversies_citations", title: "Controversies", kind: "list" },
-  { key: "recent_press", citationsKey: "recent_press_citations", title: "Other Recent Press", kind: "list" },
   { key: "top_donors", citationsKey: "top_donors_citations", title: "Top Donors", kind: "list" },
 ];
 
@@ -234,10 +233,13 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
           )}
         </div>
 
+        {/* Issue search */}
+        <IssueSearch rep={rep} />
+
         {/* Research states */}
         {researchStatus === "idle" && (
           <Button onClick={onResearch} variant="outline" className="w-full">
-            Generate AI Research
+            Generate AI Overview
           </Button>
         )}
 
@@ -257,7 +259,7 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
             <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
               <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
               <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
-              AI Research
+              AI Overview
               <span className="ml-1 text-xs text-muted-foreground italic">(Scraping the web for information about your representative -- this usually takes 30-60 seconds...)</span>
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -271,7 +273,7 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
             <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
               <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
               <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
-              AI Research
+              AI Overview
             </CollapsibleTrigger>
             <CollapsibleContent>
               <ResearchContent summary={summary} />

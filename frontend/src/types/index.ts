@@ -12,9 +12,7 @@ export interface Citation {
 }
 
 export interface ResearchSummary {
-  background: string | null;
-  background_citations: Citation[];
-  policy_positions: string | null;
+  policy_positions: string[] | null;
   policy_positions_citations: Citation[];
   recent_legislative_record: string[] | null;
   recent_legislative_record_citations: Citation[];
@@ -22,8 +20,6 @@ export interface ResearchSummary {
   accomplishments_citations: Citation[];
   controversies: string[] | null;
   controversies_citations: Citation[];
-  recent_press: string[] | null;
-  recent_press_citations: Citation[];
   top_donors: string[] | null;
   top_donors_citations: Citation[];
 }
@@ -95,6 +91,33 @@ export interface ElectionsResponse {
   elections: Election[];
   research_ids: Record<string, string>;
 }
+
+// --- Issue research types ---
+
+export interface IssueInfo {
+  id: string;
+  label: string;
+}
+
+export interface IssueMatchResponse {
+  matched: boolean;
+  issue: IssueInfo | null;
+  novel: boolean;
+  message: string | null;
+}
+
+export interface IssueStanceSummary {
+  stance_summary: string[] | null;
+  citations: Citation[];
+}
+
+export interface IssueResearchResponse {
+  research_id: string;
+  status: "pending" | "in_progress" | "complete" | "failed";
+  summary: IssueStanceSummary | null;
+}
+
+// --- Election types ---
 
 export interface ElectionResearchSummary {
   election_context: string | null;

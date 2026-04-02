@@ -56,8 +56,8 @@ cd frontend && npx shadcn@latest add <component-name>
 5. `GET /api/research/{research_id}` — client polls for task progress, returns `ResearchResponse` with partial summary (sections arrive incrementally as each agent completes)
 6. Task status transitions: `"pending"` → `"in_progress"` (first section done) → `"complete"` (all 7 done). Frontend renders completed sections immediately and shows skeleton placeholders for pending ones.
 
-**Research pipeline** (`research/pipeline.py`) runs **7 per-section research agents** concurrently using LangChain + Langfuse tracing:
-- Each section (background, policy_positions, recent_legislative_record, accomplishments, controversies, recent_press, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a Tavily `web_search` tool and returns structured output with per-section citations
+**Research pipeline** (`research/pipeline.py`) runs **5 per-section research agents** concurrently using LangChain + Langfuse tracing:
+- Each section (policy_positions, recent_legislative_record, accomplishments, controversies, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a Tavily `web_search` tool and returns structured output with per-section citations
 - Section prompts are stored in `research/prompts/` (system + user template per section)
 - Each agent is limited to 5 web searches and `recursion_limit=15`
 - Each agent writes its result to the `InMemoryResearchStore` immediately on completion via `store.complete_section()`, enabling incremental delivery to the frontend
