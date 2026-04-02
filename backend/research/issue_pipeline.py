@@ -31,7 +31,7 @@ _semaphore = asyncio.Semaphore(2)
 
 ISSUE_TOTAL_SECTIONS = 1
 
-_REJECTION_MESSAGE = (
+REJECTION_MESSAGE = (
     "We couldn't match that to a political issue. "
     "Try something like 'gun control' or 'immigration'."
 )

@@ -18,7 +18,7 @@ from models import (
 )
 from research.issue_pipeline import (
     ISSUE_TOTAL_SECTIONS,
-    _REJECTION_MESSAGE,
+    REJECTION_MESSAGE,
     match_issue,
     research_issue_stance,
 )
@@ -91,7 +91,7 @@ async def issue_match(request: Request, body: IssueMatchRequest) -> IssueMatchRe
         raise HTTPException(status_code=500, detail="Issue classification failed.")
 
     if not matched:
-        return IssueMatchResponse(matched=False, message=_REJECTION_MESSAGE)
+        return IssueMatchResponse(matched=False, message=REJECTION_MESSAGE)
 
     return IssueMatchResponse(matched=True, issue=issue_info, novel=novel)
 
