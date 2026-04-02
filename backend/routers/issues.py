@@ -60,7 +60,7 @@ async def _run_issue_research(research_id: str, req: IssueResearchRequest) -> No
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
             tool_calls=usage.tool_calls,
-            status="done" if items else "failed",
+            status="done" if items is not None else "failed",
             task_type="issue",
             **cfg,
         )

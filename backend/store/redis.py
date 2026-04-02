@@ -82,7 +82,7 @@ class RedisElectionCache(ElectionCacheInterface):
 
 
 def _issue_cache_key(name: str, office: str, issue_id: str) -> str:
-    return f"issuecache:{name.lower().strip()}|{office.lower().strip()}|{issue_id}"
+    return f"issuecache:{name.lower().strip()}|{office.lower().strip()}|{issue_id.lower().strip()}"
 
 
 class RedisIssueCache(IssueCacheInterface):

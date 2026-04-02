@@ -70,7 +70,10 @@ async def match_issue(query: str) -> tuple[bool, IssueInfo | None, bool]:
     ])
 
     if response.matched and response.issue_id and response.issue_label:
-        return True, IssueInfo(id=response.issue_id, label=response.issue_label), response.novel
+        # Enforce canonical format: snake_case id, trimmed label
+        canonical_id = response.issue_id.lower().strip().replace(" ", "_")
+        canonical_label = response.issue_label.strip()
+        return True, IssueInfo(id=canonical_id, label=canonical_label), response.novel
     return False, None, False
 
 
