@@ -20,7 +20,6 @@ from models import (
     ListSectionResult,
     Representative,
     ResearchSummary,
-    SectionResult,
 )
 from research.usage import UsageStats, UsageTracker
 from store.research_store import InMemoryResearchStore
@@ -87,18 +86,11 @@ class SectionConfig:
 
 SECTIONS: list[SectionConfig] = [
     SectionConfig(
-        name="background",
-        output_model=SectionResult,
-        system_prompt_file="background_system.txt",
-        user_prompt_file="background_user.txt",
-        content_field="content",
-    ),
-    SectionConfig(
         name="policy_positions",
-        output_model=SectionResult,
+        output_model=ListSectionResult,
         system_prompt_file="policy_positions_system.txt",
         user_prompt_file="policy_positions_user.txt",
-        content_field="content",
+        content_field="items",
     ),
     SectionConfig(
         name="recent_legislative_record",
@@ -119,13 +111,6 @@ SECTIONS: list[SectionConfig] = [
         output_model=ListSectionResult,
         system_prompt_file="controversies_system.txt",
         user_prompt_file="controversies_user.txt",
-        content_field="items",
-    ),
-    SectionConfig(
-        name="recent_press",
-        output_model=ListSectionResult,
-        system_prompt_file="recent_press_system.txt",
-        user_prompt_file="recent_press_user.txt",
         content_field="items",
     ),
     SectionConfig(
@@ -197,7 +182,7 @@ async def research_representative(
     store: InMemoryResearchStore | None = None,
     research_id: str | None = None,
 ) -> tuple[ResearchSummary | None, UsageStats]:
-    """Run 7 focused section agents concurrently, writing each section to store as it completes."""
+    """Run 5 focused section agents concurrently, writing each section to store as it completes."""
     total_usage = UsageStats()
     usage_lock = asyncio.Lock()
     logger.info(f"Queued research for {rep.name}")

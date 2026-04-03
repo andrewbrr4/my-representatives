@@ -17,7 +17,7 @@ MAX_TASKS = 1000
 @dataclass
 class ResearchTask:
     research_id: str
-    total_sections: int = 7  # default for rep research
+    total_sections: int = 5  # default for rep research
     status: str = "pending"  # "pending" | "in_progress" | "complete" | "failed"
     summary: PydanticBaseModel = field(default_factory=ResearchSummary)
     completed_sections: int = 0
@@ -29,7 +29,7 @@ class InMemoryResearchStore:
         self._tasks: dict[str, ResearchTask] = {}
         self._lock = asyncio.Lock()
 
-    async def create(self, research_id: str, total_sections: int = 7, summary: PydanticBaseModel | None = None) -> None:
+    async def create(self, research_id: str, total_sections: int = 5, summary: PydanticBaseModel | None = None) -> None:
         async with self._lock:
             if len(self._tasks) >= MAX_TASKS:
                 oldest_key = min(self._tasks, key=lambda k: self._tasks[k].created_at)

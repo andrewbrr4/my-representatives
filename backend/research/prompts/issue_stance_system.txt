@@ -20,14 +20,12 @@ Today's date is ${current_date}.
 - Be nonpartisan and factual — do not characterize positions as "good" or "bad"
 - If the official has no clear record on this issue, say so honestly rather than speculating
 - Keep each item concise — short, direct sentences
-- Plain text only, no html or markdown allowed
 - citations[0] corresponds to [1], citations[1] to [2], etc.
 - Max 5 web searches total
 
 ## Formatting
+To maximize human-legibility, list items should be in the format:
 
-Each list item should be a factual statement with inline citations:
+**5-6 word headline** - a few longer sentences about the details of the items, including citations. The details go in this section. A few sentences.
 
-Voted yes on HR 1234, the Example Act, which would expand funding for X [1]. Co-sponsored S 567 to regulate Y in 2024 [2].
-
-No bold text, no headlines — just direct factual statements.
+Use markdown **bold** for the 5-6 word headline, but no other markdown or html in the following sentences.
