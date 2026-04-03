@@ -1,10 +1,15 @@
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Search, ChevronDown, ChevronRight } from "lucide-react";
 import type { Representative, Citation } from "@/types";
 import { useIssueSearch } from "@/hooks/useIssueSearch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { renderInline } from "@/components/RepCard";
 
 function IssueResult({
@@ -19,21 +24,29 @@ function IssueResult({
   loading: boolean;
 }) {
   return (
-    <div className="mt-2 p-3 rounded-lg bg-muted/30 border">
-      <h4 className="font-semibold text-sm text-foreground mb-1">{label}</h4>
-      {loading && !items ? (
-        <div className="space-y-1.5">
-          <Skeleton className="h-3.5 w-full" />
-          <Skeleton className="h-3.5 w-5/6" />
-        </div>
-      ) : items ? (
-        <ul className="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-          {items.map((item, i) => (
-            <li key={i}>{renderInline(item, citations)}</li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
+    <Collapsible defaultOpen className="mt-2 rounded-lg bg-muted/30 border">
+      <div className="p-3">
+        <CollapsibleTrigger className="flex w-full items-center gap-1 cursor-pointer group">
+          <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
+          <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
+          <h4 className="font-semibold text-sm text-foreground">{label}</h4>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          {loading && !items ? (
+            <div className="space-y-1.5 mt-1">
+              <Skeleton className="h-3.5 w-full" />
+              <Skeleton className="h-3.5 w-5/6" />
+            </div>
+          ) : items ? (
+            <ul className="list-disc pl-5 space-y-1 text-sm leading-relaxed mt-1">
+              {items.map((item, i) => (
+                <li key={i}>{renderInline(item, citations)}</li>
+              ))}
+            </ul>
+          ) : null}
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   );
 }
 

@@ -102,10 +102,17 @@ async def get_elections(request: Request, body: AddressRequest) -> ElectionsResp
     for election in elections_resp.elections[:MAX_AUTO_RESEARCH]:
         ekey = f"{election.name}|{election.date}"
 
-        # Skip if already cached
+        # Check cache — if hit, serve via a pre-populated store entry
         cached = await election_cache.get(election.name, election.date, addr_hash)
         if cached is not None:
-            research_ids[ekey] = "cached"
+            research_id = uuid.uuid4().hex[:12]
+            research_ids[ekey] = research_id
+            await store.create(
+                research_id,
+                total_sections=ELECTION_TOTAL_SECTIONS,
+                summary=ElectionResearchSummary(),
+            )
+            await store.complete(research_id, cached)
             continue
 
         research_id = uuid.uuid4().hex[:12]
