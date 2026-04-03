@@ -130,7 +130,10 @@ def _parse_civic_response(data: dict) -> ElectionsResponse:
     # Parse contests and candidates
     contests = []
     for contest_data in data.get("contests", []):
-        office = contest_data.get("office", "Unknown Office")
+        # Skip referenda / ballot measures — they have no office field
+        office = contest_data.get("office")
+        if not office:
+            continue
         level = "municipal"  # default
         levels = contest_data.get("level", [])
         if levels:

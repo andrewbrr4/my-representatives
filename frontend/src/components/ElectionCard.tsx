@@ -2,6 +2,7 @@ import type {
   Election,
   ElectionResearchSummary,
   Candidate,
+  Representative,
   Citation,
 } from "@/types";
 import type { ElectionResearchStatus } from "@/hooks/useElectionResearchQuery";
@@ -86,6 +87,46 @@ function ElectionListSection({
   );
 }
 
+/**
+ * Parse a raw hours string like "Fri, Mar 6: 8 am - 5 pm Mon, Mar 9: 8 am - 5 pm ..."
+ * into grouped date ranges by hours, e.g. "Mon Mar 6 – Fri Apr 18: 8 am - 5 pm"
+ */
+function parseEarlyVoteHours(raw: string): { dates: string; hours: string }[] {
+  const entryPattern = /([A-Z][a-z]{2}),?\s+([A-Z][a-z]{2}\s+\d{1,2}):\s*(\d{1,2}(?::\d{2})?\s*[ap]m\s*-\s*\d{1,2}(?::\d{2})?\s*[ap]m)/g;
+  const entries: { day: string; date: string; hours: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = entryPattern.exec(raw)) !== null) {
+    entries.push({ day: m[1], date: m[2].trim(), hours: m[3].trim() });
+  }
+
+  if (entries.length === 0) return [{ dates: "", hours: raw }];
+
+  // Group consecutive entries with the same hours into ranges
+  const groups: { startDay: string; startDate: string; endDay: string; endDate: string; hours: string }[] = [];
+  for (const entry of entries) {
+    const last = groups.length > 0 ? groups[groups.length - 1] : null;
+    if (last && last.hours === entry.hours) {
+      last.endDay = entry.day;
+      last.endDate = entry.date;
+    } else {
+      groups.push({
+        startDay: entry.day,
+        startDate: entry.date,
+        endDay: entry.day,
+        endDate: entry.date,
+        hours: entry.hours,
+      });
+    }
+  }
+
+  return groups.map((g) => ({
+    dates: g.startDate === g.endDate
+      ? `${g.startDay}, ${g.startDate}`
+      : `${g.startDay}, ${g.startDate} – ${g.endDay}, ${g.endDate}`,
+    hours: g.hours,
+  }));
+}
+
 const typeColors: Record<string, string> = {
   primary: "bg-purple-600 text-white",
   general: "bg-blue-600 text-white",
@@ -96,6 +137,7 @@ interface ElectionCardProps {
   election: Election;
   researchStatus: ElectionResearchStatus;
   researchSummary: ElectionResearchSummary | null;
+  candidateToRep: (candidate: Candidate) => Representative;
   getCandidateResearchStatus: (candidate: Candidate) => ResearchStatus;
   getCandidateResearchSummary: (candidate: Candidate) => ResearchSummary | null;
   onCandidateResearch: (candidate: Candidate) => void;
@@ -105,6 +147,7 @@ export function ElectionCard({
   election,
   researchStatus,
   researchSummary,
+  candidateToRep,
   getCandidateResearchStatus,
   getCandidateResearchSummary,
   onCandidateResearch,
@@ -197,7 +240,18 @@ export function ElectionCard({
               <div>
                 <h5 className="text-xs text-muted-foreground font-medium mt-2">Early Vote Sites</h5>
                 {election.voter_info.early_vote_sites.map((site, i) => (
-                  <div key={i} className="text-sm">{site.name} — {site.address}{site.hours ? ` (${site.hours})` : ""}</div>
+                  <div key={i} className="text-sm mt-1">
+                    <div className="font-medium">{site.name} — {site.address}</div>
+                    {site.hours && (
+                      <div className="text-muted-foreground mt-0.5">
+                        {parseEarlyVoteHours(site.hours).map((slot, j) => (
+                          <div key={j}>
+                            {slot.dates ? `${slot.dates}: ${slot.hours}` : slot.hours}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
@@ -217,11 +271,12 @@ export function ElectionCard({
                       <span className="ml-1">— {contest.district_name}</span>
                     )}
                   </div>
-                  <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                  <div className="space-y-4">
                     {contest.candidates.map((candidate) => (
                       <CandidateCard
                         key={`${candidate.name}-${candidate.office}`}
                         candidate={candidate}
+                        rep={candidateToRep(candidate)}
                         researchStatus={getCandidateResearchStatus(candidate)}
                         summary={getCandidateResearchSummary(candidate)}
                         onResearch={() => onCandidateResearch(candidate)}
