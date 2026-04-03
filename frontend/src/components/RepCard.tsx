@@ -143,7 +143,7 @@ export function ResearchContent({ summary }: { summary: ResearchSummary }) {
             <ParagraphSection
               key={section.key}
               title={section.title}
-              content={showContent ? (content as string) : null}
+              content={showContent ? (content as unknown as string) : null}
               citations={citations}
             />
           );
