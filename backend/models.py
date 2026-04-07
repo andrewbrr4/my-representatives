@@ -216,24 +216,14 @@ class IssueInfo(BaseModel):
     label: str
 
 
-class IssueMatchRequest(BaseModel):
+class IssueResearchRequest(BaseModel):
+    representative: Representative
     query: str
 
 
-class IssueMatchResponse(BaseModel):
-    matched: bool
-    issue: IssueInfo | None = None
-    novel: bool = False
-    message: str | None = None
-
-
-class IssueResearchRequest(BaseModel):
-    representative: Representative
-    issue_id: str
-    issue_label: str
-
-
 class IssueResearchResponse(BaseModel):
-    research_id: str
-    status: Literal["pending", "in_progress", "complete", "failed"]
+    research_id: str | None = None
+    status: Literal["pending", "in_progress", "complete", "failed", "no_match"]
+    issue: IssueInfo | None = None
     summary: IssueStanceSummary | None = None
+    message: str | None = None

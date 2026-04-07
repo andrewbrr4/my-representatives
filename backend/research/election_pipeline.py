@@ -7,6 +7,7 @@ from string import Template
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
+from langfuse import observe
 from langfuse.langchain import CallbackHandler
 
 from models import BallotMeasure, Contest, ElectionResearchSummary
@@ -47,6 +48,7 @@ def _build_ballot_context(contests: list[Contest], ballot_measures: list[BallotM
     return "\n".join(parts)
 
 
+@observe(name="election-ballot-overview")
 async def generate_ballot_overview(
     election_name: str,
     election_date: str,

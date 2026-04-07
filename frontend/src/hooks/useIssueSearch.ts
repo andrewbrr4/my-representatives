@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   Representative,
-  IssueMatchResponse,
   IssueResearchResponse,
   IssueStanceSummary,
   IssueInfo,
@@ -11,7 +10,7 @@ import type {
 const API_URL = import.meta.env.VITE_API_URL;
 const POLL_INTERVAL_MS = 2000;
 
-export type IssueResearchStatus = "idle" | "matching" | "loading" | "complete" | "failed";
+export type IssueResearchStatus = "idle" | "loading" | "complete" | "failed";
 
 function issueKey(rep: Representative, issueId: string): string {
   return `${rep.name}|${rep.office}|${issueId}`;
@@ -138,57 +137,35 @@ export function useIssueSearch(rep: Representative) {
   /** Search for an issue and kick off research. Returns error message or null. */
   const searchIssue = useCallback(
     async (query: string): Promise<string | null> => {
-      // Step 1: match the query to an issue
       try {
-        const matchResp = await fetch(`${API_URL}/api/issue-match`, {
+        const resp = await fetch(`${API_URL}/api/issue-research`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query }),
+          body: JSON.stringify({ representative: rep, query }),
         });
 
-        if (!matchResp.ok) return "Something went wrong. Try again.";
+        if (!resp.ok) return "Something went wrong. Try again.";
 
-        const matchData: IssueMatchResponse = await matchResp.json();
-        if (!matchData.matched || !matchData.issue) {
-          return matchData.message || "Couldn't match that to a political issue.";
+        const data: IssueResearchResponse = await resp.json();
+
+        if (data.status === "no_match") {
+          return data.message || "Couldn't match that to a political issue.";
         }
 
-        const issue = matchData.issue;
+        const issue = data.issue!;
         const key = issueKey(rep, issue.id);
 
         // Check if we already have this issue researched
         const existing = getEntry(key);
         if (existing.status === "complete" || existing.status === "loading") {
-          return null; // already done or in progress
+          return null;
         }
 
-        // Step 2: start issue research
-        setEntry(key, { status: "loading", summary: null, researchId: null, issue });
-        bumpVersion();
-
-        const researchResp = await fetch(`${API_URL}/api/issue-research`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            representative: rep,
-            issue_id: issue.id,
-            issue_label: issue.label,
-          }),
-        });
-
-        if (!researchResp.ok) {
-          setEntry(key, { status: "failed", summary: null, researchId: null, issue });
-          bumpVersion();
-          return "Research request failed. Try again.";
-        }
-
-        const researchData: IssueResearchResponse = await researchResp.json();
-
-        if (researchData.status === "complete" && researchData.summary) {
+        if (data.status === "complete" && data.summary) {
           setEntry(key, {
             status: "complete",
-            summary: researchData.summary,
-            researchId: researchData.research_id,
+            summary: data.summary,
+            researchId: data.research_id,
             issue,
           });
           bumpVersion();
@@ -197,12 +174,14 @@ export function useIssueSearch(rep: Representative) {
 
         setEntry(key, {
           status: "loading",
-          summary: researchData.summary ?? null,
-          researchId: researchData.research_id,
+          summary: data.summary ?? null,
+          researchId: data.research_id,
           issue,
         });
         bumpVersion();
-        startPolling(key, researchData.research_id);
+        if (data.research_id) {
+          startPolling(key, data.research_id);
+        }
         return null;
       } catch {
         return "Network error. Check your connection.";

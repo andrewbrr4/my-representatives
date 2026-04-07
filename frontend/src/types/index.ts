@@ -108,22 +108,17 @@ export interface IssueInfo {
   label: string;
 }
 
-export interface IssueMatchResponse {
-  matched: boolean;
-  issue: IssueInfo | null;
-  novel: boolean;
-  message: string | null;
-}
-
 export interface IssueStanceSummary {
   stance_summary: string[] | null;
   citations: Citation[];
 }
 
 export interface IssueResearchResponse {
-  research_id: string;
-  status: "pending" | "in_progress" | "complete" | "failed";
+  research_id: string | null;
+  status: "pending" | "in_progress" | "complete" | "failed" | "no_match";
+  issue: IssueInfo | null;
   summary: IssueStanceSummary | null;
+  message: string | null;
 }
 
 // --- Election types ---

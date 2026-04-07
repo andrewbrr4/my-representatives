@@ -45,10 +45,11 @@ class IssueMatchResult(BaseModel):
     novel: bool = False
 
 
-async def match_issue(query: str) -> tuple[bool, IssueInfo | None, bool]:
+@observe(name="issue-match")
+async def match_issue(query: str) -> tuple[bool, IssueInfo | None, bool, UsageStats]:
     """Classify user input against the issues taxonomy.
 
-    Returns (matched, IssueInfo or None, novel).
+    Returns (matched, IssueInfo or None, novel, usage).
     """
     taxonomy = await get_issues_taxonomy()
     issues_list = "\n".join(f"- {row['id']}: {row['label']}" for row in taxonomy)
@@ -58,27 +59,31 @@ async def match_issue(query: str) -> tuple[bool, IssueInfo | None, bool]:
         issues_list=issues_list,
     )
 
+    usage_tracker = UsageTracker()
     model = ChatAnthropic(
         model=os.environ["CLAUDE_MODEL"],
         max_tokens=256,
     )
     result = model.with_structured_output(IssueMatchResult)
 
-    response = await result.ainvoke([
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=query),
-    ])
+    response = await result.ainvoke(
+        [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=query),
+        ],
+        config={"callbacks": [usage_tracker]},
+    )
 
     if response.matched and response.issue_id and response.issue_label:
         # Enforce canonical format: snake_case id, trimmed label
         canonical_id = response.issue_id.lower().strip().replace(" ", "_")
         canonical_label = response.issue_label.strip()
-        return True, IssueInfo(id=canonical_id, label=canonical_label), response.novel
-    return False, None, False
+        return True, IssueInfo(id=canonical_id, label=canonical_label), response.novel, usage_tracker.stats
+    return False, None, False, usage_tracker.stats
 
 
 @observe(name="issue-stance-agent")
-async def research_issue_stance(
+async def _research_issue_stance(
     rep: Representative,
     issue_label: str,
     store: InMemoryResearchStore | None = None,
