@@ -3,7 +3,6 @@ import type {
   ElectionResearchSummary,
   Candidate,
   Representative,
-  Citation,
 } from "@/types";
 import type { ElectionResearchStatus } from "@/hooks/useElectionResearchQuery";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
@@ -18,7 +17,6 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { CandidateCard } from "@/components/CandidateCard";
-import { renderInline } from "@/components/RepCard";
 
 function daysUntil(dateStr: string): number {
   const target = new Date(dateStr + "T00:00:00");
@@ -27,65 +25,6 @@ function daysUntil(dateStr: string): number {
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function ElectionParagraphSection({
-  title,
-  content,
-  citations,
-}: {
-  title: string;
-  content: string | null;
-  citations: Citation[];
-}) {
-  if (content === null) {
-    return (
-      <div>
-        <h4 className="text-xs font-medium text-muted-foreground mb-1">{title}</h4>
-        <div className="space-y-1">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-5/6" />
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div>
-      <h4 className="text-xs font-medium text-muted-foreground mb-1">{title}</h4>
-      <p className="text-sm leading-relaxed">{renderInline(content, citations)}</p>
-    </div>
-  );
-}
-
-function ElectionListSection({
-  title,
-  items,
-  citations,
-}: {
-  title: string;
-  items: string[] | null;
-  citations: Citation[];
-}) {
-  if (items === null) {
-    return (
-      <div>
-        <h4 className="text-xs font-medium text-muted-foreground mb-1">{title}</h4>
-        <div className="space-y-1">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-5/6" />
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div>
-      <h4 className="text-xs font-medium text-muted-foreground mb-1">{title}</h4>
-      <ul className="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-        {items.map((item, i) => (
-          <li key={i}>{renderInline(item, citations)}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 /**
  * Parse a raw hours string like "Fri, Mar 6: 8 am - 5 pm Mon, Mar 9: 8 am - 5 pm ..."
@@ -185,22 +124,16 @@ export function ElectionCard({
               )}
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="space-y-3 mt-2 p-4 rounded-lg bg-muted/30 border">
-                <ElectionParagraphSection
-                  title="About This Election"
-                  content={researchSummary?.election_context ?? null}
-                  citations={[]}
-                />
-                <ElectionListSection
-                  title="Key Issues & Significance"
-                  items={
-                    // Only reveal once the preceding section is complete
-                    researchSummary?.election_context != null
-                      ? (researchSummary?.key_issues_and_significance ?? null)
-                      : null
-                  }
-                  citations={researchSummary?.citations ?? []}
-                />
+              <div className="mt-2 p-4 rounded-lg bg-muted/30 border">
+                {researchSummary?.ballot_overview != null ? (
+                  <p className="text-sm leading-relaxed">{researchSummary.ballot_overview}</p>
+                ) : (
+                  <div className="space-y-1">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-5/6" />
+                  </div>
+                )}
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -261,7 +194,7 @@ export function ElectionCard({
         {/* What's on your ballot */}
         {election.contests.length > 0 && (
           <div>
-            <h3 className="font-semibold mb-4">What's on your ballot</h3>
+            <h3 className="font-semibold mb-4">Electoral Contests</h3>
             <div className="space-y-6">
               {election.contests.map((contest) => (
                 <div key={contest.office}>

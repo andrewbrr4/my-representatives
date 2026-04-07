@@ -28,12 +28,13 @@ export function ElectionsPage() {
 
   // Start polling for auto-triggered election research once we have research IDs
   useEffect(() => {
+    if (!address) return;
     for (const [key, researchId] of Object.entries(researchIds)) {
       if (researchId === "cached") continue;
       const [name, date] = key.split("|");
-      trackElectionResearch(name, date, researchId);
+      trackElectionResearch(name, date, address, researchId);
     }
-  }, [researchIds, trackElectionResearch]);
+  }, [researchIds, trackElectionResearch, address]);
 
   const handleCandidateResearch = (candidate: Candidate) => {
     requestResearch(candidateToRep(candidate));
@@ -77,8 +78,8 @@ export function ElectionsPage() {
             <ElectionCard
               key={`${election.name}-${election.date}`}
               election={election}
-              researchStatus={getElectionStatus(election.name, election.date)}
-              researchSummary={getElectionSummary(election.name, election.date)}
+              researchStatus={getElectionStatus(election.name, election.date, address!)}
+              researchSummary={getElectionSummary(election.name, election.date, address!)}
               candidateToRep={candidateToRep}
               getCandidateResearchStatus={(c) => getStatus(candidateToRep(c))}
               getCandidateResearchSummary={(c) => getSummary(candidateToRep(c))}

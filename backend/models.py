@@ -147,13 +147,11 @@ class ElectionsResponse(BaseModel):
 
 
 class ElectionResearchSummary(BaseModel):
-    """Two sections: election_context (sync LLM, no search) + key_issues_and_significance (async, web search)."""
-    election_context: str | None = None
-    key_issues_and_significance: list[str] | None = None
-    citations: list[Citation] = Field(default_factory=list)
+    """Single-section ballot overview: conversational paragraph explaining what's on the ballot."""
+    ballot_overview: str | None = None
 
     SECTION_NAMES: ClassVar[list[str]] = [
-        "election_context", "key_issues_and_significance",
+        "ballot_overview",
     ]
 
 
@@ -163,6 +161,8 @@ class ElectionResearchRequest(BaseModel):
     election_type: str
     state: str
     address: str
+    contests: list[Contest] = []
+    ballot_measures: list[BallotMeasure] = []
 
 
 class ElectionResearchResponse(BaseModel):

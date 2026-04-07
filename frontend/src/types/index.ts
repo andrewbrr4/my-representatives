@@ -129,9 +129,7 @@ export interface IssueResearchResponse {
 // --- Election types ---
 
 export interface ElectionResearchSummary {
-  election_context: string | null;
-  key_issues_and_significance: string[] | null;
-  citations: Citation[];
+  ballot_overview: string | null;
 }
 
 export interface ElectionResearchResponse {

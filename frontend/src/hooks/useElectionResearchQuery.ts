@@ -7,8 +7,8 @@ const POLL_INTERVAL_MS = 2000;
 
 export type ElectionResearchStatus = "idle" | "loading" | "complete" | "failed";
 
-function electionKey(name: string, date: string): string {
-  return `${name}|${date}`;
+function electionKey(name: string, date: string, address: string): string {
+  return `${name}|${date}|${address}`;
 }
 
 interface ElectionResearchEntry {
@@ -120,8 +120,8 @@ export function useElectionResearchQuery() {
   }, [queryClient, startPolling]);
 
   const trackElectionResearch = useCallback(
-    (electionName: string, electionDate: string, researchId: string) => {
-      const key = electionKey(electionName, electionDate);
+    (electionName: string, electionDate: string, address: string, researchId: string) => {
+      const key = electionKey(electionName, electionDate, address);
       const existing = getEntry(key);
       if (existing.status === "complete" || existing.status === "loading") return;
 
@@ -133,17 +133,17 @@ export function useElectionResearchQuery() {
   );
 
   const getElectionStatus = useCallback(
-    (electionName: string, electionDate: string): ElectionResearchStatus => {
+    (electionName: string, electionDate: string, address: string): ElectionResearchStatus => {
       void cacheVersion.data;
-      return getEntry(electionKey(electionName, electionDate)).status;
+      return getEntry(electionKey(electionName, electionDate, address)).status;
     },
     [getEntry, cacheVersion.data]
   );
 
   const getElectionSummary = useCallback(
-    (electionName: string, electionDate: string): ElectionResearchSummary | null => {
+    (electionName: string, electionDate: string, address: string): ElectionResearchSummary | null => {
       void cacheVersion.data;
-      return getEntry(electionKey(electionName, electionDate)).summary;
+      return getEntry(electionKey(electionName, electionDate, address)).summary;
     },
     [getEntry, cacheVersion.data]
   );
