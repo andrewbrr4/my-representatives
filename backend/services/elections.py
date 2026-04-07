@@ -171,11 +171,11 @@ def _parse_civic_response(data: dict) -> ElectionsResponse:
         if contest_data.get("office"):
             continue  # candidate contest, already handled above
 
-        district = contest_data.get("district", {})
+        district = contest_data.get("district") or {}
         ballot_measures.append(BallotMeasure(
             title=contest_data.get("referendumTitle") or contest_data.get("ballotTitle", "Ballot Measure"),
-            description=contest_data.get("referendumText", ""),
-            responses=contest_data.get("referendumBallotResponses", []),
+            description=contest_data.get("referendumText") or "",
+            responses=contest_data.get("referendumBallotResponses") or [],
             district_name=district.get("name"),
             district_scope=district.get("scope"),
         ))
