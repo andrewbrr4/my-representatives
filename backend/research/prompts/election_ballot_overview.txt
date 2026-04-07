@@ -4,4 +4,4 @@ Here is what's on their ballot:
 
 ${ballot_context}
 
-Write a single paragraph (4-6 sentences) that explains to the voter what this election is about. Cover what offices are up for grabs and, for any ballot measures or referenda, give a plain-English ELI5 explanation of what a yes/no vote means. Be conversational and approachable — like a knowledgeable friend explaining it. Do not use markdown, bullet points, or bold text. Plain text only.
+Write a single paragraph (4-6 sentences) that explains to the voter what this election is about. Cover what offices are up for election, and if not common knowledgeable what the office is responsible for (not everyone know what a comptroller does for example). For any ballot measures or referenda, give a plain-English explanation of what a yes/no vote means. Do not use markdown, bullet points, or bold text. Plain text only.
