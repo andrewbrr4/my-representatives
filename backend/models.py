@@ -103,6 +103,14 @@ class Candidate(BaseModel):
         )
 
 
+class BallotMeasure(BaseModel):
+    title: str
+    description: str
+    responses: list[str] = []  # e.g. ["Yes", "No"]
+    district_name: str | None = None
+    district_scope: str | None = None  # "statewide", "municipal", etc.
+
+
 class Contest(BaseModel):
     office: str
     level: str  # "federal" | "state" | "municipal"
@@ -130,6 +138,7 @@ class Election(BaseModel):
     polling_location: PollingLocation | None = None
     voter_info: VoterInfo | None = None
     contests: list[Contest] = []
+    ballot_measures: list[BallotMeasure] = []
 
 
 class ElectionsResponse(BaseModel):

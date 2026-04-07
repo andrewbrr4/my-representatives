@@ -8,6 +8,7 @@ import os
 import httpx
 
 from models import (
+    BallotMeasure,
     Candidate,
     Contest,
     Election,
@@ -101,7 +102,10 @@ async def fetch_elections(address: str) -> ElectionsResponse:
         # Only include elections that have contests for this address —
         # the API returns 200 for all elections nationwide, but with
         # empty contests when the election isn't on this voter's ballot.
-        elections.extend(e for e in parsed.elections if e.contests)
+        elections.extend(
+            e for e in parsed.elections
+            if e.contests or e.ballot_measures
+        )
 
     if not elections:
         logger.info("No election data available for this address")
@@ -161,6 +165,21 @@ def _parse_civic_response(data: dict) -> ElectionsResponse:
             candidates=candidates,
         ))
 
+    # Parse ballot measures / referenda (contests without an office field)
+    ballot_measures = []
+    for contest_data in data.get("contests", []):
+        if contest_data.get("office"):
+            continue  # candidate contest, already handled above
+
+        district = contest_data.get("district", {})
+        ballot_measures.append(BallotMeasure(
+            title=contest_data.get("referendumTitle") or contest_data.get("ballotTitle", "Ballot Measure"),
+            description=contest_data.get("referendumText", ""),
+            responses=contest_data.get("referendumBallotResponses", []),
+            district_name=district.get("name"),
+            district_scope=district.get("scope"),
+        ))
+
     # Parse voter info from state administration body
     voter_info = _parse_voter_info(data)
 
@@ -191,6 +210,7 @@ def _parse_civic_response(data: dict) -> ElectionsResponse:
         polling_location=polling_location,
         voter_info=voter_info,
         contests=contests,
+        ballot_measures=ballot_measures,
     )
 
     return ElectionsResponse(elections=[election])

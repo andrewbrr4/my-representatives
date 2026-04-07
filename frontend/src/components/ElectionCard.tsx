@@ -289,17 +289,43 @@ export function ElectionCard({
           </div>
         )}
 
-        {election.contests.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">
-            Candidate information not yet available for this election.
-          </p>
+        {/* Referenda & Propositions */}
+        {election.ballot_measures.length > 0 && (
+          <div>
+            <h3 className="font-semibold mb-4">Referenda & Propositions</h3>
+            <div className="space-y-4">
+              {election.ballot_measures.map((measure, i) => (
+                <div key={i} className="p-4 rounded-lg bg-muted/30 border">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                    {measure.district_name}
+                    {measure.district_scope && (
+                      <span className="ml-1">— {measure.district_scope}</span>
+                    )}
+                  </div>
+                  <h4 className="font-medium text-sm mb-2">{measure.title}</h4>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {measure.description}
+                  </p>
+                  {measure.responses.length > 0 && (
+                    <div className="flex gap-2 mt-3">
+                      {measure.responses.map((r, j) => (
+                        <span key={j} className="text-xs px-2 py-1 rounded-full bg-muted font-medium">
+                          {r}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
-        <div className="border border-dashed rounded-lg p-4">
+        {election.contests.length === 0 && election.ballot_measures.length === 0 && (
           <p className="text-sm text-muted-foreground italic">
-            Referenda &amp; propositions — coming soon
+            Ballot information not yet available for this election.
           </p>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

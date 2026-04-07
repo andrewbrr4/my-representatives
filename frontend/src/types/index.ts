@@ -71,6 +71,14 @@ export interface Candidate {
   incumbent: boolean;
 }
 
+export interface BallotMeasure {
+  title: string;
+  description: string;
+  responses: string[];
+  district_name: string | null;
+  district_scope: string | null;
+}
+
 export interface Contest {
   office: string;
   level: "federal" | "state" | "municipal";
@@ -85,6 +93,7 @@ export interface Election {
   polling_location: PollingLocation | null;
   voter_info: VoterInfo | null;
   contests: Contest[];
+  ballot_measures: BallotMeasure[];
 }
 
 export interface ElectionsResponse {
