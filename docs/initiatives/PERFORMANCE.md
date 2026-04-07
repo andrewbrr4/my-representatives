@@ -1,6 +1,6 @@
 # Performance Audit
 
-Last updated: 2026-03-28
+Last updated: 2026-04-07
 
 This is a living document tracking performance bottlenecks, their severity, and remediation status.
 
@@ -155,7 +155,7 @@ All rep/candidate photos fetch eagerly. With 6-10 cards on screen, that's 6-10 c
 
 **Where:** `backend/research/pipeline.py:158-163`
 
-14 synchronous file reads per research run (2 files x 7 sections) on the async event loop. `election_pipeline.py` correctly reads prompts at module load time; the rep pipeline should do the same.
+10 synchronous file reads per research run (2 files x 5 sections) on the async event loop. `election_pipeline.py` correctly reads prompts at module load time; the rep pipeline should do the same.
 
 ---
 
@@ -222,7 +222,7 @@ Memory, CPU, min/max instances, concurrency, and timeout settings are only in th
 | Issue | Location | Notes |
 |-------|----------|-------|
 | Favicon 404s in production | `frontend/index.html:5` | References `/vite.svg` which doesn't exist |
-| Page title is "frontend" | `frontend/index.html:8` | Should be "MyReps" |
+| ~~Page title is "frontend"~~ | ~~`frontend/index.html:8`~~ | ~~Fixed — now "KnowMyReps"~~ |
 | Orphaned `react.svg` asset | `frontend/src/assets/react.svg` | Vite boilerplate, never imported |
 | Backend Dockerfile uses Python 3.12 | `backend/Dockerfile` | Project targets 3.13+ |
 | No image dimensions → layout shift | `RepCard.tsx`, `CandidateCard.tsx` | No `width`/`height` on `<img>` |
@@ -244,7 +244,7 @@ Memory, CPU, min/max instances, concurrency, and timeout settings are only in th
 5. **Add `loading="lazy"` to images** — defer offscreen photo loads
 6. **Cache prompt files at module load** in `pipeline.py` (match `election_pipeline.py`)
 7. **Add `.dockerignore` files** — exclude test files, caches, env files
-8. **Fix favicon, page title** — trivial polish
+8. ~~**Fix page title**~~ ✅ + **Fix favicon** — favicon still references `/vite.svg`
 
 ### Phase 2: Moderate Effort (days)
 

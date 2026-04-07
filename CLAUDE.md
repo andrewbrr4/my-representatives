@@ -38,7 +38,7 @@ cd frontend && npx shadcn@latest add <component-name>
 
 ## Architecture
 
-**Backend (FastAPI, Python 3.13+):** Main endpoints — `POST /api/representatives` (lookup), `POST /api/research` (on-demand per-rep research), `POST /api/elections` (election lookup + auto-research), `POST /api/election-research` (manual election research), `GET /api/election-research/{id}` (poll election research).
+**Backend (FastAPI, Python 3.13+):** Main endpoints — `POST /api/representatives` (lookup), `POST /api/research` (on-demand per-rep research), `POST /api/elections` (election lookup + auto-research), `POST /api/election-research` (manual election research), `GET /api/election-research/{id}` (poll election research), `POST /api/issue-match` (classify issue query), `POST /api/issue-research` (per-rep issue stance research), `GET /api/issue-research/{id}` (poll issue research).
 
 **Lookup flow** (`routers/representatives.py`):
 1. Receives address → fans out two lookups concurrently:
@@ -54,7 +54,7 @@ cd frontend && npx shadcn@latest add <component-name>
 3. Creates task in `InMemoryResearchStore`, spawns `asyncio.create_task` for background research
 4. Background task calls `research_representative(rep, store, research_id)` from `research/pipeline.py` — each section agent writes its result to the store as soon as it finishes, persists costs via `save_research_task()` + `save_transactions()`
 5. `GET /api/research/{research_id}` — client polls for task progress, returns `ResearchResponse` with partial summary (sections arrive incrementally as each agent completes)
-6. Task status transitions: `"pending"` → `"in_progress"` (first section done) → `"complete"` (all 7 done). Frontend renders completed sections immediately and shows skeleton placeholders for pending ones.
+6. Task status transitions: `"pending"` → `"in_progress"` (first section done) → `"complete"` (all 5 done). Frontend renders completed sections immediately and shows skeleton placeholders for pending ones.
 
 **Research pipeline** (`research/pipeline.py`) runs **5 per-section research agents** concurrently using LangChain + Langfuse tracing:
 - Each section (policy_positions, recent_legislative_record, accomplishments, controversies, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a Tavily `web_search` tool and returns structured output with per-section citations
@@ -71,12 +71,22 @@ cd frontend && npx shadcn@latest add <component-name>
 4. `POST /api/election-research` — manually trigger research for a single election
 5. `GET /api/election-research/{id}` — poll for election research progress
 
-**Election research pipeline** (`research/election_pipeline.py`) runs **2 sections**:
-- `election_context` — sync LLM call (no web search), explains the election type from training data (512 max tokens)
-- `key_issues_and_significance` — one research agent with Tavily web search, finds political significance and key issues
-- Prompts in `research/prompts/election_key_issues_*.txt`
-- `ELECTION_TOTAL_SECTIONS = 2` — used when creating `InMemoryResearchStore` tasks
+**Election research pipeline** (`research/election_pipeline.py`) runs **1 section**:
+- `ballot_overview` — sync LLM call (no web search), generates a paragraph explaining the ballot contents from training data
+- Prompt in `research/prompts/election_ballot_overview.txt`
+- `ELECTION_TOTAL_SECTIONS = 1` — used when creating `InMemoryResearchStore` tasks
 - `ElectionResearchSummary` has flat `citations` list (not per-section like `ResearchSummary`)
+
+**Issue research flow** (`routers/issues.py`):
+1. `POST /api/issue-match` accepts a user's free-text issue query (e.g., "housing affordability"), classifies it against an issues taxonomy stored in Postgres via `get_issues_taxonomy()`. Returns `IssueMatchResponse` with matched issue ID/label, or a rejection message.
+2. `POST /api/issue-research` accepts an `IssueResearchRequest` (one rep + issue). Checks issue cache first, then spawns background research.
+3. `GET /api/issue-research/{id}` — poll for issue research progress.
+
+**Issue research pipeline** (`research/issue_pipeline.py`):
+- `match_issue()` — structured LLM call to classify user query against taxonomy (no web search)
+- `research_issue_stance()` — one research agent with Tavily web search, finds the rep's stance on the issue. Returns `ListSectionResult` (bulleted items + citations).
+- `ISSUE_TOTAL_SECTIONS = 1`
+- Prompts in `research/prompts/issue_match_system.txt`, `issue_stance_system.txt`, `issue_stance_user.txt`
 
 **Google Civic API service** (`services/elections.py`):
 - Calls `voterinfo` endpoint for election data, contests, candidates
@@ -86,11 +96,11 @@ cd frontend && npx shadcn@latest add <component-name>
 
 **Store layer** (`store/`):
 - `interfaces.py` — `RepCacheInterface` and `ElectionCacheInterface` ABCs
-- `research_store.py` — `InMemoryResearchStore` for tracking research tasks (TTL-based cleanup). Parameterized: `total_sections` per task (7 for reps, 2 for elections), `summary` type is generic `PydanticBaseModel`. `complete_section()` uses `hasattr` to handle per-section citations (rep) vs flat citations (election)
+- `research_store.py` — `InMemoryResearchStore` for tracking research tasks (TTL-based cleanup). Parameterized: `total_sections` per task (5 for reps, 1 for elections, 1 for issues), `summary` type is generic `PydanticBaseModel`. `complete_section()` uses `hasattr` to handle per-section citations (rep) vs flat citations (election)
 - `redis.py` — `RedisRepCache` and `RedisElectionCache` (used when `REDIS_URL` is set)
-- `dependencies.py` — lazy singletons: `get_rep_cache()`, `get_election_cache()`, `get_research_store()`
+- `dependencies.py` — lazy singletons: `get_rep_cache()`, `get_election_cache()`, `get_issue_cache()`, `get_research_store()`
 
-**Database** (`db.py`) manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Supports two connection modes: `DB_SOCKET_PATH` for Unix socket (Cloud Run with Cloud SQL proxy sidecar) or `DATABASE_URL` DSN (local dev via Cloud SQL Auth Proxy). Contains `save_research_task()` for persisting research usage data (including model, token costs, search tool, cost per search, environment, and `task_type` — "rep" or "election") and `save_transactions()` for writing LLM/search cost outflows to the `transactions` ledger. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
+**Database** (`db.py`) manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Supports two connection modes: `DB_SOCKET_PATH` for Unix socket (Cloud Run with Cloud SQL proxy sidecar) or `DATABASE_URL` DSN (local dev via Cloud SQL Auth Proxy). Contains `save_research_task()` for persisting research usage data (including model, token costs, search tool, cost per search, environment, and `task_type` — "rep", "election", or "issue"), `save_transactions()` for writing LLM/search cost outflows to the `transactions` ledger, and `get_issues_taxonomy()` for loading the issues classification taxonomy. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
@@ -107,10 +117,12 @@ All models are in `backend/models.py`. Backend imports use bare module names (no
 - `src/hooks/useRepresentativesQuery.ts` — TanStack Query hook for rep lookup; cache key `["representatives", address]`, staleTime 5min
 - `src/hooks/useElectionsQuery.ts` — TanStack Query hook for elections lookup; cache key `["elections", address]`, staleTime 5min
 - `src/hooks/useResearchQuery.ts` — manages per-rep on-demand research state; uses `queryClient.setQueryData` for cache persistence, manual `setInterval` polling for in-progress research, keyed by `["research", "name|office"]`. On remount, scans cache and restarts polling for in-progress entries. Shared across reps and elections pages (candidate research uses same cache).
-- `src/hooks/useElectionResearchQuery.ts` — polls election research progress per election; same cache/polling pattern as useResearchQuery, keyed by `["election-research", "name|date"]`
+- `src/hooks/useElectionResearchQuery.ts` — polls election research progress per election; same cache/polling pattern as useResearchQuery, keyed by `["election-research", "name|date|address"]`
+- `src/hooks/useIssueSearch.ts` — manages issue match + per-rep issue stance research; polls in-progress research, keyed by issue ID + rep
+- `src/components/IssueSearch.tsx` — issue search input and per-rep stance results on the Representatives page
 - `src/components/AddressSearch.tsx` — address input form
 - `src/components/RepCard.tsx` — representative card with research button. Exports `ResearchContent` and `renderInline` for reuse. During loading, all section headings appear immediately with skeleton placeholders; sections render in display order (a section stays skeleton until all preceding sections are complete, so the user always sees a top-down fill even though agents complete out-of-order). Research results are collapsible.
-- `src/components/ElectionCard.tsx` — election card with AI context, polling location, voter info, ballot contests. Election research sections also render in display order (key issues stays skeleton until election context is complete).
+- `src/components/ElectionCard.tsx` — election card with AI ballot overview, polling location, voter info, ballot contests.
 - `src/components/CandidateCard.tsx` — compact candidate card reusing `ResearchContent` from RepCard (inherits ordered section rendering)
 - `src/components/SkeletonCard.tsx` — loading placeholder
 - `src/types/index.ts` — TypeScript interfaces mirroring backend Pydantic models (rep + election types)

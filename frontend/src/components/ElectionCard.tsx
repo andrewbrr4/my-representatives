@@ -3,7 +3,6 @@ import type {
   ElectionResearchSummary,
   Candidate,
   Representative,
-  Citation,
 } from "@/types";
 import type { ElectionResearchStatus } from "@/hooks/useElectionResearchQuery";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
@@ -18,7 +17,6 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { CandidateCard } from "@/components/CandidateCard";
-import { renderInline } from "@/components/RepCard";
 
 function daysUntil(dateStr: string): number {
   const target = new Date(dateStr + "T00:00:00");
@@ -27,65 +25,6 @@ function daysUntil(dateStr: string): number {
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function ElectionParagraphSection({
-  title,
-  content,
-  citations,
-}: {
-  title: string;
-  content: string | null;
-  citations: Citation[];
-}) {
-  if (content === null) {
-    return (
-      <div>
-        <h4 className="text-xs font-medium text-muted-foreground mb-1">{title}</h4>
-        <div className="space-y-1">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-5/6" />
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div>
-      <h4 className="text-xs font-medium text-muted-foreground mb-1">{title}</h4>
-      <p className="text-sm leading-relaxed">{renderInline(content, citations)}</p>
-    </div>
-  );
-}
-
-function ElectionListSection({
-  title,
-  items,
-  citations,
-}: {
-  title: string;
-  items: string[] | null;
-  citations: Citation[];
-}) {
-  if (items === null) {
-    return (
-      <div>
-        <h4 className="text-xs font-medium text-muted-foreground mb-1">{title}</h4>
-        <div className="space-y-1">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-5/6" />
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div>
-      <h4 className="text-xs font-medium text-muted-foreground mb-1">{title}</h4>
-      <ul className="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-        {items.map((item, i) => (
-          <li key={i}>{renderInline(item, citations)}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 /**
  * Parse a raw hours string like "Fri, Mar 6: 8 am - 5 pm Mon, Mar 9: 8 am - 5 pm ..."
@@ -173,34 +112,28 @@ export function ElectionCard({
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* AI Election Context */}
+        {/* AI Ballot Overview */}
         {(researchStatus === "loading" || researchStatus === "complete") && (
           <Collapsible defaultOpen>
             <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
               <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
               <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
-              AI Election Context
+              AI Ballot Overview
               {researchStatus === "loading" && (
                 <span className="ml-1 text-xs italic">(loading...)</span>
               )}
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="space-y-3 mt-2 p-4 rounded-lg bg-muted/30 border">
-                <ElectionParagraphSection
-                  title="About This Election"
-                  content={researchSummary?.election_context ?? null}
-                  citations={[]}
-                />
-                <ElectionListSection
-                  title="Key Issues & Significance"
-                  items={
-                    // Only reveal once the preceding section is complete
-                    researchSummary?.election_context != null
-                      ? (researchSummary?.key_issues_and_significance ?? null)
-                      : null
-                  }
-                  citations={researchSummary?.citations ?? []}
-                />
+              <div className="mt-2 p-4 rounded-lg bg-muted/30 border">
+                {researchSummary?.ballot_overview ? (
+                  <p className="text-sm leading-relaxed">{researchSummary.ballot_overview}</p>
+                ) : (
+                  <div className="space-y-1">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-5/6" />
+                  </div>
+                )}
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -261,7 +194,7 @@ export function ElectionCard({
         {/* What's on your ballot */}
         {election.contests.length > 0 && (
           <div>
-            <h3 className="font-semibold mb-4">What's on your ballot</h3>
+            <h3 className="font-semibold mb-4">Electoral Contests</h3>
             <div className="space-y-6">
               {election.contests.map((contest) => (
                 <div key={contest.office}>
@@ -289,17 +222,49 @@ export function ElectionCard({
           </div>
         )}
 
-        {election.contests.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">
-            Candidate information not yet available for this election.
-          </p>
+        {/* Referenda & Propositions */}
+        {election.ballot_measures.length > 0 && (
+          <div>
+            <h3 className="font-semibold mb-4">Referenda & Propositions</h3>
+            <div className="space-y-4">
+              {election.ballot_measures.map((measure, i) => (
+                <div key={i} className="p-4 rounded-lg bg-muted/30 border">
+                  {(measure.district_name || measure.district_scope) && (
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                      {measure.district_name}
+                      {measure.district_scope && (
+                        measure.district_name ? (
+                          <span className="ml-1">— {measure.district_scope}</span>
+                        ) : (
+                          <span>{measure.district_scope}</span>
+                        )
+                      )}
+                    </div>
+                  )}
+                  <h4 className="font-medium text-sm mb-2">{measure.title}</h4>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {measure.description}
+                  </p>
+                  {measure.responses.length > 0 && (
+                    <div className="flex gap-2 mt-3">
+                      {measure.responses.map((r, j) => (
+                        <span key={j} className="text-xs px-2 py-1 rounded-full bg-muted font-medium">
+                          {r}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
-        <div className="border border-dashed rounded-lg p-4">
+        {election.contests.length === 0 && election.ballot_measures.length === 0 && (
           <p className="text-sm text-muted-foreground italic">
-            Referenda &amp; propositions — coming soon
+            Ballot information not yet available for this election.
           </p>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

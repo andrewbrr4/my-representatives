@@ -42,6 +42,8 @@ async def _run_election_research(
             election_type=req.election_type,
             state=req.state,
             address=req.address,
+            contests=req.contests,
+            ballot_measures=req.ballot_measures,
             store=store,
             research_id=research_id,
         )
@@ -128,6 +130,8 @@ async def get_elections(request: Request, body: AddressRequest) -> ElectionsResp
             election_type=election.election_type,
             state=state,
             address=body.address,
+            contests=election.contests,
+            ballot_measures=election.ballot_measures,
         )
         asyncio.create_task(_run_election_research(research_id, req))
 
