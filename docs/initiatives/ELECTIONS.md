@@ -42,7 +42,7 @@ Google's Representatives API was turned down in April 2025, but the **Elections 
 
 ### 6. CTCL Ballot Information Project — **check first before building agent**
 
-- **URL:** [techandciviclife.org](https://www.techandciviclife.org/our-work/civic-information/our-data/ballot-information/)
+- **URL:** [techandciviclife.org](https://www.techandciviclife.org/our-work/research-department/our-data/ballot-information/)
 - **Data:** Candidates, referenda, polling locations, political office descriptions. Address-based ballot queries (similar to Google Civic's `voterInfoQuery`).
 - **Pricing:** **Free** for 501(c)(3) nonprofits, small companies, and educational users.
 - **API:** JSON API with address-based queries. Contact `ballot@civiclife.org` for access.
