@@ -8,13 +8,14 @@ Find your elected representatives at every level of government — federal, stat
 1. Enter your address
 2. Two concurrent lookups find your reps: Census Geocoder + US Congress API (federal), Cicero API (state + municipal)
 3. Representatives appear instantly with basic info and contact links
-4. Click "Generate AI Research" on any rep — 7 focused Claude agents research different sections (background, policy positions, legislative record, etc.) using Tavily web search
+4. Click "Generate AI Research" on any rep — 5 focused Claude agents research different sections (policy positions, legislative record, accomplishments, controversies, top donors) using Tavily web search
 5. Research streams in section-by-section as agents complete; cached for 3 days
+6. Search for an issue (e.g., "housing affordability") to see how your reps relate to it
 
 ### Elections
 1. Switch to the Elections tab after entering your address
 2. Google Civic API returns upcoming elections, ballot contests, candidates, and voter info
-3. Up to 3 elections are auto-researched by AI (election context + key issues)
+3. Up to 3 elections are auto-researched by AI (ballot overview)
 4. Election cards show voter info (registration, absentee, early voting, drop-off locations) and ballot contests
 5. Click any candidate for the same on-demand AI research
 
@@ -71,6 +72,6 @@ pkill cloud-sql-proxy                              # stop proxy
 | [MISSION.md](./docs/MISSION.md) | Product vision and principles |
 | [DESIGN.md](./docs/DESIGN.md) | Design approach, card sections, open challenges |
 | [INFRASTRUCTURE.md](./docs/INFRASTRUCTURE.md) | GCP deployment, secrets, networking |
-| [PERFORMANCE.md](./docs/PERFORMANCE.md) | Performance audit and optimization roadmap |
+| [PERFORMANCE.md](./docs/initiatives/PERFORMANCE.md) | Performance audit and optimization roadmap |
 | [FRONTEND_ELI5.md](./frontend/FRONTEND_ELI5.md) | Frontend explained for backend devs |
 | [initiatives/](./docs/initiatives/) | Feature explorations (cost tracking, feedback, election API research) |

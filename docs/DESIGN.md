@@ -11,20 +11,23 @@ For the product vision and principles that inform these decisions, see [MISSION.
 2. Third-party APIs return a list of representatives at every level of government.
 3. The user sees a card for each representative with basic info and a "Learn More" button.
 4. When the user clicks "Learn More" on a specific rep, a research agent crawls the web to gather information about that representative.
-5. Research results stream into the card section-by-section as each of 7 parallel agents completes. Sections are revealed in display order — a section stays as a skeleton placeholder until all preceding sections are complete, so the user always sees a clean top-down fill rather than content appearing in random order.
+5. Research results stream into the card section-by-section as each of 5 parallel agents completes. Sections are revealed in display order — a section stays as a skeleton placeholder until all preceding sections are complete, so the user always sees a clean top-down fill rather than content appearing in random order.
 
 Research is **on-demand** — only triggered for reps the user explicitly wants to learn about. This cuts API costs ~80%+ compared to researching every rep on every lookup, since most users only care about a few of their ~15+ representatives.
 
 ### Elections
 1. User switches to the Elections tab (available after entering an address).
 2. The backend calls the Google Civic Information API (`voterinfo` endpoint) with the user's address to discover upcoming elections, ballot contests, candidates, and voter info.
-3. Up to 3 elections are automatically researched via the election research pipeline (2 sections: election context via sync LLM call + key issues/significance via web search agent). Sections render in display order, same as rep cards.
+3. Up to 3 elections are automatically researched via the election research pipeline (1 section: ballot overview via sync LLM call).
 4. Each election card shows AI-generated context, voter info (registration links, absentee info, early voting sites, drop-off locations), and ballot contests with candidates.
 5. Candidates can be individually researched using the same on-demand representative research pipeline (including ordered section rendering).
 
-The election research pipeline is lighter than rep research — 2 sections vs 7, with only one requiring web search. Election research is cached per election+address combination.
+The election research pipeline is lighter than rep research — 1 section (ballot overview) vs 5, with no web search needed. Election research is cached per election+address combination.
 
-![UI example](./ui_example.png)
+### Issue Search
+1. From the Representatives tab, users can search for an issue (e.g., "housing affordability") to see how their reps relate to it.
+2. The backend first validates the issue via an LLM match call, then runs a research agent to find each rep's stance on the issue.
+3. Results are polled and displayed per-rep, same as other research flows.
 
 ## Summary Card Content
 
@@ -44,19 +47,16 @@ Crafting these cards is not easy. We need to strike several difficult balances:
 
 | Section | Description | Format |
 |---------|-------------|--------|
-| **Background** | Who the representative is — career history, how they came into office, and relevant personal context. | Paragraph-style text, no bullets/lists |
-| **Policy Positions** | Where the representative stands on key issues, based on their voting record and public statements rather than campaign messaging. | Paragraph-style text, no bullets/lists |
+| **Policy Positions** | Where the representative stands on key issues, based on their voting record and public statements rather than campaign messaging. | Bulleted list |
 | **Recent Legislative Record** | Key legislative measures they recently supported or opposed. | Bulleted list |
 | **Accomplishments** | Notable achievements, successful initiatives, awards, and bipartisan wins. | Bulleted list |
 | **Controversies** | Scandals, ethics complaints, controversial votes or statements, lawsuits, and public criticism. | Bulleted list |
-| **Other Recent Press** | Any other recent press about the representatives--public statements, local news coverage, etc. | Bulleted list |
 | **Top Donors** | List of the representative's largest political donors, five max. | Bulleted list |
 
 ### Election Card Sections
 
-Election research uses a lighter 2-section pipeline:
+Election research uses a lighter 1-section pipeline:
 
 | Section | Description | Format |
 |---------|-------------|--------|
-| **Election Context** | What this election is and why it matters — explains the office, jurisdiction, and political context. Generated from LLM training data (no web search). | Paragraph-style text |
-| **Key Issues & Significance** | Current political issues and significance of this specific election, researched via web search. | Paragraph-style text with citations |
+| **Ballot Overview** | Explains what's on the ballot — contests, candidates, ballot measures — and why they matter. Generated from LLM training data (no web search). | Paragraph-style text |
