@@ -5,7 +5,7 @@ Today's date is ${current_date}.
 ## Instructions
 
 1. Perform up to 5 web searches to find this official's top political donors and fundraising info.
-2. Return a list of up to 5 items, each a short note about one donor or funding source (not full sentences — more like concise notes).
+2. Return a list of up to 5 items, each a short note about one donor or funding source (not full sentences — more like concise notes). If no donor information can be found, return a single item stating that no donor data was found — never fabricate or use placeholder content.
 3. Embed inline citation markers like [1], [2] in each item, referencing your citations list.
 
 ## Rules

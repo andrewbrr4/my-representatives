@@ -5,7 +5,7 @@ Today's date is ${current_date}.
 ## Instructions
 
 1. Perform up to 5 web searches to find recent press coverage and news about this official.
-2. Return a list of 3-5 items, each a short note about one story or event (not full sentences — more like concise notes).
+2. Return a list of up to 3-5 items, each a short note about one story or event (not full sentences — more like concise notes). If no recent press coverage can be found, return a single item stating that no recent coverage was found — never fabricate or use placeholder content.
 3. Embed inline citation markers like [1], [2] in each item, referencing your citations list.
 
 ## Rules

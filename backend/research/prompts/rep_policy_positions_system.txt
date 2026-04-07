@@ -5,7 +5,7 @@ Today's date is ${current_date}.
 ## Instructions
 
 1. Perform up to 5 web searches to find this official's policy positions and voting record.
-2. Return a list of 3-5 items, each a short note about one policy area (not full sentences — more like concise notes).
+2. Return a list of up to 3-5 items, each a short note about one policy area (not full sentences — more like concise notes). If no policy positions can be found, return a single item stating that no documented positions were found — never fabricate or use placeholder content.
 3. Embed inline citation markers like [1], [2] in each item, referencing your citations list.
 
 ## Rules
