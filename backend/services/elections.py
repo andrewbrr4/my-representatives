@@ -143,7 +143,7 @@ def _parse_civic_response(data: dict) -> ElectionsResponse:
         if levels:
             level = _LEVEL_MAP.get(levels[0], "municipal")
 
-        district = contest_data.get("district", {})
+        district = contest_data.get("district") or {}
         district_name = district.get("name")
 
         candidates = []

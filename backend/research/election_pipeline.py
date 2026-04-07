@@ -29,7 +29,7 @@ def _build_ballot_context(contests: list[Contest], ballot_measures: list[BallotM
         for c in contests:
             candidates = ", ".join(
                 f"{cand.name} ({cand.party or 'no party'})" for cand in c.candidates
-            )
+            ) or "candidates not listed"
             parts.append(f"  - {c.office} ({c.level}): {candidates}")
 
     if ballot_measures:
@@ -59,7 +59,6 @@ async def generate_ballot_overview(
     model = ChatAnthropic(
         model=os.environ["CLAUDE_MODEL"],
         max_tokens=512,
-        callbacks=[usage_tracker],
     )
 
     ballot_context = _build_ballot_context(contests, ballot_measures)
@@ -72,7 +71,10 @@ async def generate_ballot_overview(
         ballot_context=ballot_context,
     )
 
-    response = await model.ainvoke([HumanMessage(content=prompt)])
+    response = await model.ainvoke(
+        [HumanMessage(content=prompt)],
+        config={"callbacks": [usage_tracker]},
+    )
     return response.content, usage_tracker.stats
 
 
@@ -97,8 +99,12 @@ async def research_election(
         )
     except Exception as e:
         logger.error(f"Ballot overview generation failed: {e}", exc_info=True)
-        overview = ""
         usage = UsageStats()
+        if store and research_id:
+            await store.fail(research_id)
+            task = await store.get(research_id)
+            return task.summary if task else None, usage
+        return None, usage
 
     if store and research_id:
         await store.complete_section(research_id, "ballot_overview", overview, [])

@@ -32,7 +32,8 @@
       "Bash(npm run:*)",
       "Bash(gcloud sql:*)",
       "Bash(firecrawl scrape:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(gh api:*)"
     ]
   }
 }

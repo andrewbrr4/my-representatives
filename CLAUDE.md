@@ -117,7 +117,7 @@ All models are in `backend/models.py`. Backend imports use bare module names (no
 - `src/hooks/useRepresentativesQuery.ts` — TanStack Query hook for rep lookup; cache key `["representatives", address]`, staleTime 5min
 - `src/hooks/useElectionsQuery.ts` — TanStack Query hook for elections lookup; cache key `["elections", address]`, staleTime 5min
 - `src/hooks/useResearchQuery.ts` — manages per-rep on-demand research state; uses `queryClient.setQueryData` for cache persistence, manual `setInterval` polling for in-progress research, keyed by `["research", "name|office"]`. On remount, scans cache and restarts polling for in-progress entries. Shared across reps and elections pages (candidate research uses same cache).
-- `src/hooks/useElectionResearchQuery.ts` — polls election research progress per election; same cache/polling pattern as useResearchQuery, keyed by `["election-research", "name|date"]`
+- `src/hooks/useElectionResearchQuery.ts` — polls election research progress per election; same cache/polling pattern as useResearchQuery, keyed by `["election-research", "name|date|address"]`
 - `src/hooks/useIssueSearch.ts` — manages issue match + per-rep issue stance research; polls in-progress research, keyed by issue ID + rep
 - `src/components/IssueSearch.tsx` — issue search input and per-rep stance results on the Representatives page
 - `src/components/AddressSearch.tsx` — address input form

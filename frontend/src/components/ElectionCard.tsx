@@ -112,20 +112,20 @@ export function ElectionCard({
       </CardHeader>
 
       <CardContent className="space-y-6">
-        {/* AI Election Context */}
+        {/* AI Ballot Overview */}
         {(researchStatus === "loading" || researchStatus === "complete") && (
           <Collapsible defaultOpen>
             <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
               <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
               <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
-              AI Election Context
+              AI Ballot Overview
               {researchStatus === "loading" && (
                 <span className="ml-1 text-xs italic">(loading...)</span>
               )}
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="mt-2 p-4 rounded-lg bg-muted/30 border">
-                {researchSummary?.ballot_overview != null ? (
+                {researchSummary?.ballot_overview ? (
                   <p className="text-sm leading-relaxed">{researchSummary.ballot_overview}</p>
                 ) : (
                   <div className="space-y-1">
