@@ -229,12 +229,18 @@ export function ElectionCard({
             <div className="space-y-4">
               {election.ballot_measures.map((measure, i) => (
                 <div key={i} className="p-4 rounded-lg bg-muted/30 border">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
-                    {measure.district_name}
-                    {measure.district_scope && (
-                      <span className="ml-1">— {measure.district_scope}</span>
-                    )}
-                  </div>
+                  {(measure.district_name || measure.district_scope) && (
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                      {measure.district_name}
+                      {measure.district_scope && (
+                        measure.district_name ? (
+                          <span className="ml-1">— {measure.district_scope}</span>
+                        ) : (
+                          <span>{measure.district_scope}</span>
+                        )
+                      )}
+                    </div>
+                  )}
                   <h4 className="font-medium text-sm mb-2">{measure.title}</h4>
                   <p className="text-sm leading-relaxed text-muted-foreground">
                     {measure.description}
