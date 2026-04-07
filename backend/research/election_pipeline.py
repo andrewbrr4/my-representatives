@@ -7,6 +7,7 @@ from string import Template
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
+from langfuse.langchain import CallbackHandler
 
 from models import BallotMeasure, Contest, ElectionResearchSummary
 from research.usage import UsageStats, UsageTracker
@@ -56,6 +57,7 @@ async def generate_ballot_overview(
 ) -> tuple[str, UsageStats]:
     """Generate a single conversational paragraph explaining what's on the ballot."""
     usage_tracker = UsageTracker()
+    langfuse_handler = CallbackHandler()
     model = ChatAnthropic(
         model=os.environ["CLAUDE_MODEL"],
         max_tokens=512,
@@ -73,7 +75,7 @@ async def generate_ballot_overview(
 
     response = await model.ainvoke(
         [HumanMessage(content=prompt)],
-        config={"callbacks": [usage_tracker]},
+        config={"callbacks": [langfuse_handler, usage_tracker]},
     )
     return response.content, usage_tracker.stats
 
