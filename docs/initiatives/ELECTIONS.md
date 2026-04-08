@@ -45,11 +45,11 @@ Google's Representatives API was turned down in April 2025, but the **Elections 
 - **URL:** [techandciviclife.org](https://www.techandciviclife.org/our-work/research-department/our-data/ballot-information/)
 - **Data:** Candidates, referenda, polling locations, political office descriptions. Address-based ballot queries (similar to Google Civic's `voterInfoQuery`).
 - **Pricing:** **Free** for 501(c)(3) nonprofits, small companies, and educational users.
-- **API:** JSON API with address-based queries. Contact `ballot@civiclife.org` for access.
+- **API:** JSON API with address-based queries.
 - **Coverage:** Nationwide. Their data also feeds into Google Civic API.
 - **Pros:** Free for small/nonprofit use. Closest free alternative to Google Civic's address-to-ballot query. If coverage is good, could fill gaps without needing an agent at all.
 - **Cons:** Not self-serve — must contact for access. Less polished docs. Support/reliability may be limited.
-- **Action:** Email `ballot@civiclife.org` to request access and evaluate coverage before investing in agent approach.
+- **Action:** Pending response via email. Evaluate coverage before investing in agent approach.
 
 ### ~~7. Open States (Plural Policy)~~ — ruled out (not election data)
 

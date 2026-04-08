@@ -41,10 +41,10 @@ def get_rep_cache() -> RepCacheInterface:
 
 
 class NoOpElectionCache(ElectionCacheInterface):
-    async def get(self, election_name: str, election_date: str, address_hash: str) -> ElectionResearchSummary | None:
+    async def get(self, election_name: str, election_date: str, ballot_hash: str) -> ElectionResearchSummary | None:
         return None
 
-    async def put(self, election_name: str, election_date: str, address_hash: str, summary: ElectionResearchSummary) -> None:
+    async def put(self, election_name: str, election_date: str, ballot_hash: str, summary: ElectionResearchSummary) -> None:
         pass
 
     async def cleanup(self) -> None:

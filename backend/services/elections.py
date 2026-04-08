@@ -37,9 +37,19 @@ _LEVEL_MAP = {
 }
 
 
-def address_hash(address: str) -> str:
-    """Deterministic short hash of an address for cache keys."""
-    return hashlib.sha256(address.lower().strip().encode()).hexdigest()[:12]
+def ballot_hash(contests: list, ballot_measures: list) -> str:
+    """Deterministic short hash of ballot contents for cache keys.
+
+    Two people with different addresses but the same contests and measures
+    on their ballot will share a cache key.
+    """
+    parts: list[str] = []
+    for c in sorted(contests, key=lambda x: x.office):
+        names = sorted(cand.name for cand in c.candidates)
+        parts.append(f"{c.office}:{','.join(names)}")
+    for m in sorted(ballot_measures, key=lambda x: x.title):
+        parts.append(f"measure:{m.title}")
+    return hashlib.sha256("|".join(parts).encode()).hexdigest()[:12]
 
 
 async def fetch_elections(address: str) -> ElectionsResponse:

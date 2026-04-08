@@ -51,16 +51,16 @@ class RedisRepCache(RepCacheInterface):
         pass
 
 
-def _election_cache_key(election_name: str, election_date: str, address_hash: str) -> str:
-    return f"electioncache:{election_name.lower().strip()}|{election_date}|{address_hash}"
+def _election_cache_key(election_name: str, election_date: str, ballot_hash: str) -> str:
+    return f"electioncache:{election_name.lower().strip()}|{election_date}|{ballot_hash}"
 
 
 class RedisElectionCache(ElectionCacheInterface):
     def __init__(self, client: redis.Redis) -> None:
         self._r = client
 
-    async def get(self, election_name: str, election_date: str, address_hash: str) -> ElectionResearchSummary | None:
-        key = _election_cache_key(election_name, election_date, address_hash)
+    async def get(self, election_name: str, election_date: str, ballot_hash: str) -> ElectionResearchSummary | None:
+        key = _election_cache_key(election_name, election_date, ballot_hash)
         try:
             data = await self._r.get(key)
         except Exception as e:
@@ -70,8 +70,8 @@ class RedisElectionCache(ElectionCacheInterface):
             return None
         return ElectionResearchSummary.model_validate_json(data)
 
-    async def put(self, election_name: str, election_date: str, address_hash: str, summary: ElectionResearchSummary) -> None:
-        key = _election_cache_key(election_name, election_date, address_hash)
+    async def put(self, election_name: str, election_date: str, ballot_hash: str, summary: ElectionResearchSummary) -> None:
+        key = _election_cache_key(election_name, election_date, ballot_hash)
         try:
             await self._r.set(key, summary.model_dump_json(), ex=REP_CACHE_TTL_SECONDS)
         except Exception as e:

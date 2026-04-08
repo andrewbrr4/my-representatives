@@ -17,7 +17,7 @@ from models import (
     ElectionsResponse,
 )
 from research.election_pipeline import ELECTION_TOTAL_SECTIONS, research_election
-from services.elections import address_hash, fetch_elections
+from services.elections import ballot_hash, fetch_elections
 from store.dependencies import get_election_cache, get_research_store
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ async def _run_election_research(
     """Background task: research one election, write to store + cache + DB."""
     store = get_research_store()
     election_cache = get_election_cache()
-    addr_hash = address_hash(req.address)
+    b_hash = ballot_hash(req.contests, req.ballot_measures)
 
     try:
         summary, usage = await research_election(
@@ -48,7 +48,7 @@ async def _run_election_research(
             research_id=research_id,
         )
         if summary is not None:
-            await election_cache.put(req.election_name, req.election_date, addr_hash, summary)
+            await election_cache.put(req.election_name, req.election_date, b_hash, summary)
         else:
             await store.fail(research_id)
     except Exception as e:
@@ -92,7 +92,6 @@ async def get_elections(request: Request, body: AddressRequest) -> ElectionsResp
     # Auto-trigger election research for up to MAX_AUTO_RESEARCH elections
     store = get_research_store()
     election_cache = get_election_cache()
-    addr_hash = address_hash(body.address)
     research_ids: dict[str, str] = {}
 
     # Extract state from address (simple heuristic: second-to-last comma-separated part)
@@ -103,9 +102,10 @@ async def get_elections(request: Request, body: AddressRequest) -> ElectionsResp
 
     for election in elections_resp.elections[:MAX_AUTO_RESEARCH]:
         ekey = f"{election.name}|{election.date}"
+        b_hash = ballot_hash(election.contests, election.ballot_measures)
 
         # Check cache — if hit, serve via a pre-populated store entry
-        cached = await election_cache.get(election.name, election.date, addr_hash)
+        cached = await election_cache.get(election.name, election.date, b_hash)
         if cached is not None:
             research_id = uuid.uuid4().hex[:12]
             research_ids[ekey] = research_id
@@ -146,12 +146,12 @@ async def start_election_research(
 ) -> ElectionResearchResponse:
     """Manually trigger election research (for elections beyond auto-research cap)."""
     election_cache = get_election_cache()
-    addr_hash = address_hash(body.address)
+    b_hash = ballot_hash(body.contests, body.ballot_measures)
 
     # Check cache
     skip_cache = os.getenv("DISABLE_REP_CACHE", "").lower() in ("true", "1")
     if not skip_cache:
-        cached = await election_cache.get(body.election_name, body.election_date, addr_hash)
+        cached = await election_cache.get(body.election_name, body.election_date, b_hash)
         if cached is not None:
             return ElectionResearchResponse(
                 research_id="cached",
