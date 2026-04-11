@@ -80,7 +80,6 @@ export function ElectionsPage() {
               election={election}
               researchStatus={getElectionStatus(election.name, election.date, address!)}
               researchSummary={getElectionSummary(election.name, election.date, address!)}
-              candidateToRep={candidateToRep}
               getCandidateResearchStatus={(c) => getStatus(candidateToRep(c))}
               getCandidateResearchSummary={(c) => getSummary(candidateToRep(c))}
               onCandidateResearch={handleCandidateResearch}

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import type {
   Representative,
   IssueResearchResponse,
@@ -29,7 +28,6 @@ interface IssueEntry {
 }
 
 export function useMultiIssueResearch() {
-  const queryClient = useQueryClient();
   const pollTimers = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
   const mountedRef = useRef(false);
 
@@ -39,37 +37,32 @@ export function useMultiIssueResearch() {
   const [selectedReps, setSelectedReps] = useState<Representative[]>([]);
   // Incremented to trigger re-renders when cache entries change
   const [version, setVersion] = useState(0);
+  // Map of cache key -> IssueEntry, kept in state so it persists with the hook
+  const [entries, setEntries] = useState<Map<string, IssueEntry>>(new Map());
 
   const bumpVersion = useCallback(() => setVersion((v) => v + 1), []);
 
-  // Also bump per-rep TanStack Query version keys so useIssueSearch stays in sync
-  const bumpRepVersion = useCallback(
-    (rep: Representative) => {
-      queryClient.setQueryData<number>(
-        ["issue-research-version", rep.name, rep.office],
-        (v) => (v ?? 0) + 1,
-      );
-    },
-    [queryClient],
-  );
-
   const getEntry = useCallback(
     (key: string): IssueEntry => {
-      return queryClient.getQueryData<IssueEntry>(["issue-research", key]) ?? {
+      return entries.get(key) ?? {
         status: "idle",
         summary: null,
         researchId: null,
         issue: null,
       };
     },
-    [queryClient],
+    [entries],
   );
 
   const setEntry = useCallback(
     (key: string, entry: IssueEntry) => {
-      queryClient.setQueryData(["issue-research", key], entry);
+      setEntries((prev) => {
+        const next = new Map(prev);
+        next.set(key, entry);
+        return next;
+      });
     },
-    [queryClient],
+    [],
   );
 
   const stopPolling = useCallback((key: string) => {
@@ -81,7 +74,7 @@ export function useMultiIssueResearch() {
   }, []);
 
   const startPolling = useCallback(
-    (key: string, researchId: string, rep: Representative) => {
+    (key: string, researchId: string) => {
       if (pollTimers.current.has(key)) return;
       if (!mountedRef.current) return;
 
@@ -93,7 +86,6 @@ export function useMultiIssueResearch() {
             const prev = getEntry(key);
             setEntry(key, { ...prev, status: "failed", researchId });
             bumpVersion();
-            bumpRepVersion(rep);
             return;
           }
 
@@ -103,18 +95,15 @@ export function useMultiIssueResearch() {
             stopPolling(key);
             setEntry(key, { ...prev, status: "complete", summary: data.summary, researchId });
             bumpVersion();
-            bumpRepVersion(rep);
           } else if (data.status === "in_progress" || data.status === "pending") {
             if (data.summary) {
               setEntry(key, { ...prev, status: "loading", summary: data.summary, researchId });
               bumpVersion();
-              bumpRepVersion(rep);
             }
           } else if (data.status === "failed") {
             stopPolling(key);
             setEntry(key, { ...prev, status: "failed", researchId });
             bumpVersion();
-            bumpRepVersion(rep);
           }
         } catch {
           // Network error — keep polling
@@ -123,7 +112,7 @@ export function useMultiIssueResearch() {
 
       pollTimers.current.set(key, timer);
     },
-    [stopPolling, getEntry, setEntry, bumpVersion, bumpRepVersion],
+    [stopPolling, getEntry, setEntry, bumpVersion],
   );
 
   // Clean up polling on unmount
@@ -160,7 +149,6 @@ export function useMultiIssueResearch() {
           issue: issueInfo,
         });
         bumpVersion();
-        bumpRepVersion(rep);
         return;
       }
 
@@ -171,12 +159,11 @@ export function useMultiIssueResearch() {
         issue: issueInfo,
       });
       bumpVersion();
-      bumpRepVersion(rep);
       if (data.research_id) {
-        startPolling(key, data.research_id, rep);
+        startPolling(key, data.research_id);
       }
     },
-    [setEntry, bumpVersion, bumpRepVersion, startPolling],
+    [setEntry, bumpVersion, startPolling],
   );
 
   const compareIssue = useCallback(
@@ -250,7 +237,6 @@ export function useMultiIssueResearch() {
             if (!resp.ok) {
               setEntry(key, { status: "failed", summary: null, researchId: null, issue: issueInfo });
               bumpVersion();
-              bumpRepVersion(rep);
               return;
             }
             const data: IssueResearchResponse = await resp.json();
@@ -266,7 +252,7 @@ export function useMultiIssueResearch() {
         }
       }
     },
-    [handleRepResponse, getEntry, setEntry, bumpVersion, bumpRepVersion],
+    [handleRepResponse, getEntry, setEntry, bumpVersion],
   );
 
   const getResult = useCallback(
@@ -288,7 +274,6 @@ export function useMultiIssueResearch() {
       const key = cacheKey(rep, matchedIssue.id);
       setEntry(key, { status: "loading", summary: null, researchId: null, issue: matchedIssue });
       bumpVersion();
-      bumpRepVersion(rep);
       if (compareStatus === "done") setCompareStatus("researching");
 
       try {
@@ -300,7 +285,6 @@ export function useMultiIssueResearch() {
         if (!resp.ok) {
           setEntry(key, { status: "failed", summary: null, researchId: null, issue: matchedIssue });
           bumpVersion();
-          bumpRepVersion(rep);
           return;
         }
         const data: IssueResearchResponse = await resp.json();
@@ -308,10 +292,9 @@ export function useMultiIssueResearch() {
       } catch {
         setEntry(key, { status: "failed", summary: null, researchId: null, issue: matchedIssue });
         bumpVersion();
-        bumpRepVersion(rep);
       }
     },
-    [matchedIssue, compareStatus, setEntry, bumpVersion, bumpRepVersion, handleRepResponse],
+    [matchedIssue, compareStatus, setEntry, bumpVersion, handleRepResponse],
   );
 
   return {

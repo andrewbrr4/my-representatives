@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { AddressProvider } from "@/contexts/AddressContext";
+import { IssuesProvider } from "@/contexts/IssuesContext";
 import "./index.css";
 import App from "./App.tsx";
 
@@ -12,7 +13,9 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <AddressProvider>
-          <App />
+          <IssuesProvider>
+            <App />
+          </IssuesProvider>
         </AddressProvider>
       </QueryClientProvider>
     </BrowserRouter>

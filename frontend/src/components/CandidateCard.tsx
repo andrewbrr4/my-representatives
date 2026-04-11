@@ -1,4 +1,4 @@
-import type { Candidate, Representative, ResearchSummary } from "@/types";
+import type { Candidate, ResearchSummary } from "@/types";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
 import {
   Card,
@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { ResearchContent } from "@/components/RepCard";
-import { IssueSearch } from "@/components/IssueSearch";
 
 const levelColors: Record<string, string> = {
   federal: "bg-blue-600 text-white hover:bg-blue-700",
@@ -27,7 +26,6 @@ const levelColors: Record<string, string> = {
 
 interface CandidateCardProps {
   candidate: Candidate;
-  rep: Representative;
   researchStatus: ResearchStatus;
   summary: ResearchSummary | null;
   onResearch: () => void;
@@ -35,7 +33,6 @@ interface CandidateCardProps {
 
 export function CandidateCard({
   candidate,
-  rep,
   researchStatus,
   summary,
   onResearch,
@@ -71,9 +68,6 @@ export function CandidateCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Issue search */}
-        <IssueSearch rep={rep} />
-
         {/* Research states */}
         {researchStatus === "idle" && (
           <Button onClick={onResearch} variant="outline" className="w-full">

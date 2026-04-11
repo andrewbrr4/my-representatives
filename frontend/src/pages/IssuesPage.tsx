@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Search } from "lucide-react";
 import { useAddress } from "@/contexts/AddressContext";
 import { useRepresentativesQuery } from "@/hooks/useRepresentativesQuery";
-import { useMultiIssueResearch } from "@/hooks/useMultiIssueResearch";
+import { useIssues } from "@/contexts/IssuesContext";
 import { IssueCompareResult } from "@/components/IssueCompareResult";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { Input } from "@/components/ui/input";
@@ -32,19 +32,20 @@ export function IssuesPage() {
   const { address } = useAddress();
   const { data: representatives = [], isLoading: repsLoading } = useRepresentativesQuery(address);
 
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [lastQuery, setLastQuery] = useState("");
-
   const {
+    query,
+    setQuery,
+    selected,
+    toggleRep,
+    lastQuery,
     compareStatus,
     matchedIssue,
     errorMessage,
-    compareIssue,
     getResult,
     retryRep,
     comparedReps,
-  } = useMultiIssueResearch();
+    handleSubmit,
+  } = useIssues();
 
   const groups = useMemo(() => groupByLevel(representatives), [representatives]);
 
@@ -53,26 +54,15 @@ export function IssuesPage() {
     [representatives, selected],
   );
 
-  const toggleRep = (rep: Representative) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      const id = repId(rep);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
   const canSubmit =
     query.trim().length > 0 &&
     selectedReps.length > 0 &&
     compareStatus !== "matching";
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!canSubmit || selectedReps.length === 0) return;
-    setLastQuery(query.trim());
-    await compareIssue(query.trim(), selectedReps);
+    await handleSubmit(selectedReps);
   };
 
   const showResults = compareStatus !== "idle" && compareStatus !== "matching" && matchedIssue;
@@ -80,7 +70,7 @@ export function IssuesPage() {
   return (
     <>
       <div className="max-w-4xl mx-auto space-y-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           {/* Issue input */}
           <div>
             <label className="block text-sm font-medium mb-1.5">Issue</label>
