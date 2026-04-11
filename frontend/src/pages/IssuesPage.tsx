@@ -64,12 +64,12 @@ export function IssuesPage() {
 
   const canSubmit =
     query.trim().length > 0 &&
-    selected.size > 0 &&
+    selectedReps.length > 0 &&
     compareStatus !== "matching";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!canSubmit) return;
+    if (!canSubmit || selectedReps.length === 0) return;
     setLastQuery(query.trim());
     await compareIssue(query.trim(), selectedReps);
   };
