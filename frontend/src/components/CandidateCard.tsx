@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { ResearchContent } from "@/components/RepCard";
-import { IssueSearch } from "@/components/IssueSearch";
 
 const levelColors: Record<string, string> = {
   federal: "bg-blue-600 text-white hover:bg-blue-700",
@@ -71,9 +70,6 @@ export function CandidateCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Issue search */}
-        <IssueSearch rep={rep} />
-
         {/* Research states */}
         {researchStatus === "idle" && (
           <Button onClick={onResearch} variant="outline" className="w-full">
