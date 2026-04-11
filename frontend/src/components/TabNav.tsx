@@ -17,6 +17,9 @@ export function TabNav() {
       <NavLink to="/elections" className={tabClass}>
         Upcoming Elections
       </NavLink>
+      <NavLink to="/issues" className={tabClass}>
+        Compare on Issues
+      </NavLink>
     </div>
   );
 }
