@@ -3,6 +3,7 @@ import { useAddress } from "@/contexts/AddressContext";
 import { SearchPage } from "@/pages/SearchPage";
 import { RepresentativesPage } from "@/pages/RepresentativesPage";
 import { ElectionsPage } from "@/pages/ElectionsPage";
+import { IssuesPage } from "@/pages/IssuesPage";
 import { TabNav } from "@/components/TabNav";
 
 function RequireAddress({ children }: { children: React.ReactNode }) {
@@ -65,6 +66,16 @@ function App() {
           <RequireAddress>
             <ResultsLayout>
               <ElectionsPage />
+            </ResultsLayout>
+          </RequireAddress>
+        }
+      />
+      <Route
+        path="/issues"
+        element={
+          <RequireAddress>
+            <ResultsLayout>
+              <IssuesPage />
             </ResultsLayout>
           </RequireAddress>
         }

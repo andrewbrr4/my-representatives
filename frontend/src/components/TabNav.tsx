@@ -12,7 +12,10 @@ export function TabNav() {
   return (
     <div className="flex gap-1 border-b mb-6 max-w-4xl mx-auto">
       <NavLink to="/reps" className={tabClass}>
-        My Representatives
+        Representative Overview
+      </NavLink>
+      <NavLink to="/issues" className={tabClass}>
+        On the Issues
       </NavLink>
       <NavLink to="/elections" className={tabClass}>
         Upcoming Elections
