@@ -2,7 +2,6 @@ import type {
   Election,
   ElectionResearchSummary,
   Candidate,
-  Representative,
 } from "@/types";
 import type { ElectionResearchStatus } from "@/hooks/useElectionResearchQuery";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
@@ -76,7 +75,6 @@ interface ElectionCardProps {
   election: Election;
   researchStatus: ElectionResearchStatus;
   researchSummary: ElectionResearchSummary | null;
-  candidateToRep: (candidate: Candidate) => Representative;
   getCandidateResearchStatus: (candidate: Candidate) => ResearchStatus;
   getCandidateResearchSummary: (candidate: Candidate) => ResearchSummary | null;
   onCandidateResearch: (candidate: Candidate) => void;
@@ -86,7 +84,6 @@ export function ElectionCard({
   election,
   researchStatus,
   researchSummary,
-  candidateToRep,
   getCandidateResearchStatus,
   getCandidateResearchSummary,
   onCandidateResearch,
@@ -209,7 +206,6 @@ export function ElectionCard({
                       <CandidateCard
                         key={`${candidate.name}-${candidate.office}`}
                         candidate={candidate}
-                        rep={candidateToRep(candidate)}
                         researchStatus={getCandidateResearchStatus(candidate)}
                         summary={getCandidateResearchSummary(candidate)}
                         onResearch={() => onCandidateResearch(candidate)}

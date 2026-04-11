@@ -1,4 +1,4 @@
-import type { Candidate, Representative, ResearchSummary } from "@/types";
+import type { Candidate, ResearchSummary } from "@/types";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
 import {
   Card,
@@ -26,7 +26,6 @@ const levelColors: Record<string, string> = {
 
 interface CandidateCardProps {
   candidate: Candidate;
-  rep: Representative;
   researchStatus: ResearchStatus;
   summary: ResearchSummary | null;
   onResearch: () => void;
@@ -34,7 +33,6 @@ interface CandidateCardProps {
 
 export function CandidateCard({
   candidate,
-  rep,
   researchStatus,
   summary,
   onResearch,
