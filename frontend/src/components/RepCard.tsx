@@ -1,7 +1,6 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { Representative, ResearchSummary, Citation } from "@/types";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
-import { IssueSearch } from "@/components/IssueSearch";
 import {
   Card,
   CardContent,
@@ -232,9 +231,6 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
             </a>
           )}
         </div>
-
-        {/* Issue search */}
-        <IssueSearch rep={rep} />
 
         {/* Research states */}
         {researchStatus === "idle" && (
