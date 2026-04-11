@@ -43,6 +43,7 @@ export function IssuesPage() {
     compareIssue,
     getResult,
     retryRep,
+    comparedReps,
   } = useMultiIssueResearch();
 
   const groups = useMemo(() => groupByLevel(representatives), [representatives]);
@@ -167,7 +168,7 @@ export function IssuesPage() {
               {matchedIssue.label}
             </h2>
             <div className="space-y-3">
-              {selectedReps.map((rep) => (
+              {comparedReps.map((rep) => (
                 <IssueCompareResult
                   key={repId(rep)}
                   rep={rep}
