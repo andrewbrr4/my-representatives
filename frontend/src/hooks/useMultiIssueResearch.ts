@@ -213,6 +213,13 @@ export function useMultiIssueResearch() {
             const key = cacheKey(rep, issueInfo.id);
             const existing = getEntry(key);
             if (existing.status === "complete") return;
+            if (existing.status === "loading" && existing.researchId) {
+              handleRepResponse(rep, issueInfo, {
+                researchId: existing.researchId,
+                summary: existing.summary,
+              } as IssueResearchResponse);
+              return;
+            }
 
             const resp = await fetch(`${API_URL}/api/issue-research`, {
               method: "POST",
