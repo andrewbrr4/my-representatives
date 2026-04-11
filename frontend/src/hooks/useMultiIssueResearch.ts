@@ -238,7 +238,7 @@ export function useMultiIssueResearch() {
               handleRepResponse(rep, issueInfo, {
                 researchId: existing.researchId,
                 summary: existing.summary,
-              } as IssueResearchResponse);
+              } as unknown as IssueResearchResponse);
               return;
             }
 
