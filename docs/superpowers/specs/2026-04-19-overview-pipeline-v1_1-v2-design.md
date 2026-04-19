@@ -8,10 +8,16 @@
 
 Add two new overview pipeline versions that share an output contract and a common goal: produce a short, coherent, voter-useful overview instead of the current v1 wall of sections.
 
-- **v1.1** keeps v1's 5 per-section agents as internal scaffolding but adds a final synthesis step that reconciles across sections and emits a tight blended overview.
-- **v2** replaces the section agents entirely with a breadth-first retrieval pipeline (query generation → parallel Tavily fan-out → distillation) that produces the same output contract.
+- **v1.1** uses the same 5 per-section agent structure as v1 as internal scaffolding, plus a final synthesis step that reconciles across sections and emits a tight blended overview.
+- **v2** uses a breadth-first retrieval pipeline (query generation → parallel Tavily fan-out → distillation) that produces the same output contract.
 
 Both versions must be selectable at deploy time via an env var so we can run them in the same codebase without per-request plumbing.
+
+### Version isolation
+
+Each version's directory is fully self-contained. **No version imports code or prompts from another version.** This means the v1.1 directory contains its own copy of the section-agent code and the 5 section prompts, even though they start identical to v1. The motivation is experimental freedom: editing v1.1 section prompts or agent logic must never affect v1 on main, and vice versa. Duplication is the accepted cost.
+
+The only shared code lives under `research/overview/shared/` (currently just the `BulletsResearchSummary` output model, which is a schema contract rather than version-specific logic) and in modules already outside the version tree (`research/search.py`, `research/usage.py`, `store/`, `models.py`).
 
 ## Non-goals
 
@@ -33,8 +39,18 @@ backend/research/overview/
 ├── v1/                    # unchanged
 ├── v1_1/
 │   ├── __init__.py        # re-exports ResearchSummary, research_representative
-│   ├── pipeline.py
+│   ├── pipeline.py        # own copy of section agent code + new synthesis step
 │   └── prompts/
+│       ├── policy_positions_system.txt         # copied from v1 at creation time
+│       ├── policy_positions_user.txt
+│       ├── recent_legislative_record_system.txt
+│       ├── recent_legislative_record_user.txt
+│       ├── accomplishments_system.txt
+│       ├── accomplishments_user.txt
+│       ├── controversies_system.txt
+│       ├── controversies_user.txt
+│       ├── top_donors_system.txt
+│       ├── top_donors_user.txt
 │       ├── synthesis_system.txt
 │       └── synthesis_user.txt
 └── v2/
@@ -86,7 +102,7 @@ v1.1 and v2 both use `total_sections=1` — no progressive section streaming. Th
 
 ### Flow (`research/overview/v1_1/pipeline.py`)
 
-1. **Reuse v1 section agents.** Import `run_section_agent` and `SECTIONS` from `research.overview.v1.pipeline`. Run all 5 concurrently under the existing semaphore. Each returns `(content, citations, usage)`.
+1. **Run 5 section agents.** v1.1 has its own copy of the section-agent code and the 5 section prompts (copied from v1 at creation time; thereafter edited independently). Run all 5 concurrently under v1.1's own semaphore. Each returns `(content, citations, usage)`. The code is structurally the same as v1's `run_section_agent` and `SECTIONS` but imports nothing from `research.overview.v1`.
 2. **Assemble synthesis input.** Build a plain-text dossier for the synthesis step:
    ```
    ## policy_positions
