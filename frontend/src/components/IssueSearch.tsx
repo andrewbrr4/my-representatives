@@ -10,7 +10,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { renderInline } from "@/components/RepCard";
+import { renderInline } from "@/components/overview/renderInline";
 
 function IssueResult({
   label,

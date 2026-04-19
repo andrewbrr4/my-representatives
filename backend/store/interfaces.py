@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
-from models import ElectionResearchSummary, IssueStanceSummary, ResearchSummary
+from models import ElectionResearchSummary, IssueStanceSummary
+from research.overview import ResearchSummary
 
 
 class RepCacheInterface(ABC):

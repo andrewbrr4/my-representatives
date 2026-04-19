@@ -16,7 +16,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { ResearchContent } from "@/components/RepCard";
+import { ResearchContent } from "@/components/overview";
 import { IssueSearch } from "@/components/IssueSearch";
 
 const levelColors: Record<string, string> = {

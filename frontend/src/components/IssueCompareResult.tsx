@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { Representative } from "@/types";
 import type { RepResult } from "@/hooks/useMultiIssueResearch";
-import { renderInline } from "@/components/RepCard";
+import { renderInline } from "@/components/overview/renderInline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
