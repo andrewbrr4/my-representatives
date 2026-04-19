@@ -12,7 +12,8 @@ export interface Citation {
 }
 
 // ResearchSummary is version-specific — import from @/components/overview
-export type { ResearchSummary } from "@/components/overview";
+import type { ResearchSummary } from "@/components/overview";
+export type { ResearchSummary };
 
 export interface Representative {
   name: string;
