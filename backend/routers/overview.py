@@ -7,11 +7,23 @@ from fastapi import APIRouter, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from pydantic import BaseModel
+
 from config import cost_config
 from db import save_research_task, save_transactions
-from models import ResearchRequest, ResearchResponse
-from research.pipeline import research_representative
+from models import Representative
+from research.overview import ResearchSummary, research_representative
 from store.dependencies import get_rep_cache, get_research_store
+
+
+class ResearchRequest(BaseModel):
+    representative: Representative
+
+
+class ResearchResponse(BaseModel):
+    research_id: str
+    status: str  # "pending" | "in_progress" | "complete" | "failed"
+    summary: ResearchSummary | None = None
 
 logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -82,7 +94,7 @@ async def start_research(request: Request, body: ResearchRequest) -> ResearchRes
     # Create task and spawn background research
     research_id = uuid.uuid4().hex[:12]
     store = get_research_store()
-    await store.create(research_id)
+    await store.create(research_id, summary=ResearchSummary())
 
     asyncio.create_task(_run_research(research_id, body))
 

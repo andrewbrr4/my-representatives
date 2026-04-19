@@ -1,7 +1,8 @@
 import logging
 import os
 
-from models import ElectionResearchSummary, IssueStanceSummary, ResearchSummary
+from models import ElectionResearchSummary, IssueStanceSummary
+from research.overview import ResearchSummary
 from store.interfaces import ElectionCacheInterface, IssueCacheInterface, RepCacheInterface
 from store.research_store import InMemoryResearchStore
 

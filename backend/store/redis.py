@@ -3,7 +3,8 @@ import os
 
 import redis.asyncio as redis
 
-from models import ElectionResearchSummary, IssueStanceSummary, ResearchSummary
+from models import ElectionResearchSummary, IssueStanceSummary
+from research.overview import ResearchSummary
 from store.interfaces import ElectionCacheInterface, IssueCacheInterface, RepCacheInterface
 
 logger = logging.getLogger(__name__)

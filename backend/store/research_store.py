@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from pydantic import BaseModel as PydanticBaseModel
 
-from models import Citation, ResearchSummary
+from models import Citation
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class ResearchTask:
     research_id: str
     total_sections: int = 5  # default for rep research
     status: str = "pending"  # "pending" | "in_progress" | "complete" | "failed"
-    summary: PydanticBaseModel = field(default_factory=ResearchSummary)
+    summary: PydanticBaseModel | None = None
     completed_sections: int = 0
     created_at: float = field(default_factory=time.time)
 
