@@ -16,7 +16,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from routers.representatives import router
-from routers.research import router as research_router
+from routers.overview import router as research_router
 from routers.transactions import router as transactions_router
 from routers.elections import router as elections_router
 from routers.issues import router as issues_router

@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from db import get_issues_taxonomy
 from models import Citation, IssueInfo, ListSectionResult, Representative
-from research.pipeline import web_search  # reuse the same search tool
+from research.search import web_search
 from research.usage import UsageStats, UsageTracker
 from store.research_store import InMemoryResearchStore
 
