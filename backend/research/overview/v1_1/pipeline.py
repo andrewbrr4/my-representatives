@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 from models import Citation, ListSectionResult, Representative
 from research.overview.v1_1.models import ResearchSummary
+from research.overview.v1_1.synthesis_input import DossierResult, build_dossier
 from research.search import web_search
 from research.usage import UsageStats, UsageTracker
 from store.research_store import InMemoryResearchStore
@@ -133,9 +134,6 @@ async def run_section_agent(
     return items, citations, usage_tracker.stats
 
 
-from research.overview.v1_1.synthesis_input import DossierResult, build_dossier
-
-
 def _format_citations_block(citations: list[Citation]) -> str:
     if not citations:
         return "(none)"
@@ -229,7 +227,10 @@ async def research_representative(
         try:
             await asyncio.gather(*(_run_section(section) for section in SECTIONS))
         except Exception as e:
-            logger.error(f"[v1_1] Section phase failed for {rep.name}: {e}", exc_info=True)
+            logger.error(
+                f"[v1_1] Unexpected error in section orchestration for {rep.name}: {e}",
+                exc_info=True,
+            )
             return None, total_usage
 
         # Preserve section ordering from SECTIONS (deterministic dossier).
