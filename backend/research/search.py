@@ -53,3 +53,44 @@ async def web_search(query: str) -> str:
                 logger.warning(f"Search failed: {error_detail}")
                 return "Search failed. Try a different query."
     return "Search failed. Try a different query."
+
+
+async def tavily_search_raw(
+    query: str, max_results: int = 5
+) -> list[dict[str, str]]:
+    """Run one Tavily search and return raw results as a list of dicts.
+
+    Used by non-agent pipelines (e.g. overview v2) that execute searches
+    outside the LangChain agent loop to avoid accumulating search results
+    in LLM context. Returns ``[]`` on failure (caller logs + proceeds).
+    Each result is ``{"title": str, "url": str, "snippet": str}``.
+    """
+    async with _search_semaphore:
+        tavily = _get_tavily_client()
+        for attempt in range(_MAX_SEARCH_RETRIES):
+            try:
+                search_results = await tavily.search(query=query, max_results=max_results)
+                return [
+                    {
+                        "title": r.get("title", ""),
+                        "url": r.get("url", ""),
+                        "snippet": r.get("content", ""),
+                    }
+                    for r in search_results.get("results", [])
+                ]
+            except Exception as e:
+                error_detail = str(e)
+                if hasattr(e, "response"):
+                    try:
+                        error_detail = e.response.text
+                    except Exception:
+                        pass
+                is_rate_limit = "429" in error_detail or "rate" in error_detail.lower()
+                if is_rate_limit and attempt < _MAX_SEARCH_RETRIES - 1:
+                    delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                    logger.warning(f"Raw search rate-limited, retrying in {delay}s (attempt {attempt + 1})")
+                    await asyncio.sleep(delay)
+                    continue
+                logger.warning(f"Raw search failed for query={query!r}: {error_detail}")
+                return []
+    return []
