@@ -393,14 +393,17 @@ Create `backend/research/overview/v1_1/__init__.py`:
 
 ```python
 from .models import ResearchSummary
-from .pipeline import research_representative
 
 TOTAL_SECTIONS = 1
 
-__all__ = ["ResearchSummary", "research_representative", "TOTAL_SECTIONS"]
+# `research_representative` is defined in .pipeline starting in Task 9.
+# Until then, re-exporting it here would create a circular import:
+# pipeline.py imports ResearchSummary from .models, which would require
+# this __init__.py to finish loading first.
+__all__ = ["ResearchSummary", "TOTAL_SECTIONS"]
 ```
 
-(This won't import yet — `pipeline.py` is created in Task 6. We write it now so we don't forget to add `TOTAL_SECTIONS`.)
+Task 9 will add the `from .pipeline import research_representative` line and include it in `__all__` once `research_representative` exists.
 
 - [ ] **Step 4: Commit**
 
@@ -985,7 +988,22 @@ async def research_representative(
         return summary, total_usage
 ```
 
-- [ ] **Step 2: Verify the v1_1 package imports cleanly**
+- [ ] **Step 2: Restore `research_representative` export in `v1_1/__init__.py`**
+
+Task 6 left `__init__.py` without the `from .pipeline import research_representative` line to avoid a circular import (pipeline.py imports from `.models`, which triggers `__init__.py`). Now that `research_representative` is defined in pipeline.py, the cycle resolves: add the import back and include the symbol in `__all__`.
+
+Replace the entire contents of `backend/research/overview/v1_1/__init__.py`:
+
+```python
+from .models import ResearchSummary
+from .pipeline import research_representative
+
+TOTAL_SECTIONS = 1
+
+__all__ = ["ResearchSummary", "research_representative", "TOTAL_SECTIONS"]
+```
+
+- [ ] **Step 3: Verify the v1_1 package imports cleanly**
 
 Run:
 
@@ -995,7 +1013,7 @@ cd backend && python -c "from research.overview.v1_1 import ResearchSummary, TOT
 
 Expected: `1 dict_keys(['bullets', 'citations'])`
 
-- [ ] **Step 3: Verify dispatch resolves v1_1**
+- [ ] **Step 4: Verify dispatch resolves v1_1**
 
 Run:
 
@@ -1005,10 +1023,10 @@ cd backend && OVERVIEW_PIPELINE_VERSION=v1_1 python -c "from research.overview i
 
 Expected: `v1_1 1 ['bullets', 'citations']`
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add backend/research/overview/v1_1/pipeline.py
+git add backend/research/overview/v1_1/pipeline.py backend/research/overview/v1_1/__init__.py
 git commit -m "feat(overview/v1_1): synthesis step + orchestrator"
 ```
 
