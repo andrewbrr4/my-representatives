@@ -1,6 +1,7 @@
 from .models import ResearchSummary
-from .pipeline import research_representative
 
 TOTAL_SECTIONS = 1
 
-__all__ = ["ResearchSummary", "research_representative", "TOTAL_SECTIONS"]
+# research_representative is imported from .pipeline in Task 9.
+# For now, __all__ does not include it to avoid import error before Task 9.
+__all__ = ["ResearchSummary", "TOTAL_SECTIONS"]
