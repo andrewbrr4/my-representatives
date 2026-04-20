@@ -133,4 +133,135 @@ async def run_section_agent(
     return items, citations, usage_tracker.stats
 
 
-# research_representative is added in Task 9 (after synthesis helpers exist).
+from research.overview.v1_1.synthesis_input import DossierResult, build_dossier
+
+
+def _format_citations_block(citations: list[Citation]) -> str:
+    if not citations:
+        return "(none)"
+    return "\n".join(
+        f"[{i + 1}] {c.title} — {c.url}" for i, c in enumerate(citations)
+    )
+
+
+@observe(name="v1_1-synthesis")
+async def run_synthesis(
+    rep: Representative, dossier_result: DossierResult
+) -> tuple[ResearchSummary, UsageStats]:
+    """Non-tool LLM call that collapses the dossier into 5–8 bullets."""
+    langfuse_handler = CallbackHandler()
+    usage_tracker = UsageTracker()
+
+    model = ChatAnthropic(
+        model=os.environ["CLAUDE_MODEL"],
+        max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
+    )
+    structured_model = model.with_structured_output(ResearchSummary)
+
+    system_template = Template((_PROMPTS_DIR / "synthesis_system.txt").read_text())
+    user_template = Template((_PROMPTS_DIR / "synthesis_user.txt").read_text())
+
+    system_prompt = system_template.substitute(current_date=date.today().isoformat())
+    user_prompt = user_template.substitute(
+        name=rep.name,
+        office=rep.office,
+        dossier=dossier_result.dossier or "(no section content returned)",
+        citations_block=_format_citations_block(dossier_result.unified_citations),
+    )
+
+    result = await structured_model.ainvoke(
+        [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)],
+        config={
+            "callbacks": [langfuse_handler, usage_tracker],
+            "run_name": f"v1_1:synthesis:{rep.name}",
+        },
+    )
+
+    # Enforce: citations drawn from the pool, not invented.
+    # Trust the model's copy-through but fall back to the unified pool if empty.
+    if not result.citations:
+        result = ResearchSummary(
+            bullets=result.bullets,
+            citations=dossier_result.unified_citations,
+        )
+
+    logger.info(
+        f"[v1_1] Synthesis complete for {rep.name}: "
+        f"{len(result.bullets or [])} bullets / {len(result.citations)} citations"
+    )
+    return result, usage_tracker.stats
+
+
+@observe(name="v1_1-research-pipeline")
+async def research_representative(
+    rep: Representative,
+    store: InMemoryResearchStore | None = None,
+    research_id: str | None = None,
+) -> tuple[ResearchSummary | None, UsageStats]:
+    """Run 5 section agents concurrently, then synthesize into blended bullets."""
+    total_usage = UsageStats()
+    usage_lock = asyncio.Lock()
+    logger.info(f"[v1_1] Queued research for {rep.name}")
+
+    section_results: dict[str, tuple[list[str], list[Citation]]] = {}
+    section_lock = asyncio.Lock()
+
+    async def _run_section(section: SectionConfig) -> None:
+        try:
+            items, citations, usage = await run_section_agent(rep, section)
+        except Exception as e:
+            logger.error(
+                f"[v1_1] Section '{section.name}' failed for {rep.name}: {e}",
+                exc_info=e,
+            )
+            items = []
+            citations = []
+            usage = UsageStats()
+
+        async with usage_lock:
+            nonlocal total_usage
+            total_usage += usage
+        async with section_lock:
+            section_results[section.name] = (items, citations)
+
+    async with _semaphore:
+        logger.info(f"[v1_1] Starting research for {rep.name}")
+        try:
+            await asyncio.gather(*(_run_section(section) for section in SECTIONS))
+        except Exception as e:
+            logger.error(f"[v1_1] Section phase failed for {rep.name}: {e}", exc_info=True)
+            return None, total_usage
+
+        # Preserve section ordering from SECTIONS (deterministic dossier).
+        ordered = [
+            (s.name, *section_results.get(s.name, ([], []))) for s in SECTIONS
+        ]
+        dossier_result = build_dossier(ordered)
+
+        try:
+            summary, synth_usage = await run_synthesis(rep, dossier_result)
+        except Exception as e:
+            logger.error(f"[v1_1] Synthesis failed for {rep.name}: {e}", exc_info=True)
+            return None, total_usage
+
+        async with usage_lock:
+            total_usage += synth_usage
+
+        if store and research_id:
+            # total_sections=1 → a single complete_section call moves the task to "complete".
+            # section_name must match a field on BulletsResearchSummary — use "bullets"
+            # so InMemoryResearchStore.complete_section writes to summary.bullets (not
+            # some non-existent "overview" attribute that model_validate would drop).
+            await store.complete_section(
+                research_id,
+                "bullets",
+                summary.bullets or [],
+                summary.citations,
+            )
+
+        logger.info(
+            f"[v1_1] Research for {rep.name}: "
+            f"{total_usage.input_tokens} in / {total_usage.output_tokens} out / "
+            f"{total_usage.tool_calls} tool calls"
+        )
+        return summary, total_usage
