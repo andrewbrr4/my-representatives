@@ -137,9 +137,11 @@ async def run_section_agent(
 def _format_citations_block(citations: list[Citation]) -> str:
     if not citations:
         return "(none)"
-    return "\n".join(
-        f"[{i + 1}] {c.title} — {c.url}" for i, c in enumerate(citations)
-    )
+    lines = []
+    for i, c in enumerate(citations):
+        suffix = f" (Published: {c.published_date})" if c.published_date else ""
+        lines.append(f"[{i + 1}] {c.title} — {c.url}{suffix}")
+    return "\n".join(lines)
 
 
 @observe(name="v2-synthesis")

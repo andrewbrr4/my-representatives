@@ -23,6 +23,7 @@ class Contact(BaseModel):
 class Citation(BaseModel):
     title: str
     url: str
+    published_date: str | None = None
 
 
 class Representative(BaseModel):

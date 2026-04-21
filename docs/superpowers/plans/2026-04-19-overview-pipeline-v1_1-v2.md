@@ -972,10 +972,13 @@ async def research_representative(
             total_usage += synth_usage
 
         if store and research_id:
-            # total_sections=1 → a single complete_section call moves the task to "complete"
+            # total_sections=1 → a single complete_section call moves the task to "complete".
+            # section_name must match a field on BulletsResearchSummary — use "bullets"
+            # so InMemoryResearchStore.complete_section writes to summary.bullets (not
+            # some non-existent "overview" attribute that model_validate would drop).
             await store.complete_section(
                 research_id,
-                "overview",
+                "bullets",
                 summary.bullets or [],
                 summary.citations,
             )
@@ -1135,12 +1138,17 @@ Create `backend/research/overview/v2/__init__.py`:
 
 ```python
 from .models import ResearchSummary
-from .pipeline import research_representative
 
 TOTAL_SECTIONS = 1
 
-__all__ = ["ResearchSummary", "research_representative", "TOTAL_SECTIONS"]
+# `research_representative` is defined in .pipeline starting in Task 13.
+# Until then, re-exporting it here would create a circular import:
+# pipeline.py imports ResearchSummary from .models, which would require
+# this __init__.py to finish loading first.
+__all__ = ["ResearchSummary", "TOTAL_SECTIONS"]
 ```
+
+Task 13 will add the `from .pipeline import research_representative` line and include it in `__all__` once `research_representative` exists.
 
 Create `backend/research/overview/v2/prompts/` as an empty directory:
 
@@ -1567,8 +1575,10 @@ async def research_representative(
     total_usage += usage
 
     if store and research_id:
+        # section_name must match a field on BulletsResearchSummary — use "bullets"
+        # so InMemoryResearchStore.complete_section writes to summary.bullets.
         await store.complete_section(
-            research_id, "overview", summary.bullets or [], summary.citations
+            research_id, "bullets", summary.bullets or [], summary.citations
         )
 
     logger.info(

@@ -15,6 +15,7 @@ Today's date is ${current_date}.
 - Be nonpartisan and factual
 - Keep items brief — note-style, not full paragraphs
 - citations[0] corresponds to [1], citations[1] to [2], etc.
+- When a search result shows a `Published: <date>` line, copy the date string into the citation's `published_date` field; leave it null when no date is shown. This helps the downstream synthesis step weight recent findings.
 - Max 5 web searches total
 
 ## Formatting
