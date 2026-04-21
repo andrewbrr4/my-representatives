@@ -1,7 +1,7 @@
-"""Shared output schema for rep overview versions v1.1+ that emit a single
+"""Shared output schema for rep overview versions v2+ that emit a single
 blended bullet list (no per-section breakdown).
 
-Version-specific pipelines (v1_1, v2) re-export this as ``ResearchSummary``
+Version-specific pipelines (v2, v3) re-export this as ``ResearchSummary``
 from their own ``__init__.py`` so ``research.overview.__init__.py`` dispatch
 works transparently.
 """

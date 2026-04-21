@@ -1,5 +1,5 @@
 /**
- * Shared rep overview schema for v1.1+ — a single blended bullet list
+ * Shared rep overview schema for v2+ — a single blended bullet list
  * with a unified citation pool.
  */
 

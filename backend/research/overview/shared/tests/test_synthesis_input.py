@@ -1,7 +1,7 @@
-"""Tests for v1.1 dossier builder and citation renumbering."""
+"""Tests for v2 dossier builder and citation renumbering."""
 
 from models import Citation
-from research.overview.v1_1.synthesis_input import build_dossier
+from research.overview.v2.synthesis_input import build_dossier
 
 
 def test_build_dossier_empty_sections():

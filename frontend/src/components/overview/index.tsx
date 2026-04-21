@@ -1,6 +1,6 @@
 /**
  * Overview dispatch: the backend may return a v1 sectioned summary OR a
- * BulletsResearchSummary (v1.1, v2). Consumers get a single ResearchContent
+ * BulletsResearchSummary (v2, v3). Consumers get a single ResearchContent
  * component and a union type; the component picks a renderer at runtime
  * based on the response shape.
  */

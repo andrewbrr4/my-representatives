@@ -3,7 +3,7 @@
  * inline citation markers resolved against a unified citation pool.
  *
  * Used by any overview pipeline version that produces a BulletsResearchSummary
- * (currently v1.1 and v2).
+ * (currently v2 and v3).
  */
 
 import type { BulletsResearchSummary } from "./types";

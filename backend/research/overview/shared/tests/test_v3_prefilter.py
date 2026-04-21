@@ -1,6 +1,6 @@
-"""Tests for v2 pre-filter: URL dedup + snippet truncation + results ceiling."""
+"""Tests for v3 pre-filter: URL dedup + snippet truncation + results ceiling."""
 
-from research.overview.v2.prefilter import prefilter_results
+from research.overview.v3.prefilter import prefilter_results
 
 
 def _r(url: str, snippet: str = "snippet", title: str = "t") -> dict[str, str]:

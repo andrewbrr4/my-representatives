@@ -1,15 +1,18 @@
-"""v2 overview pipeline — breadth-first retrieval + single-shot distillation.
+"""v2 overview pipeline.
 
 Flow:
-1. Query generation (1 LLM call, no tools) → list of diverse search queries.
-2. Parallel Tavily fan-out (no LLM in the loop).
-3. Pre-filter (dedupe by URL, truncate snippets, cap total count).
-4. Distillation (1 LLM call, no tools) → BulletsResearchSummary.
+1. Run 5 per-section research agents concurrently (own copy of v1's structure).
+2. Assemble a dossier + unified citation pool.
+3. One non-tool LLM call synthesizes 5–8 blended bullets with inline [N] markers.
+
+Nothing is imported from ``research.overview.v1``. This version owns its
+section agents and prompts end-to-end.
 """
 
 import asyncio
 import logging
 import os
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from string import Template
@@ -18,12 +21,13 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langfuse import observe
 from langfuse.langchain import CallbackHandler
-from pydantic import BaseModel, Field
+from langchain.agents import create_agent
+from pydantic import BaseModel
 
-from models import Representative
+from models import Citation, ListSectionResult, Representative
 from research.overview.v2.models import ResearchSummary
-from research.overview.v2.prefilter import prefilter_results
-from research.search import tavily_search_raw
+from research.overview.v2.synthesis_input import DossierResult, build_dossier
+from research.search import web_search
 from research.usage import UsageStats, UsageTracker
 from store.research_store import InMemoryResearchStore
 
@@ -31,89 +35,118 @@ logger = logging.getLogger(__name__)
 
 _PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
-_NUM_QUERIES = int(os.getenv("OVERVIEW_V2_NUM_QUERIES", "15"))
-_RESULTS_PER_QUERY = int(os.getenv("OVERVIEW_V2_RESULTS_PER_QUERY", "5"))
-_SEARCH_CONCURRENCY = int(os.getenv("OVERVIEW_V2_SEARCH_CONCURRENCY", "5"))
-_RESULTS_CEILING = int(os.getenv("OVERVIEW_V2_RESULTS_CEILING", "60"))
-_SNIPPET_CHAR_CAP = int(os.getenv("OVERVIEW_V2_SNIPPET_CHAR_CAP", "800"))
+# v2 owns its own semaphore — isolated from v1's.
+_semaphore = asyncio.Semaphore(2)
 
 
-class _QueryList(BaseModel):
-    queries: list[str] = Field(description="Diverse search queries, one per item.")
+@dataclass
+class SectionConfig:
+    name: str
+    output_model: type[BaseModel]
+    system_prompt_file: str
+    user_prompt_file: str
+    content_field: str  # "items" for ListSectionResult
 
 
-@observe(name="v2-query-gen")
-async def generate_queries(rep: Representative) -> tuple[list[str], UsageStats]:
+SECTIONS: list[SectionConfig] = [
+    SectionConfig(
+        name="policy_positions",
+        output_model=ListSectionResult,
+        system_prompt_file="policy_positions_system.txt",
+        user_prompt_file="policy_positions_user.txt",
+        content_field="items",
+    ),
+    SectionConfig(
+        name="recent_legislative_record",
+        output_model=ListSectionResult,
+        system_prompt_file="recent_legislative_record_system.txt",
+        user_prompt_file="recent_legislative_record_user.txt",
+        content_field="items",
+    ),
+    SectionConfig(
+        name="accomplishments",
+        output_model=ListSectionResult,
+        system_prompt_file="accomplishments_system.txt",
+        user_prompt_file="accomplishments_user.txt",
+        content_field="items",
+    ),
+    SectionConfig(
+        name="controversies",
+        output_model=ListSectionResult,
+        system_prompt_file="controversies_system.txt",
+        user_prompt_file="controversies_user.txt",
+        content_field="items",
+    ),
+    SectionConfig(
+        name="top_donors",
+        output_model=ListSectionResult,
+        system_prompt_file="top_donors_system.txt",
+        user_prompt_file="top_donors_user.txt",
+        content_field="items",
+    ),
+]
+
+
+@observe(name="v2-section-agent")
+async def run_section_agent(
+    rep: Representative, section: SectionConfig
+) -> tuple[list[str], list[Citation], UsageStats]:
+    """Run a focused agent for one section. Returns (items, citations, usage)."""
     langfuse_handler = CallbackHandler()
     usage_tracker = UsageTracker()
-
     model = ChatAnthropic(
         model=os.environ["CLAUDE_MODEL"],
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     )
-    structured = model.with_structured_output(_QueryList)
-
-    system_template = Template((_PROMPTS_DIR / "query_gen_system.txt").read_text())
-    user_template = Template((_PROMPTS_DIR / "query_gen_user.txt").read_text())
-
-    system_prompt = system_template.substitute(
-        current_date=date.today().isoformat(), num_queries=str(_NUM_QUERIES)
-    )
-    user_prompt = user_template.substitute(
-        name=rep.name, office=rep.office, num_queries=str(_NUM_QUERIES)
+    agent = create_agent(
+        model,
+        tools=[web_search],
+        response_format=section.output_model,
     )
 
-    result = await structured.ainvoke(
-        [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)],
+    system_template = Template((_PROMPTS_DIR / section.system_prompt_file).read_text())
+    user_template = Template((_PROMPTS_DIR / section.user_prompt_file).read_text())
+
+    system_prompt = system_template.substitute(current_date=date.today().isoformat())
+    user_prompt = user_template.substitute(name=rep.name, office=rep.office)
+
+    result = await agent.ainvoke(
+        {
+            "messages": [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ]
+        },
         config={
             "callbacks": [langfuse_handler, usage_tracker],
-            "run_name": f"v2:query-gen:{rep.name}",
+            "recursion_limit": 15,
+            "run_name": f"v2:{section.name}:{rep.name}",
         },
     )
-    queries = [q.strip() for q in result.queries if q and q.strip()]
-    logger.info(f"[v2] Generated {len(queries)} queries for {rep.name}")
-    return queries, usage_tracker.stats
 
-
-async def run_searches(queries: list[str]) -> tuple[list[dict[str, str]], int]:
-    """Run all queries in parallel with a concurrency bound.
-
-    Returns ``(concatenated_results, num_successful_queries)``.
-    A query is "successful" if it returned at least one result.
-    """
-    sem = asyncio.Semaphore(_SEARCH_CONCURRENCY)
-
-    async def _run_one(q: str) -> list[dict[str, str]]:
-        async with sem:
-            return await tavily_search_raw(q, max_results=_RESULTS_PER_QUERY)
-
-    per_query = await asyncio.gather(*(_run_one(q) for q in queries))
-    concatenated: list[dict[str, str]] = []
-    successful = 0
-    for results in per_query:
-        if results:
-            successful += 1
-            concatenated.extend(results)
+    structured = result["structured_response"]
+    items: list[str] = getattr(structured, section.content_field)
+    citations: list[Citation] = structured.citations
     logger.info(
-        f"[v2] Search phase: {successful}/{len(queries)} queries returned results; "
-        f"{len(concatenated)} total raw results"
+        f"[v2] Section '{section.name}' complete for {rep.name}: "
+        f"{len(citations)} citations"
     )
-    return concatenated, successful
+    return items, citations, usage_tracker.stats
 
 
-def _format_results_block(results: list[dict[str, str]]) -> str:
-    if not results:
-        return "(no results)"
-    lines: list[str] = []
-    for i, r in enumerate(results, start=1):
-        lines.append(f"[{i}] {r['title']}\n    URL: {r['url']}\n    {r['snippet']}")
-    return "\n\n".join(lines)
+def _format_citations_block(citations: list[Citation]) -> str:
+    if not citations:
+        return "(none)"
+    return "\n".join(
+        f"[{i + 1}] {c.title} — {c.url}" for i, c in enumerate(citations)
+    )
 
 
-@observe(name="v2-distill")
-async def distill(
-    rep: Representative, results: list[dict[str, str]]
+@observe(name="v2-synthesis")
+async def run_synthesis(
+    rep: Representative, dossier_result: DossierResult
 ) -> tuple[ResearchSummary, UsageStats]:
+    """Non-tool LLM call that collapses the dossier into 5–8 bullets."""
     langfuse_handler = CallbackHandler()
     usage_tracker = UsageTracker()
 
@@ -121,28 +154,40 @@ async def distill(
         model=os.environ["CLAUDE_MODEL"],
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     )
-    structured = model.with_structured_output(ResearchSummary)
+    structured_model = model.with_structured_output(ResearchSummary)
 
-    system_template = Template((_PROMPTS_DIR / "distill_system.txt").read_text())
-    user_template = Template((_PROMPTS_DIR / "distill_user.txt").read_text())
+    system_template = Template((_PROMPTS_DIR / "synthesis_system.txt").read_text())
+    user_template = Template((_PROMPTS_DIR / "synthesis_user.txt").read_text())
 
     system_prompt = system_template.substitute(current_date=date.today().isoformat())
     user_prompt = user_template.substitute(
-        name=rep.name, office=rep.office, results_block=_format_results_block(results)
+        name=rep.name,
+        office=rep.office,
+        dossier=dossier_result.dossier or "(no section content returned)",
+        citations_block=_format_citations_block(dossier_result.unified_citations),
     )
 
-    summary = await structured.ainvoke(
+    result = await structured_model.ainvoke(
         [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)],
         config={
             "callbacks": [langfuse_handler, usage_tracker],
-            "run_name": f"v2:distill:{rep.name}",
+            "run_name": f"v2:synthesis:{rep.name}",
         },
     )
+
+    # Enforce: citations drawn from the pool, not invented.
+    # Trust the model's copy-through but fall back to the unified pool if empty.
+    if not result.citations:
+        result = ResearchSummary(
+            bullets=result.bullets,
+            citations=dossier_result.unified_citations,
+        )
+
     logger.info(
-        f"[v2] Distill complete for {rep.name}: "
-        f"{len(summary.bullets or [])} bullets / {len(summary.citations)} citations"
+        f"[v2] Synthesis complete for {rep.name}: "
+        f"{len(result.bullets or [])} bullets / {len(result.citations)} citations"
     )
-    return summary, usage_tracker.stats
+    return result, usage_tracker.stats
 
 
 @observe(name="v2-research-pipeline")
@@ -151,47 +196,73 @@ async def research_representative(
     store: InMemoryResearchStore | None = None,
     research_id: str | None = None,
 ) -> tuple[ResearchSummary | None, UsageStats]:
+    """Run 5 section agents concurrently, then synthesize into blended bullets."""
     total_usage = UsageStats()
-    logger.info(f"[v2] Starting research for {rep.name}")
+    usage_lock = asyncio.Lock()
+    logger.info(f"[v2] Queued research for {rep.name}")
 
-    try:
-        queries, usage = await generate_queries(rep)
-    except Exception as e:
-        logger.error(f"[v2] Query generation failed for {rep.name}: {e}", exc_info=True)
-        return None, total_usage
-    total_usage += usage
-    if not queries:
-        logger.error(f"[v2] Query generation returned no queries for {rep.name}")
-        return None, total_usage
+    section_results: dict[str, tuple[list[str], list[Citation]]] = {}
+    section_lock = asyncio.Lock()
 
-    raw_results, successful_queries = await run_searches(queries)
-    total_usage.tool_calls += successful_queries
-    if not raw_results:
-        logger.error(f"[v2] All searches returned no results for {rep.name}")
-        return None, total_usage
+    async def _run_section(section: SectionConfig) -> None:
+        try:
+            items, citations, usage = await run_section_agent(rep, section)
+        except Exception as e:
+            logger.error(
+                f"[v2] Section '{section.name}' failed for {rep.name}: {e}",
+                exc_info=e,
+            )
+            items = []
+            citations = []
+            usage = UsageStats()
 
-    filtered = prefilter_results(
-        raw_results, snippet_char_cap=_SNIPPET_CHAR_CAP, ceiling=_RESULTS_CEILING
-    )
-    logger.info(f"[v2] Pre-filter: {len(raw_results)} → {len(filtered)} results")
+        async with usage_lock:
+            nonlocal total_usage
+            total_usage += usage
+        async with section_lock:
+            section_results[section.name] = (items, citations)
 
-    try:
-        summary, usage = await distill(rep, filtered)
-    except Exception as e:
-        logger.error(f"[v2] Distillation failed for {rep.name}: {e}", exc_info=True)
-        return None, total_usage
-    total_usage += usage
+    async with _semaphore:
+        logger.info(f"[v2] Starting research for {rep.name}")
+        try:
+            await asyncio.gather(*(_run_section(section) for section in SECTIONS))
+        except Exception as e:
+            logger.error(
+                f"[v2] Unexpected error in section orchestration for {rep.name}: {e}",
+                exc_info=True,
+            )
+            return None, total_usage
 
-    if store and research_id:
-        # section_name must match a field on BulletsResearchSummary — use "bullets"
-        # so InMemoryResearchStore.complete_section writes to summary.bullets.
-        await store.complete_section(
-            research_id, "bullets", summary.bullets or [], summary.citations
+        # Preserve section ordering from SECTIONS (deterministic dossier).
+        ordered = [
+            (s.name, *section_results.get(s.name, ([], []))) for s in SECTIONS
+        ]
+        dossier_result = build_dossier(ordered)
+
+        try:
+            summary, synth_usage = await run_synthesis(rep, dossier_result)
+        except Exception as e:
+            logger.error(f"[v2] Synthesis failed for {rep.name}: {e}", exc_info=True)
+            return None, total_usage
+
+        async with usage_lock:
+            total_usage += synth_usage
+
+        if store and research_id:
+            # total_sections=1 → a single complete_section call moves the task to "complete".
+            # section_name must match a field on BulletsResearchSummary — use "bullets"
+            # so InMemoryResearchStore.complete_section writes to summary.bullets (not
+            # some non-existent "overview" attribute that model_validate would drop).
+            await store.complete_section(
+                research_id,
+                "bullets",
+                summary.bullets or [],
+                summary.citations,
+            )
+
+        logger.info(
+            f"[v2] Research for {rep.name}: "
+            f"{total_usage.input_tokens} in / {total_usage.output_tokens} out / "
+            f"{total_usage.tool_calls} tool calls"
         )
-
-    logger.info(
-        f"[v2] Research for {rep.name}: "
-        f"{total_usage.input_tokens} in / {total_usage.output_tokens} out / "
-        f"{total_usage.tool_calls} tool calls"
-    )
-    return summary, total_usage
+        return summary, total_usage
