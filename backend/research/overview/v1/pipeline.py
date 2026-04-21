@@ -79,7 +79,7 @@ SECTIONS: list[SectionConfig] = [
 ]
 
 
-@observe(name="section-agent")
+@observe(name="v1-section-agent")
 async def run_section_agent(
     rep: Representative, section: SectionConfig
 ) -> tuple[str | list[str], list[Citation], UsageStats]:
@@ -118,7 +118,7 @@ async def run_section_agent(
         config={
             "callbacks": [langfuse_handler, usage_tracker],
             "recursion_limit": 15,
-            "run_name": f"{section.name}:{rep.name}",
+            "run_name": f"v1:{section.name}:{rep.name}",
         },
     )
 
@@ -132,7 +132,7 @@ async def run_section_agent(
     return content, citations, usage_tracker.stats
 
 
-@observe(name="research-pipeline")
+@observe(name="v1-research-pipeline")
 async def research_representative(
     rep: Representative,
     store: InMemoryResearchStore | None = None,

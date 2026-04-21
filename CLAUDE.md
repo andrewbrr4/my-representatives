@@ -48,21 +48,18 @@ cd frontend && npx shadcn@latest add <component-name>
 3. `services/cicero.py` calls Cicero API (`/v3.1/official`), maps `district_type` to `state`/`municipal` levels, filters out appointed and federal officials, returns list of `Representative` models
 4. Returns sorted reps immediately as `RepresentativesResponse` — no research is triggered at lookup time
 
-**On-demand research flow** (`routers/research.py`):
+**On-demand research flow** (`routers/overview.py`):
 1. `POST /api/research` accepts a `ResearchRequest` (contains one `Representative`)
-2. Checks `RepCache` first — if cached, returns immediately with `status: "complete"` + summary
+2. Checks `RepCache` first (keyed by name + office + active overview version) — if cached, returns immediately with `status: "complete"` + summary
 3. Creates task in `InMemoryResearchStore`, spawns `asyncio.create_task` for background research
-4. Background task calls `research_representative(rep, store, research_id)` from `research/pipeline.py` — each section agent writes its result to the store as soon as it finishes, persists costs via `save_research_task()` + `save_transactions()`
-5. `GET /api/research/{research_id}` — client polls for task progress, returns `ResearchResponse` with partial summary (sections arrive incrementally as each agent completes)
-6. Task status transitions: `"pending"` → `"in_progress"` (first section done) → `"complete"` (all 5 done). Frontend renders completed sections immediately and shows skeleton placeholders for pending ones.
+4. Background task calls `research_representative(rep, store, research_id)` from the active overview package (`research/overview/`) — persists costs via `save_research_task()` + `save_transactions()`, tagging `task_type=f"rep:{ACTIVE_VERSION}"` so v1/v2/v3 usage is distinguishable in the DB
+5. `GET /api/research/{research_id}` — client polls for task progress, returns `ResearchResponse` with partial summary (shape depends on version: v1 streams per-section; v2/v3 return a single `bullets` payload once synthesis/distillation finishes)
+6. Task status transitions: `"pending"` → `"in_progress"` → `"complete"`. Frontend dispatches rendering on response shape in `components/overview/index.tsx` (`isBullets` switches between v1's section view and the shared bullets view).
 
-**Research pipeline** (`research/pipeline.py`) runs **5 per-section research agents** concurrently using LangChain + Langfuse tracing:
-- Each section (policy_positions, recent_legislative_record, accomplishments, controversies, top_donors) has its own focused agent (`ChatAnthropic` with `CLAUDE_MODEL` env var) that uses a Tavily `web_search` tool and returns structured output with per-section citations
-- Section prompts are stored in `research/prompts/` (system + user template per section)
-- Each agent is limited to 5 web searches and `recursion_limit=15`
-- Each agent writes its result to the `InMemoryResearchStore` immediately on completion via `store.complete_section()`, enabling incremental delivery to the frontend
-- A separate `UsageTracker` callback handler (`research/usage.py`) runs alongside Langfuse on each agent, tracking input/output tokens and tool calls independently
-- Per-rep usage is aggregated and logged; per-research-task totals are persisted to the `research_tasks` table in Postgres via `db.py`
+**Rep overview pipeline** lives in `research/overview/` and is versioned. The active version is selected at import time via the `OVERVIEW_PIPELINE_VERSION` env var (`v1` default, `v2`, `v3`). Each version package exports `ResearchSummary`, `research_representative`, and `TOTAL_SECTIONS`. All variants use LangChain + Langfuse tracing with version-prefixed `@observe` names (e.g. `v1-research-pipeline`, `v2-synthesis`, `v3-distill`) and a `UsageTracker` callback (`research/usage.py`) for token/tool-call accounting. See `docs/rep-overview-versions.md` for the rationale behind each version.
+- **v1** (`research/overview/v1/`) — 5 per-section research agents (policy_positions, recent_legislative_record, accomplishments, controversies, top_donors) run concurrently. Each uses a Tavily `web_search` tool, is capped at 5 searches / `recursion_limit=15`, and writes its result to `InMemoryResearchStore` as it completes, so the frontend streams sections in. Prompts in `research/overview/v1/prompts/`.
+- **v2** (`research/overview/v2/`) — same 5 section agents, but results are fed into a dossier + unified citation pool and a single non-tool synthesis call produces 5–8 blended bullets with inline `[N]` markers. `TOTAL_SECTIONS=1` (store completes once at the end). Prompts in `research/overview/v2/prompts/`; dossier logic in `v2/synthesis_input.py`.
+- **v3** (`research/overview/v3/`) — breadth-first retrieval: 1 LLM call generates ~15 queries, parallel Tavily fan-out (no LLM in the loop), `prefilter.py` dedupes/truncates, then one distillation call emits bullets + citations. `TOTAL_SECTIONS=1`. Prompts in `research/overview/v3/prompts/`. Tunable via `OVERVIEW_V3_*` env vars (see below).
 
 **Elections flow** (`routers/elections.py`):
 1. `POST /api/elections` receives address → calls Google Civic API (`services/elections.py`) for upcoming elections, contests, candidates, and voter info
@@ -100,7 +97,7 @@ cd frontend && npx shadcn@latest add <component-name>
 - `redis.py` — `RedisRepCache` and `RedisElectionCache` (used when `REDIS_URL` is set)
 - `dependencies.py` — lazy singletons: `get_rep_cache()`, `get_election_cache()`, `get_issue_cache()`, `get_research_store()`
 
-**Database** (`db.py`) manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Supports two connection modes: `DB_SOCKET_PATH` for Unix socket (Cloud Run with Cloud SQL proxy sidecar) or `DATABASE_URL` DSN (local dev via Cloud SQL Auth Proxy). Contains `save_research_task()` for persisting research usage data (including model, token costs, search tool, cost per search, environment, and `task_type` — "rep", "election", or "issue"), `save_transactions()` for writing LLM/search cost outflows to the `transactions` ledger, and `get_issues_taxonomy()` for loading the issues classification taxonomy. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
+**Database** (`db.py`) manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Supports two connection modes: `DB_SOCKET_PATH` for Unix socket (Cloud Run with Cloud SQL proxy sidecar) or `DATABASE_URL` DSN (local dev via Cloud SQL Auth Proxy). Contains `save_research_task()` for persisting research usage data (including model, token costs, search tool, cost per search, environment, and `task_type` — `"rep:v1"` / `"rep:v2"` / `"rep:v3"` for overview research, `"election"`, or `"issue"`; the suffix encodes the overview pipeline version), `save_transactions()` for writing LLM/search cost outflows to the `transactions` ledger, and `get_issues_taxonomy()` for loading the issues classification taxonomy. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
@@ -143,6 +140,12 @@ Required in `.env` at project root:
 - `CLAUDE_MODEL` — model ID for the research agent (e.g. `claude-sonnet-4-20250514`)
 - `SEARCH_TOOL` — which search provider is in use (default `tavily`). Recorded in the `research_tasks` table for cost tracking.
 - `RESEARCH_MAX_TOKENS` — max token output for each section research agent
+- `OVERVIEW_PIPELINE_VERSION` — which rep overview pipeline to run: `v1` (default, 5 section agents), `v2` (sections → synthesis bullets), or `v3` (static-query fan-out → distill bullets). Read at import time by `research/overview/__init__.py`; also encoded into `research_tasks.task_type` (`rep:v1`/`rep:v2`/`rep:v3`) and into Langfuse trace names.
+- `OVERVIEW_V3_NUM_QUERIES` — v3 only: number of search queries to generate (default `15`)
+- `OVERVIEW_V3_RESULTS_PER_QUERY` — v3 only: Tavily results per query (default `5`)
+- `OVERVIEW_V3_SEARCH_CONCURRENCY` — v3 only: max in-flight Tavily calls (default `5`)
+- `OVERVIEW_V3_RESULTS_CEILING` — v3 only: cap on total results fed to distillation (default `60`)
+- `OVERVIEW_V3_SNIPPET_CHAR_CAP` — v3 only: max chars per snippet before distillation (default `800`)
 - `LANGFUSE_SECRET_KEY` — Langfuse tracing secret key
 - `LANGFUSE_PUBLIC_KEY` — Langfuse tracing public key
 - `LANGFUSE_BASE_URL` — Langfuse tracing base URL
