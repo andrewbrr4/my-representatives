@@ -9,6 +9,7 @@ export interface Contact {
 export interface Citation {
   title: string;
   url: string;
+  published_date?: string | null;
 }
 
 // ResearchSummary is version-specific — import from @/components/overview

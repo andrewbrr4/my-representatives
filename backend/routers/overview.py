@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from config import cost_config
 from db import save_research_task, save_transactions
 from models import Representative
-from research.overview import ResearchSummary, research_representative
+from research.overview import ACTIVE_VERSION, ResearchSummary, TOTAL_SECTIONS, research_representative
 from store.dependencies import get_rep_cache, get_research_store
 
 
@@ -39,7 +39,7 @@ async def _run_research(research_id: str, req: ResearchRequest) -> None:
     try:
         summary, usage = await research_representative(rep, store=store, research_id=research_id)
         if summary is not None:
-            await rep_cache.put(rep.name, rep.office, summary)
+            await rep_cache.put(rep.name, rep.office, ACTIVE_VERSION, summary)
         else:
             await store.fail(research_id)
     except Exception as e:
@@ -83,7 +83,7 @@ async def start_research(request: Request, body: ResearchRequest) -> ResearchRes
     # Check cache first
     skip_cache = os.getenv("DISABLE_REP_CACHE", "").lower() in ("true", "1")
     if not skip_cache:
-        cached = await get_rep_cache().get(rep.name, rep.office)
+        cached = await get_rep_cache().get(rep.name, rep.office, ACTIVE_VERSION)
         if cached is not None:
             return ResearchResponse(
                 research_id="cached",
@@ -94,7 +94,7 @@ async def start_research(request: Request, body: ResearchRequest) -> ResearchRes
     # Create task and spawn background research
     research_id = uuid.uuid4().hex[:12]
     store = get_research_store()
-    await store.create(research_id, summary=ResearchSummary())
+    await store.create(research_id, total_sections=TOTAL_SECTIONS, summary=ResearchSummary())
 
     asyncio.create_task(_run_research(research_id, body))
 

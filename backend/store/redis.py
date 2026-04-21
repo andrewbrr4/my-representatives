@@ -18,37 +18,36 @@ def create_redis_client() -> redis.Redis:
     return redis.from_url(url, decode_responses=True)
 
 
-def _cache_key(name: str, office: str) -> str:
-    return f"repcache:{name.lower().strip()}|{office.lower().strip()}"
+def _cache_key(name: str, office: str, version: str) -> str:
+    return f"repcache:{version}:{name.lower().strip()}|{office.lower().strip()}"
 
 
 class RedisRepCache(RepCacheInterface):
     def __init__(self, client: redis.Redis) -> None:
         self._r = client
 
-    async def get(self, name: str, office: str) -> ResearchSummary | None:
-        key = _cache_key(name, office)
+    async def get(self, name: str, office: str, version: str) -> ResearchSummary | None:
+        key = _cache_key(name, office, version)
         try:
             data = await self._r.get(key)
         except Exception as e:
-            logger.error(f"Redis GET failed for {name} ({office}): {e}")
+            logger.error(f"Redis GET failed for {name} ({office}) [{version}]: {e}")
             return None
         if data is None:
-            logger.debug(f"Cache miss for {name} ({office})")
+            logger.debug(f"Cache miss for {name} ({office}) [{version}]")
             return None
-        logger.info(f"Cache hit for {name} ({office})")
+        logger.info(f"Cache hit for {name} ({office}) [{version}]")
         return ResearchSummary.model_validate_json(data)
 
-    async def put(self, name: str, office: str, summary: ResearchSummary) -> None:
-        key = _cache_key(name, office)
+    async def put(self, name: str, office: str, version: str, summary: ResearchSummary) -> None:
+        key = _cache_key(name, office, version)
         try:
             await self._r.set(key, summary.model_dump_json(), ex=REP_CACHE_TTL_SECONDS)
-            logger.info(f"Cached research for {name} ({office}), TTL={REP_CACHE_TTL_SECONDS}s")
+            logger.info(f"Cached research for {name} ({office}) [{version}], TTL={REP_CACHE_TTL_SECONDS}s")
         except Exception as e:
-            logger.error(f"Redis SET failed for {name} ({office}): {e}")
+            logger.error(f"Redis SET failed for {name} ({office}) [{version}]: {e}")
 
     async def cleanup(self) -> None:
-        # Redis handles TTL-based expiry automatically.
         pass
 
 
