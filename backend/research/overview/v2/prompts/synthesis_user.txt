@@ -1,0 +1,18 @@
+Official: $name
+Office: $office
+
+Below is the pre-researched dossier, grouped by topic. Inline `[N]` markers refer to positions in the unified citation list that follows this message.
+
+---
+
+$dossier
+
+---
+
+Unified citation list (1-indexed, matches `[N]` markers above). Entries may include a `(Published: <date>)` suffix — use those dates to weight recency when picking which claims to keep or drop:
+
+$citations_block
+
+---
+
+Produce 5–8 blended bullets per the system instructions. Set the `bullets` field to the list of bullet strings and the `citations` field to the full unified citation list (copy it through unchanged — downstream code uses your `citations` field as the source of truth).

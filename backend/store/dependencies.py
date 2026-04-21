@@ -17,10 +17,10 @@ _issue_cache: IssueCacheInterface | None = None
 class NoOpRepCache(RepCacheInterface):
     """Cache that never stores or returns anything. Used when Redis is not configured."""
 
-    async def get(self, name: str, office: str) -> ResearchSummary | None:
+    async def get(self, name: str, office: str, version: str) -> ResearchSummary | None:
         return None
 
-    async def put(self, name: str, office: str, summary: ResearchSummary) -> None:
+    async def put(self, name: str, office: str, version: str, summary: ResearchSummary) -> None:
         pass
 
     async def cleanup(self) -> None:

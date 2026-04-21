@@ -24,13 +24,16 @@ export function renderInline(
       const idx = parseInt(citeMatch[1], 10) - 1;
       const citation = citations[idx];
       if (citation) {
+        const title = citation.published_date
+          ? `${citation.title} (${citation.published_date})`
+          : citation.title;
         return (
           <sup key={i}>
             <a
               href={citation.url}
               target="_blank"
               rel="noopener noreferrer"
-              title={citation.title}
+              title={title}
               className="text-primary hover:text-primary/80 ml-0.5"
             >
               [{citeMatch[1]}]

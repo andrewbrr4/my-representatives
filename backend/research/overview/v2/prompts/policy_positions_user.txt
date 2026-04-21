@@ -1,0 +1,1 @@
+Research the policy positions and voting record of $name, who serves as $office. Search the web for current information, then provide a concise summary.

@@ -18,6 +18,14 @@ _RETRY_BASE_DELAY = 5.0  # seconds, doubles each retry
 _tavily_client: AsyncTavilyClient | None = None
 
 
+def _format_result(r: dict) -> str:
+    """Format one Tavily result for the LangChain agent tool output."""
+    header = f"**{r['title']}**\n{r['url']}"
+    if r.get("published_date"):
+        header += f"\nPublished: {r['published_date']}"
+    return f"{header}\n{r['content']}"
+
+
 def _get_tavily_client() -> AsyncTavilyClient:
     global _tavily_client
     if _tavily_client is None:
@@ -34,8 +42,7 @@ async def web_search(query: str) -> str:
             try:
                 search_results = await tavily.search(query=query, max_results=5)
                 return "\n\n".join(
-                    f"**{r['title']}**\n{r['url']}\n{r['content']}"
-                    for r in search_results.get("results", [])
+                    _format_result(r) for r in search_results.get("results", [])
                 )
             except Exception as e:
                 error_detail = str(e)
@@ -53,3 +60,46 @@ async def web_search(query: str) -> str:
                 logger.warning(f"Search failed: {error_detail}")
                 return "Search failed. Try a different query."
     return "Search failed. Try a different query."
+
+
+async def tavily_search_raw(
+    query: str, max_results: int = 5
+) -> list[dict[str, str]]:
+    """Run one Tavily search and return raw results as a list of dicts.
+
+    Used by non-agent pipelines (e.g. overview v3) that execute searches
+    outside the LangChain agent loop to avoid accumulating search results
+    in LLM context. Returns ``[]`` on failure (caller logs + proceeds).
+    Each result is ``{"title": str, "url": str, "snippet": str, "published_date": str}``
+    where ``published_date`` is empty string when Tavily didn't supply one.
+    """
+    async with _search_semaphore:
+        tavily = _get_tavily_client()
+        for attempt in range(_MAX_SEARCH_RETRIES):
+            try:
+                search_results = await tavily.search(query=query, max_results=max_results)
+                return [
+                    {
+                        "title": r.get("title", ""),
+                        "url": r.get("url", ""),
+                        "snippet": r.get("content", ""),
+                        "published_date": r.get("published_date") or "",
+                    }
+                    for r in search_results.get("results", [])
+                ]
+            except Exception as e:
+                error_detail = str(e)
+                if hasattr(e, "response"):
+                    try:
+                        error_detail = e.response.text
+                    except Exception:
+                        pass
+                is_rate_limit = "429" in error_detail or "rate" in error_detail.lower()
+                if is_rate_limit and attempt < _MAX_SEARCH_RETRIES - 1:
+                    delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                    logger.warning(f"Raw search rate-limited, retrying in {delay}s (attempt {attempt + 1})")
+                    await asyncio.sleep(delay)
+                    continue
+                logger.warning(f"Raw search failed for query={query!r}: {error_detail}")
+                return []
+    return []
