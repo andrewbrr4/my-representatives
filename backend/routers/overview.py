@@ -57,6 +57,7 @@ async def _run_research(research_id: str, req: ResearchRequest) -> None:
             output_tokens=usage.output_tokens,
             tool_calls=usage.tool_calls,
             status="done" if summary else "failed",
+            task_type=f"rep:{ACTIVE_VERSION}",
             **cfg,
         )
         await save_transactions(

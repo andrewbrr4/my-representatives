@@ -8,8 +8,8 @@ Find your elected representatives at every level of government — federal, stat
 1. Enter your address
 2. Two concurrent lookups find your reps: Census Geocoder + US Congress API (federal), Cicero API (state + municipal)
 3. Representatives appear instantly with basic info and contact links
-4. Click "Generate AI Research" on any rep — 5 focused Claude agents research different sections (policy positions, legislative record, accomplishments, controversies, top donors) using Tavily web search
-5. Research streams in section-by-section as agents complete; cached for 3 days
+4. Click "Generate AI Research" on any rep — the active overview pipeline researches them. The pipeline is versioned and selected by `OVERVIEW_PIPELINE_VERSION`: `v1` (default — 5 per-section agents using Tavily), `v2` (same 5 agents + synthesis into blended bullets), or `v3` (static-query fan-out + single distillation). See [docs/rep-overview-versions.md](./docs/rep-overview-versions.md).
+5. v1 streams in section-by-section; v2/v3 render once distillation completes. Results cached for 3 days.
 6. Search for an issue (e.g., "housing affordability") to see how your reps relate to it
 
 ### Elections
@@ -71,6 +71,7 @@ pkill cloud-sql-proxy                              # stop proxy
 | [CLAUDE.md](./CLAUDE.md) | Dev reference — architecture, commands, env vars, all implementation details |
 | [MISSION.md](./docs/MISSION.md) | Product vision and principles |
 | [DESIGN.md](./docs/DESIGN.md) | Design approach, card sections, open challenges |
+| [rep-overview-versions.md](./docs/rep-overview-versions.md) | History and architecture of the v1/v2/v3 rep overview pipelines |
 | [INFRASTRUCTURE.md](./docs/INFRASTRUCTURE.md) | GCP deployment, secrets, networking |
 | [PERFORMANCE.md](./docs/initiatives/PERFORMANCE.md) | Performance audit and optimization roadmap |
 | [FRONTEND_ELI5.md](./frontend/FRONTEND_ELI5.md) | Frontend explained for backend devs |

@@ -10,8 +10,10 @@ For the product vision and principles that inform these decisions, see [MISSION.
 1. User enters their address.
 2. Third-party APIs return a list of representatives at every level of government.
 3. The user sees a card for each representative with basic info and a "Learn More" button.
-4. When the user clicks "Learn More" on a specific rep, a research agent crawls the web to gather information about that representative.
-5. Research results stream into the card section-by-section as each of 5 parallel agents completes. Sections are revealed in display order — a section stays as a skeleton placeholder until all preceding sections are complete, so the user always sees a clean top-down fill rather than content appearing in random order.
+4. When the user clicks "Learn More" on a specific rep, the active overview research pipeline crawls the web to gather information about that representative. The pipeline is versioned and swappable at runtime via `OVERVIEW_PIPELINE_VERSION` (`v1` / `v2` / `v3`); see [rep-overview-versions.md](./rep-overview-versions.md) for the architecture of each.
+5. Rendering depends on the version:
+   - **v1**: results stream into the card section-by-section as each of 5 parallel agents completes. Sections are revealed in display order — a section stays as a skeleton placeholder until all preceding sections are complete, so the user always sees a clean top-down fill.
+   - **v2/v3**: a single distilled bullet list renders once synthesis/distillation completes (no per-section streaming).
 
 Research is **on-demand** — only triggered for reps the user explicitly wants to learn about. This cuts API costs ~80%+ compared to researching every rep on every lookup, since most users only care about a few of their ~15+ representatives.
 
@@ -33,7 +35,7 @@ The election research pipeline is lighter than rep research — 1 section (ballo
 
 Agentic coding via Claude Code makes the technical aspects of building the functionality quite smooth. The true challenge of this project lies in the design of the product itself — specifically, crafting the content of the summary cards. For now, we are more focused on optimizing this content than the visual UI components such as color, font, etc.
 
-The content in these cards is ultimately determined by the prompts given to the [research agent](../backend/research/pipeline.py) and the Pydantic models used to structure the data.
+The content in these cards is ultimately determined by the prompts given to the active overview pipeline under [`backend/research/overview/`](../backend/research/overview/) and the Pydantic models used to structure the data. Each pipeline version owns its own prompts (`v1/prompts/`, `v2/prompts/`, `v3/prompts/`).
 
 ### Challenges
 
@@ -45,6 +47,10 @@ Crafting these cards is not easy. We need to strike several difficult balances:
 
 ### Current Card Sections
 
+The card output format depends on `OVERVIEW_PIPELINE_VERSION`:
+
+**v1 — five sections**, each a bulleted list with per-section citations:
+
 | Section | Description | Format |
 |---------|-------------|--------|
 | **Policy Positions** | Where the representative stands on key issues, based on their voting record and public statements rather than campaign messaging. | Bulleted list |
@@ -52,6 +58,8 @@ Crafting these cards is not easy. We need to strike several difficult balances:
 | **Accomplishments** | Notable achievements, successful initiatives, awards, and bipartisan wins. | Bulleted list |
 | **Controversies** | Scandals, ethics complaints, controversial votes or statements, lawsuits, and public criticism. | Bulleted list |
 | **Top Donors** | List of the representative's largest political donors, five max. | Bulleted list |
+
+**v2 / v3 — a single blended bullet list** (5–8 bullets) with a unified citation pool and inline `[N]` markers. V2 derives this from the same five section agents via a synthesis step; v3 derives it from a breadth-first search fan-out and a single distillation. See [rep-overview-versions.md](./rep-overview-versions.md).
 
 ### Election Card Sections
 

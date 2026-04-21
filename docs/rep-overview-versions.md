@@ -12,7 +12,7 @@ These are in tension: broad retrieval requires many web searches, which produces
 
 ---
 
-## V1: Per-Section Agents (current)
+## V1: Per-Section Agents (default)
 
 **Architecture:** 5 independent LangChain agents run in parallel, each focused on one section (policy positions, legislative record, accomplishments, controversies, top donors). Each agent has a Tavily `web_search` tool and produces structured output (bullet points + per-section citations).
 
@@ -34,6 +34,51 @@ These are in tension: broad retrieval requires many web searches, which produces
 
 **Why this architecture was chosen (context from earlier iteration):**
 A previous single-agent approach blew up input tokens. The agent loop pattern means every Tavily search result (title + URL + content snippet, 5 results per search) accumulates in the agent's conversation history. After 15+ searches, the agent re-reads 75+ snippets on every subsequent LLM call. Input tokens maxed out, so the codebase pivoted to per-section agents with limited scope.
+
+---
+
+---
+
+## V2: Sections → Synthesis Bullets
+
+**Architecture:** Same 5 section agents as v1, but their outputs are no longer delivered straight to the user. Instead, they feed a second-stage synthesis call that collapses the dossier into a single blended bullet list.
+
+**Backend:** `research/overview/v2/pipeline.py`
+**Frontend:** shares `components/overview/bullets/` with v3 (dispatched by response shape in `components/overview/index.tsx`)
+**Prompts:** `research/overview/v2/prompts/` (5 section system/user prompts + `synthesis_system.txt` + `synthesis_user.txt`)
+
+**How it works:**
+- Stage 1 — run the 5 section agents concurrently (v2 owns its own copies of the agent code and prompts; nothing is imported from v1).
+- Stage 2 — `synthesis_input.build_dossier()` merges section outputs into one dossier text block plus a single unified citation list, renumbering inline `[N]` markers across sections.
+- Stage 3 — one non-tool LLM call with `with_structured_output(ResearchSummary)` emits 5–8 blended bullets and copies through the relevant citations.
+- `TOTAL_SECTIONS = 1` — the store only reaches "complete" after synthesis (no per-section streaming to the frontend).
+
+**What v2 is trying to fix:** v1's contradictions and wall-of-text problems. The dossier + single synthesis call gives the LLM global context to prioritize across sections, exercise judgment about what matters, and produce fewer, denser bullets with coherent citations.
+
+**What v2 still carries from v1:** the search cost and token accumulation in the 5 section agents. It's strictly additive — v2 runs everything v1 does, plus a synthesis call.
+
+---
+
+## V3: Search-Outside-the-Loop + Single Distillation
+
+**Architecture:** The "Recommended direction" from the research section below, implemented. Search happens entirely outside the LLM loop; the LLM only sees pre-fetched snippets at the very end.
+
+**Backend:** `research/overview/v3/pipeline.py` (+ `prefilter.py`)
+**Frontend:** shares `components/overview/bullets/` with v2
+**Prompts:** `research/overview/v3/prompts/` (`query_gen_system.txt`, `query_gen_user.txt`, `distill_system.txt`, `distill_user.txt`)
+
+**How it works:**
+1. **Query generation** — 1 LLM call with `with_structured_output(_QueryList)` emits `OVERVIEW_V3_NUM_QUERIES` (default 15) diverse search queries. No tools.
+2. **Parallel search** — Tavily fan-out bounded by `OVERVIEW_V3_SEARCH_CONCURRENCY` (default 5), `OVERVIEW_V3_RESULTS_PER_QUERY` results per query (default 5). No LLM in the loop.
+3. **Prefilter** — `prefilter.prefilter_results()` dedupes by URL, truncates snippets to `OVERVIEW_V3_SNIPPET_CHAR_CAP` chars (default 800), caps total at `OVERVIEW_V3_RESULTS_CEILING` (default 60).
+4. **Distillation** — 1 LLM call with structured output produces the final `BulletsResearchSummary` (bullets + citations).
+- `TOTAL_SECTIONS = 1`; everything lands in the store at the end.
+
+**What v3 is trying to fix:** the token accumulation problem described below. Because search results never enter an agent loop, there's no re-reading of snippets on every LLM turn — each snippet crosses the LLM exactly once, in the distillation call.
+
+**Tradeoffs:**
+- No adaptive search — if a query surfaces an interesting lead, v3 can't chase it. For a rep overview this is fine (you know what you're looking for upfront); for open-ended research it wouldn't be.
+- Query quality matters a lot. Bad queries → nothing good for the distiller to work with.
 
 ---
 
@@ -122,19 +167,17 @@ Patterns from Perplexity Deep Research, Gemini Deep Research, etc.:
 ## Version Swapping
 
 ### Backend
-Change one line in `research/overview/__init__.py`:
-```python
-# from .v1 import ResearchSummary, research_representative
-from .v2 import ResearchSummary, research_representative
-```
+Set the `OVERVIEW_PIPELINE_VERSION` env var to `v1`, `v2`, or `v3` (default `v1`). `research/overview/__init__.py` reads it at import time and re-exports that package's `ResearchSummary`, `research_representative`, and `TOTAL_SECTIONS`. No code edits needed to switch.
+
+The active version is also stamped into:
+- `research_tasks.task_type` as `rep:v1` / `rep:v2` / `rep:v3` (for cost analysis by version)
+- Langfuse trace names (`v1-research-pipeline`, `v2-research-pipeline`, `v3-research-pipeline`, plus version-prefixed `run_name`s on each sub-call)
+- The rep cache key (so v1 and v2 results for the same rep don't collide)
 
 ### Frontend
-Change one line in `components/overview/index.ts`:
-```typescript
-// export { ResearchContent } from "./v1";
-export { ResearchContent } from "./v2";
-```
+Automatic. `components/overview/index.tsx` dispatches on response shape: if the summary has a `bullets` field (v2/v3) it renders the shared bullets view; otherwise (v1's sectioned shape) it renders the v1 component. No config needed when swapping backend versions.
 
-Each version must export:
-- **Backend:** `ResearchSummary` (Pydantic model) + `research_representative(rep, store, research_id)` (async function)
-- **Frontend:** `ResearchContent` (React component taking `{ summary }`) + `ResearchSummary` (TypeScript interface)
+### Contract each backend version must satisfy
+- Export `ResearchSummary` (Pydantic model), `research_representative(rep, store, research_id)` (async function), and `TOTAL_SECTIONS` (int).
+- Prefix `@observe` trace names and `run_name`s with the version (e.g. `v2-synthesis`, `v3-distill`) so Langfuse traces are grouped cleanly.
+- If the summary shape is bullet-based, it must be assignable to `BulletsResearchSummary` (frontend `components/overview/bullets/`). If it's section-based, it must match v1's `ResearchSummary` shape so `components/overview/v1/ResearchContent.tsx` can render it.
