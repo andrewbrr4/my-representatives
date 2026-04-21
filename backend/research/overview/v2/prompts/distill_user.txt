@@ -1,0 +1,10 @@
+Official: $name
+Office: $office
+
+Search results to distill:
+
+$results_block
+
+---
+
+Produce 5–8 blended bullets per the system instructions. Populate the ``bullets`` and ``citations`` fields of your structured output. The ``citations`` field should contain only URLs that appear in the search results above, and must be ordered to match your inline `[N]` markers.
