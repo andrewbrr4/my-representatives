@@ -128,6 +128,18 @@ All models are in `backend/models.py`. Backend imports use bare module names (no
 
 Frontend talks to backend via `fetch()` to `http://localhost:8000`. CORS is configured in `backend/main.py`.
 
+## Debugging with Langfuse
+
+The app is fully Langfuse-instrumented. When investigating agent/LLM behavior (recursion limits, empty outputs, cost spikes, tool-call loops), pull traces via the Langfuse MCP *before* reading pipeline code — see the `langfuse-trace-debugging` skill for the workflow. Use the trace-name taxonomy below to filter `fetch_traces(name=...)`.
+
+**Trace names** (from `@observe(name=...)` and LangChain `run_name`):
+- Rep overview v1/v2: `{v}-research-pipeline`, `{v}-section-agent` + inner LangChain `run_name="{v}:{section}:{rep}"`. v2 also has `v2-synthesis` (non-tool bullet synthesis).
+- Rep overview v3: `v3-research-pipeline`, `v3-query-gen`, `v3-distill` (no per-section spans — v3 fans out searches without section agents).
+- Elections: `election-ballot-overview` (single sync LLM span).
+- Issues: `issue-match` (taxonomy classifier), `issue-stance-agent` (Tavily-backed per-rep research).
+
+**Cross-reference to the DB:** `research_tasks.task_type` encodes the pipeline variant — `rep:v1` / `rep:v2` / `rep:v3` / `election` / `issue`. Use traces for "what happened in one run" and Postgres (`research_tasks`, `transactions`) for cross-run cost/token aggregates. The pipeline version came from the `OVERVIEW_PIPELINE_VERSION` env var at import time, so a trace's name prefix and its `task_type` suffix must agree — mismatches mean a bad deploy or env change mid-session.
+
 ## Environment Variables
 
 Required in `.env` at project root:
