@@ -31,6 +31,14 @@ from research.search import web_search
 from research.usage import UsageStats, UsageTracker
 from store.research_store import InMemoryResearchStore
 
+
+class _SynthesisBullets(BaseModel):
+    # Synthesis only needs bullets from the LLM — citations are assembled in
+    # Python from the already-built unified pool. Keeping this schema to a
+    # single required ``list[str]`` avoids the ``anyOf`` shape that trips
+    # Anthropic's tool-use encoder.
+    bullets: list[str]
+
 logger = logging.getLogger(__name__)
 
 _PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
@@ -156,7 +164,7 @@ async def run_synthesis(
         model=os.environ["CLAUDE_MODEL"],
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     )
-    structured_model = model.with_structured_output(ResearchSummary)
+    structured_model = model.with_structured_output(_SynthesisBullets)
 
     system_template = Template((_PROMPTS_DIR / "synthesis_system.txt").read_text())
     user_template = Template((_PROMPTS_DIR / "synthesis_user.txt").read_text())
@@ -177,19 +185,15 @@ async def run_synthesis(
         },
     )
 
-    # Enforce: citations drawn from the pool, not invented.
-    # Trust the model's copy-through but fall back to the unified pool if empty.
-    if not result.citations:
-        result = ResearchSummary(
-            bullets=result.bullets,
-            citations=dossier_result.unified_citations,
-        )
-
+    summary = ResearchSummary(
+        bullets=result.bullets,
+        citations=dossier_result.unified_citations,
+    )
     logger.info(
         f"[v2] Synthesis complete for {rep.name}: "
-        f"{len(result.bullets or [])} bullets / {len(result.citations)} citations"
+        f"{len(summary.bullets)} bullets / {len(summary.citations)} citations"
     )
-    return result, usage_tracker.stats
+    return summary, usage_tracker.stats
 
 
 @observe(name="v2-research-pipeline")
@@ -252,13 +256,10 @@ async def research_representative(
 
         if store and research_id:
             # total_sections=1 → a single complete_section call moves the task to "complete".
-            # section_name must match a field on BulletsResearchSummary — use "bullets"
-            # so InMemoryResearchStore.complete_section writes to summary.bullets (not
-            # some non-existent "overview" attribute that model_validate would drop).
             await store.complete_section(
                 research_id,
                 "bullets",
-                summary.bullets or [],
+                summary.bullets,
                 summary.citations,
             )
 

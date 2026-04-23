@@ -20,4 +20,4 @@ Today's date is ${current_date}.
 - Queries should be diverse — do NOT produce rephrasings of the same question.
 - Prefer queries that name the official explicitly and include specific angles (e.g. "Senator Jane Smith 2024 infrastructure vote" not "Jane Smith stuff").
 - Include at least one query that targets recent controversies and at least one that targets campaign donors.
-- Do NOT add a query that asks for a summary or biography of the official as a whole — the downstream step synthesizes. Your queries should retrieve specifics.
+- Do NOT add a query that asks for a summary or biography of the official as a whole — the downstream step distills from your results. Your queries should retrieve specifics.
