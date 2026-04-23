@@ -25,6 +25,7 @@ from langchain.agents import create_agent
 from pydantic import BaseModel
 
 from models import Citation, ListSectionResult, Representative
+from research.overview._bullet_coercion import BulletList
 from research.overview.v2.models import ResearchSummary
 from research.overview.v2.synthesis_input import DossierResult, build_dossier
 from research.search import web_search
@@ -37,7 +38,7 @@ class _SynthesisBullets(BaseModel):
     # Python from the already-built unified pool. Keeping this schema to a
     # single required ``list[str]`` avoids the ``anyOf`` shape that trips
     # Anthropic's tool-use encoder.
-    bullets: list[str]
+    bullets: BulletList
 
 logger = logging.getLogger(__name__)
 
