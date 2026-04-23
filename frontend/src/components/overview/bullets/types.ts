@@ -6,6 +6,6 @@
 import type { Citation } from "@/types";
 
 export interface BulletsResearchSummary {
-  bullets: string[] | null;
+  bullets: string[];
   citations: Citation[];
 }

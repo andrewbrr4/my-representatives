@@ -26,7 +26,9 @@ function BulletsSkeleton() {
 export function ResearchContent({ summary }: { summary: BulletsResearchSummary }) {
   const { bullets, citations } = summary;
 
-  if (bullets === null) {
+  // Empty bullets = task hasn't written synthesis yet; parent's loading message
+  // ("Scraping the web...") is the primary indicator — skeleton is the filler below it.
+  if (bullets.length === 0) {
     return (
       <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
         <BulletsSkeleton />

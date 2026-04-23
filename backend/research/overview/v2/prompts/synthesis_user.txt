@@ -15,4 +15,4 @@ $citations_block
 
 ---
 
-Produce 5–8 blended bullets per the system instructions. Set the `bullets` field to the list of bullet strings and the `citations` field to the full unified citation list (copy it through unchanged — downstream code uses your `citations` field as the source of truth).
+Produce 5–8 blended bullets per the system instructions. Set the `bullets` field to the list of bullet strings. (Citations are handled outside your output — do not produce a citation list; just use the `[N]` markers inline as instructed.)

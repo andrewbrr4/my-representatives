@@ -28,6 +28,7 @@
       "mcp__plugin_playwright_playwright__browser_type",
       "mcp__plugin_playwright_playwright__browser_snapshot",
       "mcp__plugin_playwright_playwright__browser_wait_for",
+      "mcp__langfuse__*",
       "Bash(git:*)",
       "Bash(git add:*)",
       "Bash(git checkout:*)",
@@ -39,7 +40,10 @@
       "Bash(gh pr:*)",
       "Bash(gh api:*)",
       "Bash(git show *)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Skill(update-config)",
+      "Bash(mkdir -p ~/.claude/skills/langfuse-trace-debugging)",
+      "Read(//Users/andrewbarry/.claude/**)"
     ]
   }
 }

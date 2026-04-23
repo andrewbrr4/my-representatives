@@ -1,10 +1,22 @@
-"""v2 re-exports the shared BulletsResearchSummary as ResearchSummary.
+"""v2 overview output schema.
 
-The schema is shared because the design treats it as a cross-version contract,
-not version-specific logic. All section-agent code and prompts are owned
-by v2 directly and do not import from v1.
+Each version owns its own Pydantic types rather than importing from a shared
+module — keeps the LLM structured-output contract for this pipeline independent
+of other pipelines' needs. In particular: ``bullets`` is a required
+``list[str]`` here (empty list = loading state), not ``list[str] | None``.
+The nullable form generated an ``anyOf[array, null]`` JSON schema that caused
+Anthropic to occasionally emit ``bullets`` as a JSON-encoded string rather than
+a list, failing structured-output validation.
 """
 
-from research.overview.shared.models import BulletsResearchSummary as ResearchSummary
+from pydantic import BaseModel, Field
+
+from models import Citation
+
+
+class ResearchSummary(BaseModel):
+    bullets: list[str] = Field(default_factory=list)
+    citations: list[Citation] = Field(default_factory=list)
+
 
 __all__ = ["ResearchSummary"]

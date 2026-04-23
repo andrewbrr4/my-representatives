@@ -4,7 +4,7 @@ Flow:
 1. Query generation (1 LLM call, no tools) → list of diverse search queries.
 2. Parallel Tavily fan-out (no LLM in the loop).
 3. Pre-filter (dedupe by URL, truncate snippets, cap total count).
-4. Distillation (1 LLM call, no tools) → BulletsResearchSummary.
+4. Distillation (1 LLM call, no tools) → ResearchSummary.
 """
 
 import asyncio
@@ -140,7 +140,7 @@ async def distill(
     )
     logger.info(
         f"[v3] Distill complete for {rep.name}: "
-        f"{len(summary.bullets or [])} bullets / {len(summary.citations)} citations"
+        f"{len(summary.bullets)} bullets / {len(summary.citations)} citations"
     )
     return summary, usage_tracker.stats
 
@@ -183,10 +183,8 @@ async def research_representative(
     total_usage += usage
 
     if store and research_id:
-        # section_name must match a field on BulletsResearchSummary — use "bullets"
-        # so InMemoryResearchStore.complete_section writes to summary.bullets.
         await store.complete_section(
-            research_id, "bullets", summary.bullets or [], summary.citations
+            research_id, "bullets", summary.bullets, summary.citations
         )
 
     logger.info(
