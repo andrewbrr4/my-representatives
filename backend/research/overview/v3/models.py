@@ -9,10 +9,11 @@ Anthropic to occasionally emit the array as a JSON-encoded string.
 from pydantic import BaseModel, Field
 
 from models import Citation
+from research.overview._bullet_coercion import BulletList
 
 
 class ResearchSummary(BaseModel):
-    bullets: list[str] = Field(default_factory=list)
+    bullets: BulletList = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
 
 
