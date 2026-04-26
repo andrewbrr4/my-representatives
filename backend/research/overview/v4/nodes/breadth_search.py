@@ -4,6 +4,8 @@ import asyncio
 import logging
 import os
 
+from langfuse import observe
+
 from research.overview.v4.models import SearchResult
 from research.overview.v4.state import V4State
 from research.search import tavily_search_raw
@@ -14,6 +16,7 @@ _RESULTS_PER_QUERY = int(os.getenv("OVERVIEW_V4_RESULTS_PER_QUERY", "5"))
 _SEARCH_CONCURRENCY = int(os.getenv("OVERVIEW_V4_SEARCH_CONCURRENCY", "5"))
 
 
+@observe(name="v4-breadth-search")
 async def breadth_search(state: V4State) -> dict:
     """Run all queries in parallel against Tavily, bounded by a semaphore."""
     queries = state["queries"]

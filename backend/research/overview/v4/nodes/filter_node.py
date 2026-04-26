@@ -3,6 +3,8 @@
 import logging
 import os
 
+from langfuse import observe
+
 from research.overview.v4.models import SearchResult
 from research.overview.v4.state import V4State
 
@@ -12,6 +14,7 @@ _RESULTS_CEILING = int(os.getenv("OVERVIEW_V4_RESULTS_CEILING", "60"))
 _SNIPPET_CHAR_CAP = int(os.getenv("OVERVIEW_V4_SNIPPET_CHAR_CAP", "800"))
 
 
+@observe(name="v4-filter")
 async def filter_node(state: V4State) -> dict:
     """Dedupe by URL (keep first), truncate snippets, cap total count."""
     raw = state["raw_results"]

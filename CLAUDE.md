@@ -136,7 +136,7 @@ The app is fully Langfuse-instrumented. When investigating agent/LLM behavior (r
 **Trace names** (from `@observe(name=...)` and LangChain `run_name`):
 - Rep overview v1/v2: `{v}-research-pipeline`, `{v}-section-agent` + inner LangChain `run_name="{v}:{section}:{rep}"`. v2 also has `v2-synthesis` (non-tool bullet synthesis).
 - Rep overview v3: `v3-research-pipeline`, `v3-query-gen`, `v3-distill` (no per-section spans — v3 fans out searches without section agents).
-- Rep overview v4: `v4-research-pipeline`, `v4-query-gen`, `v4-research-agent` (one span per pipeline run), `v4-formatter`. Depth subagent runs are nested LangChain spans under the research_agent span (no top-level `@observe` on the depth subgraph — its work is part of the research_agent's trace tree).
+- Rep overview v4: `v4-research-pipeline`, `v4-query-gen`, `v4-breadth-search`, `v4-filter`, `v4-research-agent` (one span per pipeline run), `v4-formatter`. Depth subagent runs are nested LangChain spans under the research_agent span (no top-level `@observe` on the depth subgraph — its work is part of the research_agent's trace tree).
 - Elections: `election-ballot-overview` (single sync LLM span).
 - Issues: `issue-match` (taxonomy classifier), `issue-stance-agent` (Tavily-backed per-rep research).
 
