@@ -60,6 +60,7 @@ cd frontend && npx shadcn@latest add <component-name>
 - **v1** (`research/overview/v1/`) — 5 per-section research agents (policy_positions, recent_legislative_record, accomplishments, controversies, top_donors) run concurrently. Each uses a Tavily `web_search` tool, is capped at 5 searches / `recursion_limit=15`, and writes its result to `InMemoryResearchStore` as it completes, so the frontend streams sections in. Prompts in `research/overview/v1/prompts/`.
 - **v2** (`research/overview/v2/`) — same 5 section agents, but results are fed into a dossier + unified citation pool and a single non-tool synthesis call produces 5–8 blended bullets with inline `[N]` markers. `TOTAL_SECTIONS=1` (store completes once at the end). Prompts in `research/overview/v2/prompts/`; dossier logic in `v2/synthesis_input.py`. Section agents' outputs are NOT user-facing — their prompts only ask for plain one-sentence findings with `[N]` markers (no markdown/headlines), since synthesis rewrites everything. Synthesis LLM emits only `bullets` via a private `_SynthesisBullets` schema; the unified citation list is assembled in Python from the dossier pool, not round-tripped through the model.
 - **v3** (`research/overview/v3/`) — breadth-first retrieval: 1 LLM call generates ~15 queries, parallel Tavily fan-out (no LLM in the loop), `prefilter.py` dedupes/truncates, then one distillation call emits bullets + citations. `TOTAL_SECTIONS=1`. Prompts in `research/overview/v3/prompts/`. Tunable via `OVERVIEW_V3_*` env vars (see below). Distillation bullets *are* user-facing, so the distill prompt specifies the `**headline** - sentence [N]` display format.
+- **v4** (`research/overview/v4/`) — LangGraph-native breadth + adaptive depth. A top-level `StateGraph(V4State)` wires `query_generator → breadth_search → filter → research_agent → formatter`. The research_agent is a compiled subgraph with one tool, `request_depth_research`, which itself invokes a second compiled subgraph (`depth_subgraph`) under an isolated `DepthState`. State isolation across subgraph boundaries prevents the token-accumulation problem v1/v2 suffered: a depth subagent's tool-call history (Tavily snippets, agent reasoning) lives and dies in `DepthState` — only structured `Finding` objects cross back to the research_agent, and only `findings` cross from research_agent to V4State. Citations are assembled in Python from `findings[*].source_urls`; the formatter LLM emits ONLY bullet text. `TOTAL_SECTIONS=1`. Prompts in `research/overview/v4/prompts/`. Tunable via `OVERVIEW_V4_*` env vars (see below).
 
 **Elections flow** (`routers/elections.py`):
 1. `POST /api/elections` receives address → calls Google Civic API (`services/elections.py`) for upcoming elections, contests, candidates, and voter info
@@ -97,7 +98,7 @@ cd frontend && npx shadcn@latest add <component-name>
 - `redis.py` — `RedisRepCache` and `RedisElectionCache` (used when `REDIS_URL` is set)
 - `dependencies.py` — lazy singletons: `get_rep_cache()`, `get_election_cache()`, `get_issue_cache()`, `get_research_store()`
 
-**Database** (`db.py`) manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Supports two connection modes: `DB_SOCKET_PATH` for Unix socket (Cloud Run with Cloud SQL proxy sidecar) or `DATABASE_URL` DSN (local dev via Cloud SQL Auth Proxy). Contains `save_research_task()` for persisting research usage data (including model, token costs, search tool, cost per search, environment, and `task_type` — `"rep:v1"` / `"rep:v2"` / `"rep:v3"` for overview research, `"election"`, or `"issue"`; the suffix encodes the overview pipeline version), `save_transactions()` for writing LLM/search cost outflows to the `transactions` ledger, and `get_issues_taxonomy()` for loading the issues classification taxonomy. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
+**Database** (`db.py`) manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Supports two connection modes: `DB_SOCKET_PATH` for Unix socket (Cloud Run with Cloud SQL proxy sidecar) or `DATABASE_URL` DSN (local dev via Cloud SQL Auth Proxy). Contains `save_research_task()` for persisting research usage data (including model, token costs, search tool, cost per search, environment, and `task_type` — `"rep:v1"` / `"rep:v2"` / `"rep:v3"` / `"rep:v4"` for overview research, `"election"`, or `"issue"`; the suffix encodes the overview pipeline version), `save_transactions()` for writing LLM/search cost outflows to the `transactions` ledger, and `get_issues_taxonomy()` for loading the issues classification taxonomy. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
@@ -135,10 +136,11 @@ The app is fully Langfuse-instrumented. When investigating agent/LLM behavior (r
 **Trace names** (from `@observe(name=...)` and LangChain `run_name`):
 - Rep overview v1/v2: `{v}-research-pipeline`, `{v}-section-agent` + inner LangChain `run_name="{v}:{section}:{rep}"`. v2 also has `v2-synthesis` (non-tool bullet synthesis).
 - Rep overview v3: `v3-research-pipeline`, `v3-query-gen`, `v3-distill` (no per-section spans — v3 fans out searches without section agents).
+- Rep overview v4: `v4-research-pipeline`, `v4-query-gen`, `v4-research-agent` (one span per pipeline run), `v4-formatter`. Depth subagent runs are nested LangChain spans under the research_agent span (no top-level `@observe` on the depth subgraph — its work is part of the research_agent's trace tree).
 - Elections: `election-ballot-overview` (single sync LLM span).
 - Issues: `issue-match` (taxonomy classifier), `issue-stance-agent` (Tavily-backed per-rep research).
 
-**Cross-reference to the DB:** `research_tasks.task_type` encodes the pipeline variant — `rep:v1` / `rep:v2` / `rep:v3` / `election` / `issue`. Use traces for "what happened in one run" and Postgres (`research_tasks`, `transactions`) for cross-run cost/token aggregates. The pipeline version came from the `OVERVIEW_PIPELINE_VERSION` env var at import time, so a trace's name prefix and its `task_type` suffix must agree — mismatches mean a bad deploy or env change mid-session.
+**Cross-reference to the DB:** `research_tasks.task_type` encodes the pipeline variant — `rep:v1` / `rep:v2` / `rep:v3` / `rep:v4` / `election` / `issue`. Use traces for "what happened in one run" and Postgres (`research_tasks`, `transactions`) for cross-run cost/token aggregates. The pipeline version came from the `OVERVIEW_PIPELINE_VERSION` env var at import time, so a trace's name prefix and its `task_type` suffix must agree — mismatches mean a bad deploy or env change mid-session.
 
 ## Environment Variables
 
@@ -152,12 +154,19 @@ Required in `.env` at project root:
 - `CLAUDE_MODEL` — model ID for the research agent (e.g. `claude-sonnet-4-20250514`)
 - `SEARCH_TOOL` — which search provider is in use (default `tavily`). Recorded in the `research_tasks` table for cost tracking.
 - `RESEARCH_MAX_TOKENS` — max token output for each section research agent
-- `OVERVIEW_PIPELINE_VERSION` — which rep overview pipeline to run: `v1` (default, 5 section agents), `v2` (sections → synthesis bullets), or `v3` (static-query fan-out → distill bullets). Read at import time by `research/overview/__init__.py`; also encoded into `research_tasks.task_type` (`rep:v1`/`rep:v2`/`rep:v3`) and into Langfuse trace names.
+- `OVERVIEW_PIPELINE_VERSION` — which rep overview pipeline to run: `v1` (default, 5 section agents), `v2` (sections → synthesis bullets), `v3` (static-query fan-out → distill bullets), or `v4` (LangGraph breadth + adaptive depth). Read at import time by `research/overview/__init__.py`; also encoded into `research_tasks.task_type` (`rep:v1`/`rep:v2`/`rep:v3`/`rep:v4`) and into Langfuse trace names.
 - `OVERVIEW_V3_NUM_QUERIES` — v3 only: number of search queries to generate (default `15`)
 - `OVERVIEW_V3_RESULTS_PER_QUERY` — v3 only: Tavily results per query (default `5`)
 - `OVERVIEW_V3_SEARCH_CONCURRENCY` — v3 only: max in-flight Tavily calls (default `5`)
 - `OVERVIEW_V3_RESULTS_CEILING` — v3 only: cap on total results fed to distillation (default `60`)
 - `OVERVIEW_V3_SNIPPET_CHAR_CAP` — v3 only: max chars per snippet before distillation (default `800`)
+- `OVERVIEW_V4_NUM_QUERIES` — v4 only: number of breadth queries (default `18`)
+- `OVERVIEW_V4_RESULTS_PER_QUERY` — v4 only: Tavily results per query (default `5`)
+- `OVERVIEW_V4_SEARCH_CONCURRENCY` — v4 only: max in-flight Tavily calls (default `5`)
+- `OVERVIEW_V4_RESULTS_CEILING` — v4 only: cap on total results fed to research_agent (default `60`)
+- `OVERVIEW_V4_SNIPPET_CHAR_CAP` — v4 only: max chars per snippet (default `800`)
+- `OVERVIEW_V4_AGENT_MAX_DEPTH_CALLS` — v4 only: max depth-research calls per pipeline run (default `3`)
+- `OVERVIEW_V4_DEPTH_RECURSION_LIMIT` — v4 only: recursion limit per depth subagent (default `8`)
 - `LANGFUSE_SECRET_KEY` — Langfuse tracing secret key
 - `LANGFUSE_PUBLIC_KEY` — Langfuse tracing public key
 - `LANGFUSE_BASE_URL` — Langfuse tracing base URL
