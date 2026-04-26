@@ -1,0 +1,7 @@
+Official: $name
+Office: $office
+
+Topic to investigate: $topic
+Why depth was requested: $reason
+
+Use ``web_search`` to find current information on this specific topic. When done, respond with a brief message indicating completion.

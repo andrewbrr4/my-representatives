@@ -1,0 +1,14 @@
+Official: $name
+Office: $office
+
+Findings (each numbered; cite by the [N] of the URL list below, not these):
+
+$findings_block
+
+Numbered URL list (use these N values for ``[N]`` markers in your bullets):
+
+$citations_block
+
+---
+
+Produce 5–8 blended bullets per the system instructions. Populate ONLY the ``bullets`` field of your structured output. Do not output a citation list.

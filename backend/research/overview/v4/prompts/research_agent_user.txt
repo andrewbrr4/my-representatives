@@ -1,0 +1,10 @@
+Official: $name
+Office: $office
+
+Pre-filtered search results (cite URLs from this list when relevant):
+
+$results_block
+
+---
+
+Review these results. Identify any claims that look potentially stale and where freshness matters per your instructions, and call ``request_depth_research`` for those (up to $max_depth_calls calls total). When you have used your budget appropriately or determined no depth research is needed, respond with a brief message indicating you are done — the ``finalize`` step will then extract structured findings from the breadth results and any depth findings.
