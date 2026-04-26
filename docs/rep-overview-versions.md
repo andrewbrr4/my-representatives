@@ -93,3 +93,32 @@ None of these are fixed by the recent synthesis/schema cleanup — the cleanup w
 **Tradeoffs:**
 - No adaptive search — if a query surfaces an interesting lead, v3 can't chase it. For a rep overview this is fine (you know what you're looking for upfront); for open-ended research it wouldn't be.
 - Query quality matters a lot. Bad queries → nothing good for the distiller to work with.
+
+---
+
+## V4: LangGraph Breadth + Adaptive Depth
+
+**Architecture:** v3's breadth-first search posture, plus an optional depth pass for volatile subtopics, expressed as a LangGraph `StateGraph(V4State)` with two nested compiled subgraphs. State isolation across subgraph boundaries replaces v1/v2's per-section agents and prevents token accumulation.
+
+**Backend:** `research/overview/v4/pipeline.py`
+**Frontend:** shares `components/overview/bullets/` with v2/v3 (dispatched by response shape in `components/overview/index.tsx`)
+**Prompts:** `research/overview/v4/prompts/` (`query_gen_*`, `research_agent_*`, `depth_agent_*`, `formatter_*`)
+
+**How it works:**
+1. **query_generator** — 1 LLM call with `with_structured_output(_QueryList)` emits `OVERVIEW_V4_NUM_QUERIES` (default 18) breadth-first queries. No tools.
+2. **breadth_search** — Tavily fan-out bounded by `OVERVIEW_V4_SEARCH_CONCURRENCY` (default 5), `OVERVIEW_V4_RESULTS_PER_QUERY` results per query (default 5). No LLM.
+3. **filter** — heuristic dedupe by URL, snippet truncation, total cap (`OVERVIEW_V4_RESULTS_CEILING`, default 60).
+4. **research_agent** — compiled subgraph (`StateGraph(ResearchAgentState)`) with three nodes: `agent` (LLM bound to `request_depth_research`), `tools` (`ToolNode`), `finalize` (extracts structured `Finding` list via `with_structured_output`). The agent's prompt directs it to call depth research only for volatile claims (controversies, pending litigation, candidacy status, breaking news), capped at `OVERVIEW_V4_AGENT_MAX_DEPTH_CALLS` (default 3) calls per run.
+5. **depth_subgraph** — same three-node pattern as the research_agent, but bound to the Tavily `web_search` tool. Per-topic isolated `DepthState`. The `request_depth_research` tool returns a `Command(update={"depth_findings": [...], "messages": [ToolMessage(...)]})` so depth findings flow into the research_agent's state without exposing the depth subagent's full message history.
+6. **formatter** — 1 LLM call with `with_structured_output(_FormatterBullets)` emits ONLY bullet text. The unified citation list is assembled in Python from `findings[*].source_urls` against the filtered_results pool — never round-tripped through the LLM. `_FormatterBullets` is a single `BulletList` field, the smallest possible schema (no nullable union, no Optional), inheriting the v2 stringified-array fix.
+- `TOTAL_SECTIONS = 1`; the store completes once at the end.
+
+**What v4 is trying to fix:**
+- v3's lack of adaptive search — controversies/litigation/candidacy claims could be stale because v3 has no way to refresh on demand.
+- v1/v2's token accumulation — the agent loop pattern caused snippet re-reads on every LLM turn. v4 solves this with **state isolation across subgraphs**: the research_agent never sees a depth subagent's `messages`, only its structured findings. Each subgraph has its own context window scope.
+- v2's stringified-bullets bug — formatter emits only `bullets` (no citations field), so the schema stays minimal.
+
+**Tradeoffs:**
+- **Latency floor higher than v3.** v3 is 2 LLM calls (query_gen + distill). v4 is at minimum 3 (query_gen + research_agent + formatter), more if the agent calls depth.
+- **Agent recursion still possible.** Even with state isolation across subgraphs, the research_agent's own ReAct loop can spiral. Mitigated by `recursion_limit=12` and the prompt-enforced depth-call budget.
+- **Depth-trigger quality is a prompt-engineering concern**, not an architecture concern — tunable after observation.
