@@ -9,6 +9,7 @@ from langfuse import observe
 from research.overview.v4.models import SearchResult
 from research.overview.v4.state import V4State
 from research.search import tavily_search_raw
+from research.usage import UsageStats
 
 logger = logging.getLogger(__name__)
 
@@ -45,4 +46,10 @@ async def breadth_search(state: V4State) -> dict:
         f"[v4] Breadth search: {successful}/{len(queries)} queries returned "
         f"results; {len(flat)} total"
     )
-    return {"raw_results": flat}
+    # Charge each successful Tavily call as one tool_call so the cost
+    # ledger picks it up (matches v3's accounting). LLM token counts are
+    # zero — this node makes no LLM calls.
+    return {
+        "raw_results": flat,
+        "usage_log": [UsageStats(tool_calls=successful)],
+    }
