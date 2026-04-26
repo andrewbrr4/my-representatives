@@ -74,30 +74,66 @@ def _route_after_agent(state: DepthState) -> str:
     return "finalize"
 
 
+def _format_conversation_for_extraction(messages: list) -> str:
+    """Render the depth subagent's conversation as a plain-text transcript
+    for the extractor. Avoids passing raw AIMessages directly (which would
+    leave the conversation ending on an assistant turn — Anthropic rejects
+    that for new requests)."""
+    from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+    lines = []
+    for m in messages:
+        if isinstance(m, HumanMessage):
+            lines.append(f"[user] {m.content}")
+        elif isinstance(m, AIMessage):
+            text = m.content if isinstance(m.content, str) else str(m.content)
+            calls = getattr(m, "tool_calls", None) or []
+            if calls:
+                call_repr = "; ".join(
+                    f"{c.get('name', '?')}({c.get('args', {})})" for c in calls
+                )
+                lines.append(f"[assistant tool_calls] {call_repr}")
+            if text:
+                lines.append(f"[assistant] {text}")
+        elif isinstance(m, ToolMessage):
+            lines.append(f"[tool_result] {m.content}")
+        else:
+            lines.append(f"[{type(m).__name__}] {getattr(m, 'content', '')}")
+    return "\n\n".join(lines) or "(empty conversation)"
+
+
 async def _finalize_node(state: DepthState) -> dict:
     """Extract a structured ``list[Finding]`` from the depth conversation.
 
-    Uses a fresh model instance with ``with_structured_output`` — the
-    extractor sees the full message history and emits ``Finding`` objects.
+    Uses a fresh model instance with ``with_structured_output``. We render
+    the depth conversation as a single user-message transcript so the
+    extraction request ends on a user turn (Anthropic requires this for
+    structured-output tool use).
     """
     model = ChatAnthropic(
         model=os.environ["CLAUDE_MODEL"],
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     ).with_structured_output(_FindingsList)
 
-    extraction_prompt = SystemMessage(
+    transcript = _format_conversation_for_extraction(state.get("messages") or [])
+    system_prompt = SystemMessage(
         content=(
             f"You are extracting structured findings from a depth-research "
             f"conversation about an elected official, focused on the topic: "
-            f"{state['topic']!r}. Read the conversation that follows and emit "
-            "a list of Finding objects (claim, source_urls, topic). The "
-            "``topic`` field on every Finding should be set to "
-            f"{state['topic']!r}. Cite only URLs that appeared in the "
-            "search results. If the conversation surfaced no usable claims, "
-            "return an empty findings list."
+            f"{state['topic']!r}. For every Finding: claim is one factual "
+            "sentence; source_urls lists URLs that appeared in tool_result "
+            "blocks of the transcript; topic should be set to "
+            f"{state['topic']!r}. If the conversation surfaced no usable "
+            "claims, return an empty findings list. Do not invent URLs."
         )
     )
-    result = await model.ainvoke([extraction_prompt, *state["messages"]])
+    user_prompt = HumanMessage(
+        content=(
+            f"Depth-research conversation transcript:\n\n{transcript}\n\n"
+            f"---\n\nExtract structured Finding objects now."
+        )
+    )
+    result = await model.ainvoke([system_prompt, user_prompt])
     findings = [
         Finding(claim=f.claim, source_urls=f.source_urls, topic=state["topic"])
         for f in result.findings
