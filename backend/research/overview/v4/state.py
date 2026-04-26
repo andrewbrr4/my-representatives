@@ -19,6 +19,7 @@ from langgraph.graph.message import add_messages
 
 from models import Representative
 from research.overview.v4.models import Finding, ResearchSummary, SearchResult
+from research.usage import UsageStats
 
 
 class V4State(TypedDict, total=False):
@@ -30,6 +31,9 @@ class V4State(TypedDict, total=False):
     filtered_results: list[SearchResult]
     findings: list[Finding]
     summary: ResearchSummary | None
+    # Aggregated LLM/tool usage. Each node that does LLM work appends a
+    # ``UsageStats`` to this list; the pipeline entrypoint sums them.
+    usage_log: Annotated[list[UsageStats], operator.add]
 
 
 class ResearchAgentState(TypedDict, total=False):
