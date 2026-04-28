@@ -31,6 +31,9 @@ logger = logging.getLogger(__name__)
 _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 _AGENT_RECURSION_LIMIT = 12
 _MAX_DEPTH_CALLS = int(os.getenv("OVERVIEW_V4_AGENT_MAX_DEPTH_CALLS", "3"))
+_DEPTH_ENABLED = os.getenv("OVERVIEW_V4_DEPTH_ENABLED", "true").strip().lower() in (
+    "1", "true", "yes", "on"
+)
 
 
 def _format_results_block(results: list[SearchResult]) -> str:
@@ -55,6 +58,13 @@ async def research_agent_node(state: V4State) -> dict:
     """
     rep = state["rep"]
     filtered_results = state.get("filtered_results") or []
+
+    if not _DEPTH_ENABLED:
+        logger.info(
+            f"[v4] research_agent for {rep.name}: depth disabled "
+            f"(OVERVIEW_V4_DEPTH_ENABLED=false); skipping triage + depth subagents"
+        )
+        return {"depth_search_results": [], "usage_log": []}
 
     system_template = Template((_PROMPTS_DIR / "research_agent_system.txt").read_text())
     user_template = Template((_PROMPTS_DIR / "research_agent_user.txt").read_text())

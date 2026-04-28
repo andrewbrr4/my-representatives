@@ -165,7 +165,8 @@ Required in `.env` at project root:
 - `OVERVIEW_V4_SEARCH_CONCURRENCY` — v4 only: max in-flight Tavily calls (default `5`)
 - `OVERVIEW_V4_RESULTS_CEILING` — v4 only: cap on total results fed to research_agent (default `60`)
 - `OVERVIEW_V4_SNIPPET_CHAR_CAP` — v4 only: max chars per snippet (default `800`)
-- `OVERVIEW_V4_AGENT_MAX_DEPTH_CALLS` — v4 only: max depth-research calls per pipeline run (default `3`)
+- `OVERVIEW_V4_AGENT_MAX_DEPTH_CALLS` — v4 only: max depth-research calls per pipeline run (default `3`). **Soft signal only** — substituted into the research_agent prompt; not enforced in code. Use `OVERVIEW_V4_DEPTH_ENABLED=false` to actually skip the depth path.
+- `OVERVIEW_V4_DEPTH_ENABLED` — v4 only: when `false`, the research_agent node short-circuits to an empty depth result and skips the triage LLM call + depth subagents entirely (default `true`). Use to A/B breadth-only vs. breadth+depth, or to cut latency when depth isn't needed.
 - `OVERVIEW_V4_DEPTH_RECURSION_LIMIT` — v4 only: recursion limit per depth subagent (default `8`)
 - `LANGFUSE_SECRET_KEY` — Langfuse tracing secret key
 - `LANGFUSE_PUBLIC_KEY` — Langfuse tracing public key
