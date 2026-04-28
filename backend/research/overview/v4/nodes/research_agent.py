@@ -1,12 +1,12 @@
-"""Research-agent subgraph + V4State wrapper node.
+"""Research-agent node — a ``create_react_agent`` with a closure-bound depth tool.
 
-Subgraph topology:
-  agent ──tool_calls──▶ tools ──▶ agent
-  agent ──no calls──▶ finalize ──▶ END
-
-State boundary: only ``findings`` (the structured output of finalize)
-crosses back to V4State. The agent's ``messages`` history and
-``depth_findings`` accumulator stay inside ResearchAgentState.
+The agent loops on ``messages`` until it stops calling tools. Each
+``request_depth_research`` tool call writes typed ``SearchResult``
+objects (tagged with the depth topic) into the agent's
+``depth_search_results`` channel via ``Command(update=...)``. Only
+``depth_search_results`` crosses back to ``V4State`` — the agent's
+``messages`` history (breadth results in the seed prompt + tool result
+acknowledgements) stays inside ``ResearchAgentState``.
 """
 
 import logging
@@ -16,14 +16,12 @@ from pathlib import Path
 from string import Template
 
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from langfuse import observe
 from langfuse.langchain import CallbackHandler
-from langgraph.graph import END, START, StateGraph
-from langgraph.prebuilt import ToolNode
-from pydantic import BaseModel, Field
+from langgraph.prebuilt import create_react_agent
 
-from research.overview.v4.models import Finding, SearchResult
+from research.overview.v4.models import SearchResult
 from research.overview.v4.state import ResearchAgentState, V4State
 from research.overview.v4.tools.request_depth import make_request_depth_tool
 from research.usage import UsageTracker
@@ -33,10 +31,6 @@ logger = logging.getLogger(__name__)
 _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 _AGENT_RECURSION_LIMIT = 12
 _MAX_DEPTH_CALLS = int(os.getenv("OVERVIEW_V4_AGENT_MAX_DEPTH_CALLS", "3"))
-
-
-class _FindingsList(BaseModel):
-    findings: list[Finding] = Field(default_factory=list)
 
 
 def _format_results_block(results: list[SearchResult]) -> str:
@@ -51,7 +45,17 @@ def _format_results_block(results: list[SearchResult]) -> str:
     return "\n\n".join(lines)
 
 
-def _build_initial_messages(state: ResearchAgentState) -> list:
+@observe(name="v4-research-agent")
+async def research_agent_node(state: V4State) -> dict:
+    """V4State wrapper around a per-run ``create_react_agent``.
+
+    The agent's only tool is the closure-bound ``request_depth_research``,
+    so ``rep`` is captured without being exposed to the LLM. Only
+    ``depth_search_results`` crosses back to V4State.
+    """
+    rep = state["rep"]
+    filtered_results = state.get("filtered_results") or []
+
     system_template = Template((_PROMPTS_DIR / "research_agent_system.txt").read_text())
     user_template = Template((_PROMPTS_DIR / "research_agent_user.txt").read_text())
     system_prompt = system_template.substitute(
@@ -59,152 +63,48 @@ def _build_initial_messages(state: ResearchAgentState) -> list:
         max_depth_calls=str(_MAX_DEPTH_CALLS),
     )
     user_prompt = user_template.substitute(
-        name=state["rep"].name,
-        office=state["rep"].office,
-        results_block=_format_results_block(state["filtered_results"]),
+        name=rep.name,
+        office=rep.office,
+        results_block=_format_results_block(filtered_results),
         max_depth_calls=str(_MAX_DEPTH_CALLS),
     )
-    return [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
 
-
-def build_research_agent_graph(request_depth_tool):
-    """Build (and compile) a research_agent subgraph bound to ``request_depth_tool``.
-
-    The tool is rep-specific (closure-bound), so the graph is built per
-    pipeline run.
-    """
-
-    async def _agent_node(state: ResearchAgentState) -> dict:
-        model = ChatAnthropic(
-            model=os.environ["CLAUDE_MODEL"],
-            max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
-        ).bind_tools([request_depth_tool])
-
-        messages = state.get("messages") or []
-        if not messages:
-            messages = _build_initial_messages(state)
-        response = await model.ainvoke(messages)
-        if not state.get("messages"):
-            return {"messages": messages + [response]}
-        return {"messages": [response]}
-
-    def _route_after_agent(state: ResearchAgentState) -> str:
-        last = state["messages"][-1]
-        if getattr(last, "tool_calls", None):
-            return "tools"
-        return "finalize"
-
-    async def _finalize_node(state: ResearchAgentState) -> dict:
-        """Extract structured findings from filtered_results + depth_findings.
-
-        Depth findings carry authoritative-fresh information for their
-        topics; the extractor is told to prefer them on overlap.
-        """
-        model = ChatAnthropic(
-            model=os.environ["CLAUDE_MODEL"],
-            max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
-        ).with_structured_output(_FindingsList)
-
-        depth = state.get("depth_findings") or []
-        depth_block = "(none)"
-        if depth:
-            lines = []
-            for f in depth:
-                urls = ", ".join(f.source_urls[:3])
-                lines.append(
-                    f"- topic={f.topic!r}: {f.claim} (sources: {urls})"
-                )
-            depth_block = "\n".join(lines)
-
-        extraction_prompt = SystemMessage(
-            content=(
-                "You are extracting structured Finding objects from research "
-                "material about an elected official. For every Finding: "
-                "claim is one factual sentence; source_urls lists URLs from "
-                "the materials below; topic is a short category like "
-                "'policy', 'record', 'controversy', 'donors', 'candidacy'.\n\n"
-                "When the breadth results and depth findings overlap on a "
-                "topic, the DEPTH FINDINGS are authoritative-fresh — prefer "
-                "them and discard stale breadth claims on that topic.\n\n"
-                "Cite only URLs that actually appear in the materials. "
-                "Aim for 8–14 findings total (fewer is fine if breadth is "
-                "thin). Do not invent claims."
-            )
-        )
-
-        materials = HumanMessage(
-            content=(
-                f"Official: {state['rep'].name}\n"
-                f"Office: {state['rep'].office}\n\n"
-                f"Pre-filtered breadth search results:\n\n"
-                f"{_format_results_block(state['filtered_results'])}\n\n"
-                f"---\n\nDepth-research findings (authoritative-fresh):\n\n"
-                f"{depth_block}\n\n"
-                f"---\n\nExtract Findings now."
-            )
-        )
-
-        result = await model.ainvoke([extraction_prompt, materials])
-        logger.info(
-            f"[v4] research_agent finalize for {state['rep'].name}: "
-            f"{len(result.findings)} findings (depth contributed "
-            f"{len(depth)})"
-        )
-        return {"findings": result.findings}
-
-    g = StateGraph(ResearchAgentState)
-    g.add_node("agent", _agent_node)
-    g.add_node("tools", ToolNode([request_depth_tool]))
-    g.add_node("finalize", _finalize_node)
-    g.add_edge(START, "agent")
-    g.add_conditional_edges(
-        "agent",
-        _route_after_agent,
-        {"tools": "tools", "finalize": "finalize"},
+    request_depth_tool = make_request_depth_tool(rep)
+    model = ChatAnthropic(
+        model=os.environ["CLAUDE_MODEL"],
+        max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     )
-    g.add_edge("tools", "agent")
-    g.add_edge("finalize", END)
-    return g.compile()
+    agent = create_react_agent(
+        model,
+        tools=[request_depth_tool],
+        state_schema=ResearchAgentState,
+        prompt=system_prompt,
+    )
 
-
-@observe(name="v4-research-agent")
-async def research_agent_node(state: V4State) -> dict:
-    """V4State wrapper: build the per-run subgraph, invoke it, return only
-    ``findings`` to V4State. The agent's messages and depth_findings
-    accumulator stay inside ResearchAgentState and are dropped at the
-    boundary.
-    """
-    rep = state["rep"]
     langfuse_handler = CallbackHandler()
     usage_tracker = UsageTracker()
 
-    request_depth_tool = make_request_depth_tool(rep)
-    agent_graph = build_research_agent_graph(request_depth_tool)
-
-    inner: ResearchAgentState = {
+    initial: ResearchAgentState = {
+        "messages": [HumanMessage(content=user_prompt)],
         "rep": rep,
-        "filtered_results": state["filtered_results"],
-        "messages": [],
-        "depth_findings": [],
-        "findings": [],
+        "filtered_results": filtered_results,
+        "depth_search_results": [],
     }
-    result = await agent_graph.ainvoke(
-        inner,
+    result = await agent.ainvoke(
+        initial,
         config={
             "callbacks": [langfuse_handler, usage_tracker],
             "recursion_limit": _AGENT_RECURSION_LIMIT,
             "run_name": f"v4:research-agent:{rep.name}",
         },
     )
-    findings = result.get("findings") or []
+
+    depth_search_results = result.get("depth_search_results") or []
     logger.info(
-        f"[v4] research_agent_node for {rep.name}: {len(findings)} findings, "
+        f"[v4] research_agent for {rep.name}: {len(depth_search_results)} depth results, "
         f"{usage_tracker.stats.tool_calls} depth calls"
     )
-    return {"findings": findings, "usage_log": [usage_tracker.stats]}
+    return {"depth_search_results": depth_search_results, "usage_log": [usage_tracker.stats]}
 
 
-__all__ = [
-    "build_research_agent_graph",
-    "research_agent_node",
-]
+__all__ = ["research_agent_node"]

@@ -4,4 +4,4 @@ Office: $office
 Topic to investigate: $topic
 Why depth was requested: $reason
 
-Use ``web_search`` to find current information on this specific topic. When done, respond with a brief message indicating completion.
+Use ``depth_tavily_search`` to find current information on this specific topic. The pipeline captures search results structurally; you don't need to extract findings yourself. When you have enough coverage, respond with a brief acknowledgement message.

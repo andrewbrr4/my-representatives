@@ -5,7 +5,6 @@ import logging
 import os
 
 from langchain_core.tools import tool
-from langfuse import observe
 from tavily import AsyncTavilyClient
 
 logger = logging.getLogger(__name__)
@@ -63,7 +62,6 @@ async def web_search(query: str) -> str:
     return "Search failed. Try a different query."
 
 
-@observe(name="tavily-search")
 async def tavily_search_raw(
     query: str, max_results: int = 5
 ) -> list[dict[str, str]]:
