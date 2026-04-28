@@ -1,0 +1,16 @@
+Official: $name
+Office: $office
+
+## Breadth search results
+
+$breadth_block
+
+---
+
+## Depth-research results (focused on volatile subtopics — prefer these on overlap)
+
+$depth_block
+
+---
+
+Write 5–8 blended bullets per the system instructions. For each bullet, populate ``text`` with the bare one-liner (no ``[N]`` markers) and ``source_urls`` with the URLs from the materials above that support the claim.

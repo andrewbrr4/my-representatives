@@ -96,102 +96,29 @@ None of these are fixed by the recent synthesis/schema cleanup — the cleanup w
 
 ---
 
-## The Fundamental Tension
+## V4: LangGraph Breadth + Adaptive Depth
 
-- **Broad unified research** = one agent doing many searches = search results accumulate in the agent's conversation context = input tokens explode
-- **Narrow scoped research** = multiple agents with small context = manageable tokens but contradictions, gaps, and incoherence
+**Architecture:** v3's breadth-first search posture, plus an optional depth pass for volatile subtopics, expressed as a LangGraph `StateGraph(V4State)`. The research_agent and the depth subagent are both `create_react_agent` instances (LangGraph prebuilt). State isolation across subagent boundaries replaces v1/v2's per-section agents and prevents token accumulation.
 
-This is a context window management problem, not just a pipeline architecture problem.
+**Backend:** `research/overview/v4/pipeline.py`
+**Frontend:** shares `components/overview/bullets/` with v2/v3 (dispatched by response shape in `components/overview/index.tsx`)
+**Prompts:** `research/overview/v4/prompts/` (`query_gen_*`, `research_agent_*`, `depth_agent_*`, `formatter_*`)
 
----
+**How it works:**
+1. **query_generator** — 1 LLM call with `with_structured_output(_QueryList)` emits `OVERVIEW_V4_NUM_QUERIES` (default 18) breadth-first queries. No tools.
+2. **breadth_search** — Tavily fan-out bounded by `OVERVIEW_V4_SEARCH_CONCURRENCY` (default 5), `OVERVIEW_V4_RESULTS_PER_QUERY` results per query (default 5). No LLM.
+3. **filter** — heuristic dedupe by URL, snippet truncation, total cap (`OVERVIEW_V4_RESULTS_CEILING`, default 60).
+4. **research_agent** — `create_react_agent` with a custom `ResearchAgentState` (extends `langgraph.prebuilt.chat_agent_executor.AgentState` with `rep`, `filtered_results`, `depth_search_results`). Single closure-bound tool: `request_depth_research`. Prompt directs it to call depth only for volatile claims (controversies, pending litigation, candidacy status, breaking news), capped at `OVERVIEW_V4_AGENT_MAX_DEPTH_CALLS` (default 3) per run. The agent does NOT extract or summarize — its sole job is to decide which subtopics need depth.
+5. **depth subagent** — also a `create_react_agent`, with a custom `DepthState` (extends `AgentState` with `rep`, `topic`, `reason`, `search_results`). Single tool: `depth_tavily_search`, which calls Tavily and returns `Command(update={search_results: [SearchResult], messages: [ToolMessage(formatted)]})` — the structured results accumulate in `DepthState.search_results` (via reducer) while the formatted snippet block goes back to the LLM as a normal `ToolMessage` so the next turn can reason over what was found. When the agent stops calling tools, only `search_results` crosses out via `request_depth_research`'s `Command(update={depth_search_results: [...], messages: [ack ToolMessage]})`. The Tavily ToolMessage transcripts stay inside `DepthState`.
+6. **formatter** — 1 LLM call with `with_structured_output(_FormatterOutput)`. Schema is `bullets: list[_Bullet(text, source_urls)]` — the LLM emits per-bullet bare text plus the URLs it cites. Formatter takes `filtered_results` + `depth_search_results` (both `list[SearchResult]`, fully symmetric), instructed to prefer depth on overlap; depth results are grouped by topic in the prompt so the formatter can see which subtopics were investigated. Python then (a) assembles the unified citation list from `bullets[*].source_urls` (URL first-appearance order, deduped, looked up against the combined breadth+depth pool), (b) appends `[N1][N2]...` markers to each bullet text. The LLM never emits `[N]` markers, so the bullets and citation list can never disagree. The "stringified array" bug from v2 doesn't apply because the schema is `list[BaseModel]`, not `list[str]` with a nullable union.
+- `TOTAL_SECTIONS = 1`; the store completes once at the end.
 
-## Research: Approaches for V2+
+**What v4 is trying to fix:**
+- v3's lack of adaptive search — controversies/litigation/candidacy claims could be stale because v3 has no way to refresh on demand.
+- v1/v2's token accumulation — the agent loop pattern caused snippet re-reads on every LLM turn. v4 solves this with **state isolation across subagents**: the research_agent never sees a depth subagent's `messages`, only its structured `SearchResult` list. Each subagent has its own context window scope.
+- LLM/Python disagreement on citation N — by having the LLM emit URLs and Python emit markers, there's only one source of truth.
 
-Findings from research sessions exploring alternative architectures.
-
-### Recommended direction: Search Outside the LLM Loop
-
-For a representative overview — not open-ended research — you don't need adaptive search. You know upfront what you're looking for. Adaptive search (where finding X leads you to search for Y) adds complexity and token cost without much marginal benefit here.
-
-**Proposed 2-stage pipeline:**
-1. **Information retrieval** — gather all raw information with citations, focused on breadth
-2. **Presentation** — separate step that synthesizes and formats for the user
-
-### Option A: Static Query Generation + Parallel Search + Single Synthesis
-
-1. One LLM call generates 12-18 targeted search queries
-2. Execute all Tavily searches in parallel (no LLM in the loop)
-3. Preprocessing: deduplicate by URL, truncate snippets, score/rank by recency
-4. Single synthesis LLM call with all results
-
-**Token math:** Tavily returns ~200-word snippets. At 5 results per query x 15 queries = 75 snippets x ~250 tokens = ~18-20K tokens input for synthesis. Well within context limits for a single call, and no accumulation since there's no agent loop.
-
-### Option B: Map-Reduce (if Option A's synthesis input is too large)
-
-Same as A for query generation + parallel search, but add a "map" step: for each search result batch, a small LLM call extracts key facts into bullet points. Then a "reduce" step synthesizes the extracted facts. Caps synthesis input regardless of search count.
-
-### Option C: Agent Loop with Compression (not recommended)
-
-Keep the agent pattern but periodically checkpoint — summarize findings, start fresh context with just the summary. Lossy at each compression step and complex. Skip it.
-
-### Hybrid Enhancement: Pre-structured Query Templates
-
-Instead of generating queries cold, maintain a template library:
-```
-QUERY_TEMPLATES = {
-  "policy": ["{name} policy positions {year}", "{name} voting record"],
-  "donors": ["{name} campaign finance FEC", "{name} top donors opensecrets"],
-  "controversy": ["{name} controversy criticism", "{name} ethics investigation"],
-  ...
-}
-```
-Let a small LLM call select and customize from templates rather than generate from scratch. Consistent coverage, deduplication by URL.
-
-### Enhancement: Source-Type Routing
-
-Some queries are better served by specific sources: OpenSecrets for donor data, Congress.gov/GovTrack for voting records, Ballotpedia for biographical/position summaries. Hit these directly rather than through Tavily for structured data types.
-
-### Enhancement: Cross-Reference / Contradiction Check
-
-After synthesis, one cheap LLM call specifically tasked with finding contradictions in the draft output. Addresses coherence without requiring unified search.
-
-### Output Format Considerations
-
-The 5-section bullet list is the wrong primitive. Bullets encourage exhaustive listing; voters want judgment.
-
-Proposed "what do I actually need to know" format:
-- **One-liner:** What this person is primarily known for, one sentence
-- **Key positions (3 max):** Their stances on the 3 most salient current issues
-- **Recent record:** 2-3 notable actions/votes in the last 2 years
-- **Watch out for (optional):** 1-2 things a critical voter should know. Omit if nothing significant.
-- **Top funder category:** Not a list — "primarily funded by [category]" with top donor named
-- **4-6 inline citations** total, not 40
-
-Key design decisions: hard caps force the LLM to exercise judgment rather than enumerate. Optional sections avoid false balance. Minimize citation count to the actually important ones.
-
-### How Deep Research Products Handle This
-
-Patterns from Perplexity Deep Research, Gemini Deep Research, etc.:
-- **Breadth-first then depth-first:** Wide search identifies important subtopics, focused searches go deep on those
-- **Chunked context with working memory:** "Working notes" scratchpad that's periodically compressed, rather than accumulating raw snippets
-- **Result scoring before synthesis:** Rank by recency + relevance before feeding to LLM, cutting synthesis input significantly
-
----
-
-## Version Swapping
-
-### Backend
-Set the `OVERVIEW_PIPELINE_VERSION` env var to `v1`, `v2`, or `v3` (default `v1`). `research/overview/__init__.py` reads it at import time and re-exports that package's `ResearchSummary`, `research_representative`, and `TOTAL_SECTIONS`. No code edits needed to switch.
-
-The active version is also stamped into:
-- `research_tasks.task_type` as `rep:v1` / `rep:v2` / `rep:v3` (for cost analysis by version)
-- Langfuse trace names (`v1-research-pipeline`, `v2-research-pipeline`, `v3-research-pipeline`, plus version-prefixed `run_name`s on each sub-call)
-- The rep cache key (so v1 and v2 results for the same rep don't collide)
-
-### Frontend
-Automatic. `components/overview/index.tsx` dispatches on response shape: if the summary has a `bullets` field (v2/v3) it renders the shared bullets view; otherwise (v1's sectioned shape) it renders the v1 component. No config needed when swapping backend versions.
-
-### Contract each backend version must satisfy
-- Export `ResearchSummary` (Pydantic model), `research_representative(rep, store, research_id)` (async function), and `TOTAL_SECTIONS` (int).
-- Prefix `@observe` trace names and `run_name`s with the version (e.g. `v2-synthesis`, `v3-distill`) so Langfuse traces are grouped cleanly.
-- If the summary shape is bullet-based, it must match the frontend `BulletsResearchSummary` interface in `components/overview/bullets/types.ts` (`bullets: string[]`, `citations: Citation[]`) — both fields are non-nullable; the loading state is represented by an empty `bullets` list combined with a `status` of `"loading"`. If the summary is section-based, it must match v1's `ResearchSummary` shape so `components/overview/v1/ResearchContent.tsx` can render it.
+**Tradeoffs:**
+- **Latency floor higher than v3.** v3 is 2 LLM calls (query_gen + distill). v4 is at minimum 3 (query_gen + research_agent + formatter), more if the agent calls depth (which adds the depth agent's own ReAct turns — though no longer a separate finalize call).
+- **Agent recursion still possible.** Both the research_agent and the depth subagent run prebuilt ReAct loops. Mitigated by `recursion_limit=12` (research) / `8` (depth) and the prompt-enforced depth-call budget.
+- **Depth-trigger quality is a prompt-engineering concern**, not an architecture concern — tunable after observation.

@@ -1,0 +1,69 @@
+"""LangGraph state schemas for v4.
+
+Three state schemas, one per scope. State isolation across subagent
+boundaries is the architectural argument for v4: a depth subagent's
+``messages`` history (potentially N tool results) lives and dies in
+``DepthState`` and never propagates to ``V4State`` — only structured
+``SearchResult`` lists cross boundaries.
+
+Reducers (``Annotated[..., operator.add]`` and ``add_messages``) are
+required only on fields that receive concurrent writes from parallel
+branches.
+"""
+
+import operator
+from typing import Annotated, TypedDict
+
+from langgraph.prebuilt.chat_agent_executor import AgentState
+
+from models import Representative
+from research.overview.v4.models import ResearchSummary, SearchResult
+from research.usage import UsageStats
+
+
+class V4State(TypedDict, total=False):
+    """Top-level pipeline state."""
+
+    rep: Representative
+    queries: list[str]
+    raw_results: Annotated[list[SearchResult], operator.add]   # parallel-merge
+    filtered_results: list[SearchResult]
+    depth_search_results: list[SearchResult]
+    summary: ResearchSummary | None
+    # Aggregated LLM/tool usage. Each node that does LLM work appends a
+    # ``UsageStats`` to this list; the pipeline entrypoint sums them.
+    usage_log: Annotated[list[UsageStats], operator.add]
+
+
+class ResearchAgentState(AgentState):
+    """Inner state for the research_agent (a ``create_react_agent``).
+
+    Extends LangGraph's prebuilt ``AgentState`` (which provides the
+    ``messages`` channel + step accounting) with the extra channels we
+    need: ``rep`` and ``filtered_results`` are passed in by the wrapper;
+    ``depth_search_results`` accumulates ``SearchResult`` objects written
+    by each ``request_depth_research`` tool call via ``Command(update=...)``.
+    Only ``depth_search_results`` crosses back to ``V4State``.
+    """
+
+    rep: Representative
+    filtered_results: list[SearchResult]
+    depth_search_results: Annotated[list[SearchResult], operator.add]
+
+
+class DepthState(AgentState):
+    """Inner state for one depth subagent (also a ``create_react_agent``).
+
+    Receives ``rep``, ``topic``, ``reason``. The depth Tavily tool writes
+    ``SearchResult`` objects into ``search_results`` via ``Command(update=...)``;
+    only that list crosses back out. The full ``messages`` history
+    (Tavily snippet ToolMessages, agent reasoning) never leaves this scope.
+    """
+
+    rep: Representative
+    topic: str
+    reason: str
+    search_results: Annotated[list[SearchResult], operator.add]
+
+
+__all__ = ["DepthState", "ResearchAgentState", "V4State"]
