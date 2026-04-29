@@ -51,6 +51,29 @@ Other quality smells:
 
 ---
 
+## Direction (aligned)
+
+A few framing decisions from reviewing the trace:
+
+- **Depth's real job is stale-info correction, not "deep-dive on hot topics."** The original motivation for depth was egregious staleness — a rep listed as running for office whose campaign already ended; a court case shown as ongoing that's actually settled. Triage on this trace fired 3× to dive into ongoing political drama (intra-party criticism, govt funding) — none of that needed depth, breadth already had it. Depth should fire **rarely** and only when a breadth result looks potentially-stale-and-load-bearing (campaign status, pending legal matters, leadership/role changes). Default mode for most reps should be breadth-only.
+- **Introduce a bucket taxonomy** (policy positions, voting record / accomplishments, donors, public statements, controversies, recent news, district context) to fix the "important topics silently dropped" failure mode. *How* to enforce it is open — these are options to **try**, ordered cheapest-first:
+  1. **Taxonomy via prompts only** (simplest): inject the bucket list into `query_generator` (queries-per-bucket) and `formatter` (must-attempt-coverage). One round of prompt edits, zero architectural change. Try this first — it may be enough.
+  2. **Add explicit categorization** (medium): after `filter`, attach a `bucket` field to each result via Python rules + small LLM batch call. `formatter` consumes pre-categorized input. Buys auditability of what landed where.
+  3. **Full decompose: categorize → score → render** (heaviest, per a recent design suggestion): three explicit phases — Python/Haiku categorize, deterministic per-bucket scoring, formatter renders only top-k buckets with explicit "no information found" for weak ones. Highest auditability + tunability, but most moving parts; only worth it if (1) and (2) prove insufficient.
+
+  Whatever level we pick, the taxonomy becomes **shared infrastructure** if we want it to: `query_generator` per-bucket queries, `filter` categorization, `research_agent` triage on weak buckets, `formatter` top-k rendering. Cheaper levels (option 1) only touch a couple of nodes.
+
+  **Open question — is the taxonomy user-visible?** Three options here too:
+  - **Hidden** (LLM-only process tool, flat bullets out): keeps v4's compact style; preserves narrative flow; but coverage gaps stay invisible to the user, which is the exact failure mode we're trying to fix.
+  - **Visible inline labels**: each bullet rendered with its bucket tag (e.g. `**Donors** — Schumer raised $X from...`); compact "no info found" entries for high-priority buckets that scored 0 (donors, voting record, policy positions). Builds trust without v1-style structural padding.
+  - **Visible v1-style sections**: explicit section headers with skeletons during loading. Highest trust signal, matches civic-info-product norms (BallotPedia-ish), but heaviest UI footprint.
+
+  Prerequisite for surfacing gaps: scoring/categorization must be observable in traces *before* we tell users "no info found" — a category that returned 0 because of a bad bucket assignment would be worse than silent omission.
+- **Aggressive domain filtering at the breadth/filter layer** (drop press releases, advocacy domains, YouTube, social) — these are 100% biased and currently leak through to citations.
+- **Pre-formatter shrinking has a latency tradeoff** — adding a separate LLM "filter/curate" call to shrink the formatter's input may not net-reduce wall time (you pay for two sequential LLM calls instead of one big one, unless the curation can run on Haiku and the formatter shrinks proportionally). Worth measuring before committing. Cheaper alternatives first: smaller snippets, smarter Python-side ranking in `filter`, domain blocklists.
+
+---
+
 ## query_generator
 
 _Observed: 6.5s for 18 queries, 1 LLM call (in=1k, out=306). Generated queries skewed political-news-y; #16 "Brooklyn career history" was wasted, #4/#15 (donors) returned weak results, several queries overlap (#5/#12 controversies, #4/#15 donors)._
@@ -58,7 +81,6 @@ _Observed: 6.5s for 18 queries, 1 LLM call (in=1k, out=306). Generated queries s
 _Ideas:_
 
 - [ ] **[L]** Run on Haiku — output is just a list of query strings, structured-output overhead is the only thing keeping this on Sonnet
-- [ ] **[L]** Cache queries per (rep_name, office) for short TTL — same rep on the same day shouldn't regen
 - [ ] **[Q]** Force coverage of a fixed taxonomy (policy positions, voting record, donors, recent news, controversies, accomplishments) — generator picks N queries *per* slot rather than N queries total, so policy/donor topics can't get squeezed out
 - [ ] **[Q]** Deduplicate / cluster queries before sending to Tavily (the LLM produced near-duplicates like #5 vs #12, #4 vs #15)
 - [ ] **[Q]** Pass current date into prompt so generator can request `published_date` filters and avoid generic biographical queries for senior incumbents
@@ -73,7 +95,8 @@ _Ideas:_
 - [ ] **[L]** Use Tavily `search_depth=basic` for breadth (faster) and reserve `advanced` for depth — currently both paths use the same setting
 - [ ] **[L]** Cap concurrency lower to reduce Tavily rate-limit retries (currently `OVERVIEW_V4_SEARCH_CONCURRENCY=5`); evaluate if 8–10 actually returns faster
 - [ ] **[L]** Per-query timeout w/ fallback (drop slowest 1–2 queries if they exceed the p90 latency)
-- [ ] **[Q]** Use Tavily's `include_domains` / `exclude_domains` to bias against Facebook/YouTube/press-release domains and toward news + .gov for federal reps
+- [x] **[Q]** Use Tavily's `include_domains` / `exclude_domains` to bias against Facebook/YouTube/press-release domains and toward news domains — _shipped: `_DEFAULT_EXCLUDE_DOMAINS` in `research/search.py`, env-overridable via `TAVILY_EXCLUDE_DOMAINS`. Excludes social/video + party committees (DSCC/DCCC/etc.). Tavily filter is domain-only — politician self-press subpaths (e.g. `schumer.senate.gov/newsroom/press-releases/...`) need a separate URL-path filter, see follow-up below._
+- [ ] **[Q]** URL-path filter for politician self-press releases — Tavily can't filter by path, so add Python-side regex in `filter` node to drop `*.senate.gov/newsroom/press-release*`, `*.house.gov/news/...`, and `appropriations.house.gov/news/press-releases/*` patterns. Without this, blanket-excluding `senate.gov`/`house.gov` from Tavily would also kill legitimate `congress.gov` cross-references, voting record pages, etc.
 - [ ] **[Q]** Add a date filter (`days=180` or `start_date`) to recency-sensitive queries so we don't waste slots on 2019 NYT articles
 - [ ] **[Q]** Per-query `max_results` instead of uniform 5 — broad queries get more, narrow queries get fewer
 - [ ] **[L+Q]** Skip duplicate-URL re-fetches across depth and breadth (right now depth issues a near-duplicate query and re-pays Tavily)
@@ -91,31 +114,30 @@ _Ideas:_
 
 ## research_agent
 
-_Observed: **41.3s — biggest single contributor.** Triage LLM (13.5s, in=12k tokens) decided to issue 3 `request_depth_research` calls in parallel; depth subagents took up to 19.1s; then a final LLM call (8.6s, in=16.5k tokens) rolled it all up before handing to formatter. The 3 depth topics (intra-party criticism / midterm strategy / govt funding) heavily overlapped each other and the breadth queries._
+_Observed: **41.3s — biggest single contributor.** Triage LLM (13.5s, in=12k tokens) decided to issue 3 `request_depth_research` calls in parallel; depth subagents took up to 19.1s; then a final LLM call (8.6s, in=16.5k tokens) rolled it all up before handing to formatter. The 3 depth topics (intra-party criticism / midterm strategy / govt funding) heavily overlapped each other and the breadth queries — and arguably **none of them needed depth** for this rep. Depth's real purpose is stale-fact correction (campaign ended? case settled? out of office?), not "dig deeper into the hot story."_
 
 _Ideas:_
 
-- [ ] **[L]** Stream filtered_results to the formatter directly when `OVERVIEW_V4_DEPTH_ENABLED=false` — already supported but should benchmark "breadth-only" vs full to quantify the depth latency tax
+- [ ] **[L+Q]** **Reframe triage around staleness, not interestingness.** Triage prompt should look for breadth results that assert a load-bearing time-sensitive fact (running for office / pending case / current role) and only fire depth to verify those. Default decision should be "no depth needed."
+- [ ] **[L]** Add an explicit "skip depth" path in triage so a fast structured-output decision can avoid spawning subagents at all — most runs probably don't need depth
+- [ ] **[L]** Stream filtered_results to the formatter directly when `OVERVIEW_V4_DEPTH_ENABLED=false` — already supported; benchmark breadth-only vs full to quantify the depth latency tax we're paying for marginal value
 - [ ] **[L]** Move triage to Haiku (it's just picking topics + reasons, not synthesizing)
-- [ ] **[L]** Cap parallel depth subagents to 2 (vs. the current `OVERVIEW_V4_AGENT_MAX_DEPTH_CALLS=3`) once we can tell the longest tail dominates anyway
+- [ ] **[L]** Cap parallel depth subagents to 1–2 (vs. current `OVERVIEW_V4_AGENT_MAX_DEPTH_CALLS=3`) — the staleness use-case rarely needs more than one verification at a time
 - [ ] **[L]** Skip the final agent reasoning step (8.6s) — let the formatter consume `breadth + depth` directly. The agent's "summary" before formatter doesn't appear to drive bullet selection
-- [ ] **[L+Q]** De-duplicate depth topics against breadth queries — if a topic was already heavily covered by breadth, don't dispatch depth on it; force depth to query *gap* angles (this trace showed 55% of citations came from depth, but on topics breadth had already saturated → reinforced bias)
-- [ ] **[Q]** Make the triage prompt aware of the coverage taxonomy (donors, policy positions, voting record) — currently it pattern-matches whatever's "fast-moving" in the breadth pool, which is biased toward recent news drama
-- [ ] **[Q]** Triage should explicitly enumerate the **under-covered** taxonomy slots (count breadth results per slot, dispatch depth on the slots with `<N` results) rather than picking "interesting" topics
-- [ ] **[Q]** Pass the current date + the rep's office level so triage doesn't dispatch depth on stale topics or low-information topics for the office (e.g., a US Senator has a clear voting record we should always probe)
+- [ ] **[Q]** Pass the current date + rep office level into triage so it can spot staleness signals (e.g. "running for X" vs current date)
 
 ## depth_subagent
 
-_Observed: each subagent did ~3 LLM calls + ~4 depth_tavily_search calls sequentially. Per-subagent latencies 14.1s, 19.1s, 17.0s (parallel, so the longest is the bottleneck). Depth produced 46 new URLs and ended up driving 55% of final citations — so it's earning its keep on volume. The problem is **topic selection**: triage picked 3 topics that breadth already covered heavily, so depth reinforced existing bias instead of filling coverage gaps._
+_Observed: each subagent did ~3 LLM calls + ~4 depth_tavily_search calls sequentially. Per-subagent latencies 14.1s, 19.1s, 17.0s (parallel, so the longest is the bottleneck). Depth produced 46 new URLs and ended up driving 55% of final citations — but on topics breadth had already saturated, so it reinforced existing bias rather than filling gaps. Per the "Direction" section above, depth should fire **rarely** to verify potentially-stale facts, not deep-dive on hot topics._
 
 _Ideas:_
 
-- [ ] **[L]** Cap depth recursion lower — `OVERVIEW_V4_DEPTH_RECURSION_LIMIT=8` is generous; 4 might suffice for the topics we actually pick
+- [ ] **[L]** Cap depth recursion lower — `OVERVIEW_V4_DEPTH_RECURSION_LIMIT=8` is generous; 3–4 should suffice for a "verify one fact" use-case
 - [ ] **[L]** Run depth searches in parallel within a single subagent (currently the agent loop serializes them via the LangGraph react pattern)
-- [ ] **[L]** Use Haiku for the in-loop reasoning steps (Sonnet for the final summary if needed)
-- [ ] **[Q]** Inject the breadth result URLs/titles into the depth subagent's system prompt as "already covered, search for *new* angles" — currently the subagent issues queries that re-find the same articles
-- [ ] **[Q]** Force the subagent to read full Tavily content (`include_raw_content=true`) for at least one promising URL per topic, instead of doing 4 snippet searches — better signal for the same wall time
-- [ ] **[Q]** Pass `topic` + `reason` from request_depth into the subagent prompt explicitly so the subagent stays anchored on the gap rather than drifting
+- [ ] **[L]** Use Haiku for the in-loop reasoning steps
+- [ ] **[Q]** Reshape the subagent prompt around fact-verification: "given this breadth-result claim, find sources confirming or contradicting it as of {current_date}" — instead of the open-ended "research this topic"
+- [ ] **[Q]** Force the subagent to read full Tavily content (`include_raw_content=true`) for at least one promising URL — verification needs the article body, not snippets
+- [ ] **[Q]** Pass `topic` + `reason` from request_depth into the subagent prompt explicitly so the subagent stays anchored on the verification target rather than drifting
 
 ## formatter
 
@@ -123,7 +145,7 @@ _Observed: **26.0s, in=23.5k tokens, out=1.3k tokens — the second-biggest cont
 
 _Ideas:_
 
-- [ ] **[L]** Pre-summarize / shrink the input pool before formatter — drop snippets to ~200 chars, drop the lowest-relevance half of results, send only what's needed
+- [ ] **[L]** Pre-shrink the input pool **without an extra LLM call** — drop snippets to ~200 chars, drop the lowest-relevance half via Python-side ranking in `filter`, blocklist domains. Two sequential LLM calls (curate → format) probably won't beat one big formatter call unless the curate step is on Haiku and the formatter shrinks proportionally — measure before committing
 - [ ] **[L]** Smaller/faster model for formatter; the shape of work (extract, cite, format) is more pattern-matchy than reasoning-heavy
 - [ ] **[L]** Stream the bullets so the user sees the first 1–2 within a few seconds rather than waiting 26s for the full block
 - [ ] **[Q]** Force coverage of a section taxonomy (e.g. "you must include at least one bullet on policy positions, one on donors if signal exists, one on recent legislative work, one on controversies") — current free-form prompt lets recency-bias eat slots

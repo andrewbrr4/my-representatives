@@ -153,6 +153,7 @@ Required in `.env` at project root:
 - `VITE_GOOGLE_PLACES_API_KEY` — Google Places API key for address autocomplete (frontend env var in `frontend/.env`; must have Places API (New) enabled in GCP console; restrict by HTTP referrer for security)
 - `CLAUDE_MODEL` — model ID for the research agent (e.g. `claude-sonnet-4-20250514`)
 - `SEARCH_TOOL` — which search provider is in use (default `tavily`). Recorded in the `research_tasks` table for cost tracking.
+- `TAVILY_EXCLUDE_DOMAINS` — comma-separated list of domains to exclude from all Tavily searches (applied via Tavily's `exclude_domains` param in `research/search.py`). When unset, falls back to `_DEFAULT_EXCLUDE_DOMAINS` (social/video + party committees). Set to empty string to disable filtering. Affects every pipeline that calls `web_search` or `tavily_search_raw` (v1/v2 section agents, v3 breadth, v4 breadth + depth, elections, issues).
 - `RESEARCH_MAX_TOKENS` — max token output for each section research agent
 - `OVERVIEW_PIPELINE_VERSION` — which rep overview pipeline to run: `v1` (default, 5 section agents), `v2` (sections → synthesis bullets), `v3` (static-query fan-out → distill bullets), or `v4` (LangGraph breadth + adaptive depth). Read at import time by `research/overview/__init__.py`; also encoded into `research_tasks.task_type` (`rep:v1`/`rep:v2`/`rep:v3`/`rep:v4`) and into Langfuse trace names.
 - `OVERVIEW_V3_NUM_QUERIES` — v3 only: number of search queries to generate (default `15`)
