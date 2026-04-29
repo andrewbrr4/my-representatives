@@ -26,6 +26,11 @@ _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 _DEPTH_RECURSION_LIMIT = int(os.getenv("OVERVIEW_V4_DEPTH_RECURSION_LIMIT", "8"))
 
 
+def _model_id() -> str:
+    """Per-node model override for the depth subagent."""
+    return os.getenv("OVERVIEW_V4_DEPTH_MODEL", os.environ["CLAUDE_MODEL"])
+
+
 def build_depth_agent():
     """Build a ``create_react_agent`` for depth research.
 
@@ -38,7 +43,7 @@ def build_depth_agent():
     system_prompt = system_template.substitute(current_date=date.today().isoformat())
 
     model = ChatAnthropic(
-        model=os.environ["CLAUDE_MODEL"],
+        model=_model_id(),
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     )
     return create_react_agent(

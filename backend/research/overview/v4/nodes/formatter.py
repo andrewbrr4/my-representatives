@@ -33,6 +33,11 @@ logger = logging.getLogger(__name__)
 _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 
+def _model_id() -> str:
+    """Per-node model override for the formatter."""
+    return os.getenv("OVERVIEW_V4_FORMATTER_MODEL", os.environ["CLAUDE_MODEL"])
+
+
 class _Bullet(BaseModel):
     """One bullet emitted by the formatter LLM. Bare text, no [N] markers
     — python appends those after assembling the unified citation list."""
@@ -137,7 +142,7 @@ async def formatter(state: V4State) -> dict:
     langfuse_handler = CallbackHandler()
     usage_tracker = UsageTracker()
     model = ChatAnthropic(
-        model=os.environ["CLAUDE_MODEL"],
+        model=_model_id(),
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     )
     structured = model.with_structured_output(_FormatterOutput)

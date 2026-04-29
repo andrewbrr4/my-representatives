@@ -21,6 +21,11 @@ _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 _NUM_QUERIES = int(os.getenv("OVERVIEW_V4_NUM_QUERIES", "18"))
 
 
+def _model_id() -> str:
+    """Per-node model override; falls back to global ``CLAUDE_MODEL``."""
+    return os.getenv("OVERVIEW_V4_QUERY_GEN_MODEL", os.environ["CLAUDE_MODEL"])
+
+
 class _QueryList(BaseModel):
     queries: list[str] = Field(description="Diverse search queries, one per item.")
 
@@ -33,7 +38,7 @@ async def query_generator(state: V4State) -> dict:
     usage_tracker = UsageTracker()
 
     model = ChatAnthropic(
-        model=os.environ["CLAUDE_MODEL"],
+        model=_model_id(),
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     )
     structured = model.with_structured_output(_QueryList)
@@ -54,6 +59,18 @@ async def query_generator(state: V4State) -> dict:
             "run_name": f"v4:query-gen:{rep.name}",
         },
     )
-    queries = [q.strip() for q in result.queries if q and q.strip()]
+    raw_queries = [q.strip() for q in result.queries if q and q.strip()]
+    # Dedupe by case/whitespace-normalized form, preserve first-seen order.
+    seen: set[str] = set()
+    queries: list[str] = []
+    for q in raw_queries:
+        key = " ".join(q.lower().split())
+        if key in seen:
+            continue
+        seen.add(key)
+        queries.append(q)
+    dropped = len(raw_queries) - len(queries)
+    if dropped:
+        logger.info(f"[v4] query_generator: dropped {dropped} duplicate queries")
     logger.info(f"[v4] Generated {len(queries)} queries for {rep.name}")
     return {"queries": queries, "usage_log": [usage_tracker.stats]}

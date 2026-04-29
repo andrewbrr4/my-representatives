@@ -36,6 +36,11 @@ _DEPTH_ENABLED = os.getenv("OVERVIEW_V4_DEPTH_ENABLED", "true").strip().lower() 
 )
 
 
+def _model_id() -> str:
+    """Per-node model override for the triage agent."""
+    return os.getenv("OVERVIEW_V4_TRIAGE_MODEL", os.environ["CLAUDE_MODEL"])
+
+
 def _format_results_block(results: list[SearchResult]) -> str:
     if not results:
         return "(no results)"
@@ -81,7 +86,7 @@ async def research_agent_node(state: V4State) -> dict:
 
     request_depth_tool = make_request_depth_tool(rep)
     model = ChatAnthropic(
-        model=os.environ["CLAUDE_MODEL"],
+        model=_model_id(),
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     )
     agent = create_react_agent(

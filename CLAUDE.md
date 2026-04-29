@@ -169,6 +169,10 @@ Required in `.env` at project root:
 - `OVERVIEW_V4_AGENT_MAX_DEPTH_CALLS` — v4 only: max depth-research calls per pipeline run (default `3`). **Soft signal only** — substituted into the research_agent prompt; not enforced in code. Use `OVERVIEW_V4_DEPTH_ENABLED=false` to actually skip the depth path.
 - `OVERVIEW_V4_DEPTH_ENABLED` — v4 only: when `false`, the research_agent node short-circuits to an empty depth result and skips the triage LLM call + depth subagents entirely (default `true`). Use to A/B breadth-only vs. breadth+depth, or to cut latency when depth isn't needed.
 - `OVERVIEW_V4_DEPTH_RECURSION_LIMIT` — v4 only: recursion limit per depth subagent (default `8`)
+- `OVERVIEW_V4_QUERY_GEN_MODEL` — v4 only: model ID for the query_generator node. Falls back to `CLAUDE_MODEL`. Use to A/B Haiku for the simple list-of-queries output.
+- `OVERVIEW_V4_TRIAGE_MODEL` — v4 only: model ID for the research_agent (triage) node. Falls back to `CLAUDE_MODEL`. Triage just picks topics+reasons (or skips); a smaller model is plausible.
+- `OVERVIEW_V4_DEPTH_MODEL` — v4 only: model ID for the depth subagent. Falls back to `CLAUDE_MODEL`. Each depth subagent runs ~3 LLM calls in its react loop, so model swap here is leveraged.
+- `OVERVIEW_V4_FORMATTER_MODEL` — v4 only: model ID for the formatter node. Falls back to `CLAUDE_MODEL`. Formatter is the second-biggest latency contributor in v4 (~26s with 23k input tokens), so smaller-model A/B is high-leverage.
 - `LANGFUSE_SECRET_KEY` — Langfuse tracing secret key
 - `LANGFUSE_PUBLIC_KEY` — Langfuse tracing public key
 - `LANGFUSE_BASE_URL` — Langfuse tracing base URL
