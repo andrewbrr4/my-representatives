@@ -3,8 +3,8 @@
 State (``DepthState``) is fully isolated from the parent. The subagent's
 ``messages`` (Tavily ToolMessage snippets, agent reasoning) live and die
 in this scope. Only the structured ``search_results`` list crosses back
-to the caller (the ``request_depth_research`` tool, which then tags
-each result with the topic and pushes them up to the research_agent).
+to the caller (the research_agent node, which tags each result with the
+topic and merges them into ``depth_search_results`` on V4State).
 """
 
 import logging
@@ -34,9 +34,8 @@ def _model_id() -> str:
 def build_depth_agent():
     """Build a ``create_react_agent`` for depth research.
 
-    The agent is built once per pipeline-run when
-    ``request_depth_research`` is first invoked, but compiled agents are
-    stateless and could be cached at module level. We build per-run so
+    The agent is built once per depth fanout. Compiled agents are
+    stateless and could be cached at module level; we build per-run so
     the system prompt picks up today's date dynamically.
     """
     system_template = Template((_PROMPTS_DIR / "depth_agent_system.txt").read_text())

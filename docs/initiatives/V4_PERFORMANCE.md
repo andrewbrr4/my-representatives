@@ -3,7 +3,7 @@
 Ideas for each node in the v4 overview pipeline. Track both **latency** and **quality** improvements (no info we want to surface should be silently dropped).
 
 Pipeline flow: `query_generator → breadth_search → filter → research_agent → formatter`
-(The depth subagent is invoked from inside `research_agent` via the `request_depth_research` tool.)
+(`research_agent` does a structured-output triage call, then fans out depth subagents in parallel via `asyncio.gather`.)
 
 Tag each idea inline:
 
@@ -121,7 +121,7 @@ _Ideas:_
 - [x] **[L]** Stream filtered_results to the formatter directly when `OVERVIEW_V4_DEPTH_ENABLED=false` — already supported; benchmark breadth-only vs full to quantify the depth latency tax we're paying for marginal value — _confirmed already shipped: `research_agent.py` short-circuits to empty `depth_search_results` when `OVERVIEW_V4_DEPTH_ENABLED=false`. Benchmarking is the open action — flip the env var in dev and run a few reps. Now that the triage prompt has been reframed to default-no-depth, the gap between the two modes should be smaller anyway._
 - [x] **[L]** Move triage to Haiku (it's just picking topics + reasons, not synthesizing) — _enabled (not yet activated): added `OVERVIEW_V4_TRIAGE_MODEL` env var; defaults to `CLAUDE_MODEL`. Set to `claude-haiku-4-5-20251001` to A/B._
 - [ ] **[L]** Cap parallel depth subagents to 1–2 (vs. current `OVERVIEW_V4_AGENT_MAX_DEPTH_CALLS=3`) — the staleness use-case rarely needs more than one verification at a time
-- [ ] **[L]** Skip the final agent reasoning step (8.6s) — let the formatter consume `breadth + depth` directly. The agent's "summary" before formatter doesn't appear to drive bullet selection
+- [x] **[L]** Skip the final agent reasoning step — let the formatter consume `breadth + depth` directly. The agent's "summary" before formatter doesn't drive bullet selection. — _shipped 2026-04-30: `research_agent.py` is no longer a `create_react_agent`. Now it's a structured-output triage call (`_TriageOutput.depth_requests`) followed by `asyncio.gather` over depth subagents. Removes (a) the react loop's "think between tools" steps and (b) the serial dispatch of depth subagents. `_MAX_DEPTH_CALLS` is now hard-enforced in code instead of being a soft prompt signal. `request_depth_research` tool and `ResearchAgentState` schema deleted as dead code. Latency win on the Schumer trace: ~13s reclaimed (depth-2 was previously waiting on depth-1 to finish in the react loop)._
 - [x] **[Q]** Pass the current date + rep office level into triage so it can spot staleness signals (e.g. "running for X" vs current date) — _shipped: `current_date` was already substituted into `research_agent_system.txt`. Office level is in the user prompt via `$office`. The new prompt explicitly references `${current_date}` for the "older than 60 days" check._
 
 ## depth_subagent
@@ -136,6 +136,7 @@ _Ideas:_
 - [x] **[Q]** Reshape the subagent prompt around fact-verification: "given this breadth-result claim, find sources confirming or contradicting it as of {current_date}" — instead of the open-ended "research this topic" — _shipped: `depth_agent_system.txt` rewritten as "focused fact-verification agent" with "stay narrow" rules. 2–3 well-targeted queries on the specific factual status, stop early if uncontroversial._
 - [ ] **[Q]** Force the subagent to read full Tavily content (`include_raw_content=true`) for at least one promising URL — verification needs the article body, not snippets
 - [x] **[Q]** Pass `topic` + `reason` from request_depth into the subagent prompt explicitly so the subagent stays anchored on the verification target rather than drifting — _already shipped before this initiative: `depth_agent_user.txt` already substitutes `$topic` and `$reason`. Marking confirmed._
+- [x] **[L+Q]** **Truncate depth Tavily snippets at `OVERVIEW_V4_SNIPPET_CHAR_CAP`** — depth tool was returning full Tavily `content` (often 2k–5k chars) into both `search_results` and the agent-loop `ToolMessage`, so depth-step-2 input was 58k tokens (one parallel-search turn carried ~15 untrimmed Tavily blocks). Now applies the same 800-char cap that breadth's `filter_node` uses. Symmetric with breadth. **Known follow-up — split the cap:** the agent-loop `ToolMessage` only needs ~200 chars per result to plan its next move, while the formatter benefits from the full content. Single-cap conflates the two and is over-tight for the formatter / over-loose for the planner. — _shipped 2026-04-30 in `tools/tavily_search.py`._
 
 ## formatter
 

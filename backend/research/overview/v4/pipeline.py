@@ -3,10 +3,9 @@
 Flow:
   query_generator → breadth_search → filter → research_agent → formatter
 
-The research_agent node is itself a wrapper around a compiled subgraph
-(see ``nodes/research_agent.py``). The depth subagent is invoked from
-inside that subgraph via the ``request_depth_research`` tool — also a
-compiled subgraph (see ``nodes/depth_subgraph.py``).
+The research_agent node performs structured-output triage and fans out
+selected depth subagents in parallel via ``asyncio.gather`` (see
+``nodes/research_agent.py`` and ``nodes/depth_subgraph.py``).
 """
 
 import logging
