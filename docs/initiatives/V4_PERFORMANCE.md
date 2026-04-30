@@ -13,41 +13,31 @@ Tag each idea inline:
 
 ---
 
-## Baseline trace — Chuck Schumer
+## Pipeline philosophy
 
-Run on 2026-04-28, trace `a43f5b07d8c1a40f074cb832ad817e06`. Total 81.4s, $0.31, 33 search calls.
+**Taxonomy (5 buckets, revised 2026-04-29):**
 
-Per-node latency:
+1. **Role / leadership / committees** — always-include if signal exists
+2. **Signature priorities & legislative record** — 1-2 issues this rep is *known for* + key votes; query_gen forced to cover sub-axes (domestic + foreign, economic + social) so the breadth pool gives a 360° view of policy positioning
+3. **Donors / campaign finance** — top industry + up to ~3 PACs; individual donors only if Musk-tier prominence (no need to name many specific donors — this isn't OpenSecrets)
+4. **Public statements & press coverage** — what they're saying, how the press is treating them
+5. **Substantive controversies** — ethics complaints / investigations / lawsuits / FEC / formal sanctions / conduct-in-office qualify; viral social media moments, AI-deepfake drama, single-news-cycle gaffes, and book launches do NOT
 
-| Node              | Latency  | Notes                                                    |
-| ----------------- | -------- | -------------------------------------------------------- |
-| query_generator   | 6.5s     | 1 LLM call → 18 queries (in=1k, out=306)                 |
-| breadth_search    | 7.6s     | 18 parallel Tavily searches → 90 raw results             |
-| filter            | 0.002s   | Python dedupe/truncate → 60 results                      |
-| research_agent    | **41.3s**| triage LLM (13.5s, in=12k) → 3× depth subagents (≤19.1s) → final LLM (8.6s, in=16.5k) |
-| formatter         | **26.0s**| 1 LLM call (in=23.5k, out=1.3k) → 8 bullets / 20 cites   |
+Dropped from the earlier 7-bucket version (2026-04-28): **district / constituency context** (too magnetic for things done *to* the rep's state by others — we want rep agency) and **recent news** (duplicative of public statements & press coverage). Shipped prompts (`query_gen_system.txt`, `formatter_system.txt`) still reference the 7-bucket list and need to be re-shipped against 5 — see per-node ideas below.
 
-Quality observations — topics that returned breadth results but were dropped from the final 8 bullets:
+**Pipeline flow:**
 
-- **Policy positions (immigration / healthcare)** — query #3 issued, no bullet
-- **Top donors / campaign finance** — queries #4 + #15 issued, no bullet (this was a first-class section in v1/v2)
-- **2026 re-election / NY campaign** — query #6, no bullet
-- **Broader foreign-policy stance (Ukraine / Israel)** — query #14, only recent war-powers ultimatum survived
-- **Sponsored legislation / 119th Congress voting record** — queries #1, #2, #7, no concrete bullet beyond AI framework
+> **Breadth casts a wide net per bucket** — query_gen issues queries covering each bucket's sub-axes. **Sub-axes are LLM-decided per office level**, not hardcoded: a US Senator's "Signature priorities" sub-axes span domestic/foreign/economic/social policy; a mayor's span housing/public safety/transit/schools/local budget. The query_gen prompt directs the LLM to identify relevant sub-areas for *this* rep's office before generating queries, and to skip sub-areas the office doesn't have (no foreign policy for a city councilor). Total query budget capped at ~25-30; the LLM prioritizes across buckets/sub-axes within that ceiling. Output schema stays flat (`_QueryList`) for now — structured `{bucket, subarea, query}` output is a future upgrade if traces show coverage gaps that need per-sub-area auditing. The goal at this stage is broad initial coverage, not precision.
+>
+> **Optional depth subagents sweep up the stragglers** — they fill in gaps where a bucket came back thin from breadth, or verify load-bearing claims that look stale. Depth is a backstop, not a deep-dive engine; default is "no depth needed." Depth is expensive — only fire when really needed.
+>
+> **Formatter does two jobs:**
+> 1. **Group / condense** related findings within a bucket into a single bullet (e.g. all economic-policy findings → one economic bullet; "Schumer surrender" + low-approval news cycle → one "leadership effectiveness" bullet).
+> 2. **Prune by importance** — items with thin coverage or low salience drop out.
 
-Citation provenance (final 20 citations):
+By the time the formatter runs, the pool should give a 360° view per bucket. **Importance-pruning is currently LLM judgment** (option A from the 2026-04-29 design discussion): the formatter is told to "weight items by how broadly and prominently covered — a shutdown vote across 8 outlets outweighs a single op-ed; authoritative single sources (Congress.gov, OpenSecrets, Senate Ethics filings) can outweigh many low-quality mentions." Aiming for ~8-12 bullets total. If traces show weak items winning slots over well-covered ones, upgrade to a hybrid where `filter_node` attaches a Python-counted unique-outlet signal as a tiebreaker.
 
-- **11 (55%)** depth-only — depth did pull a lot of *new* URLs
-- **8 (40%)** breadth-only
-- **1** in both pools, **2** total URL overlaps between breadth and depth (re-fetched)
-
-So depth wasn't ignored — it dominated citations. The problem is **topical**: the 3 depth topics (intra-party criticism / midterm strategy / govt funding) were *already* heavily covered by breadth, so depth reinforced the existing breadth bias rather than filling gaps (donors, voting record, policy positions). Final bullets are over-indexed on the topics the breadth query mix already amplified.
-
-Other quality smells:
-
-- 6 of 8 bullets are DC-political-recency stories from the last 90 days; only 2 touch substance (NY funding, AI)
-- A few citations are advocacy/PR sources (DSCC press release, House Appropriations release, YouTube clips, schumer.senate.gov)
-- Bullet 4 mixes years ("March 2025") in an otherwise-2026 narrative
+This section is the canonical statement; the per-node ideas below should be read with this framing in mind.
 
 ---
 
@@ -56,7 +46,7 @@ Other quality smells:
 A few framing decisions from reviewing the trace:
 
 - **Depth's real job is stale-info correction, not "deep-dive on hot topics."** The original motivation for depth was egregious staleness — a rep listed as running for office whose campaign already ended; a court case shown as ongoing that's actually settled. Triage on this trace fired 3× to dive into ongoing political drama (intra-party criticism, govt funding) — none of that needed depth, breadth already had it. Depth should fire **rarely** and only when a breadth result looks potentially-stale-and-load-bearing (campaign status, pending legal matters, leadership/role changes). Default mode for most reps should be breadth-only.
-- **Introduce a bucket taxonomy** to fix the "important topics silently dropped" failure mode. The current 7 buckets, after revision (2026-04-28 review): **role/leadership/committees**, **signature priorities & legislative record**, **donors / campaign finance**, **public statements & press coverage**, **substantive controversies**, **recent news**, **district / constituency context**. Two notable revisions from earlier rev:
+- **Introduce a bucket taxonomy** to fix the "important topics silently dropped" failure mode. The current 7 buckets, after revision (2026-04-28 review): **role/leadership/committees**, **signature priorities & legislative record**, **donors / campaign finance**, **public statements & press coverage**, **substantive controversies**, **recent news**, **district / constituency context**. *(Revised again 2026-04-29 to 5 buckets — dropped "district / constituency context" and "recent news"; see **Pipeline philosophy** section above for the canonical taxonomy. Shipped prompts still reference the 7-bucket list and need to be re-shipped.)* Two notable revisions from earlier rev:
   - Dropped "Policy positions" as a stand-alone bucket — a separate `issue-research` pipeline handles per-issue stance lookups, and surveying every issue stance was crowding out signal. Replaced with **"Signature priorities & legislative record"** (1–2 issues this rep is *known for*, e.g. Schumer→AI policy, Sanders→Medicare for All, Warren→consumer protection). The voter-overview job is "what are they about" not "what do they think about every issue."
   - "Controversies" → **"Substantive controversies"** with explicit exclusions: ethics complaints / investigations / lawsuits / FEC / formal sanctions / conduct-in-office qualify; viral social media moments, AI-generated content drama (deepfakes, AI videos), and single-news-cycle gaffes do NOT. Real-rep traces showed tabloid-y items leaking into the controversy slot — the framing now actively excludes them.
   - **No identity-framing biography** — added as a separate strict rule in `formatter_system.txt`: skip "first [demographic] in [office]" headlines. Same de-noise theme as substantive-controversies — biographical color isn't substantive coverage. If identity directly shaped specific work, the work itself becomes the bullet, not the identity label.
@@ -91,6 +81,7 @@ _Ideas:_
 - [x] **[Q]** Deduplicate / cluster queries before sending to Tavily (the LLM produced near-duplicates like #5 vs #12, #4 vs #15) — _shipped (exact-match only): `query_generator.py` now dedupes by case/whitespace-normalized form before fan-out. Catches obvious duplicates; near-duplicate clustering (token-overlap similarity) remains a follow-up if real traces still show topical near-duplicates after the new prompt's diversity rules._
 - [x] **[Q]** Pass current date into prompt so generator can request `published_date` filters and avoid generic biographical queries for senior incumbents — _partially shipped: `current_date` was already substituted into `query_gen_system.txt`, and the rewritten prompt drops the biographical bucket entirely (which was the wasted slot in the Schumer trace, #16 "Brooklyn career history"). Per-query Tavily date filters remain a follow-up (needs per-query metadata, see breadth_search idea on date filter)._
 - [ ] **[Q]** Different query budgets by office level — a US Senator probably wants more national-policy queries; a city councilor wants more local-news queries
+- [x] **[Q]** **Office-adaptive sub-axes within each bucket** — query_gen prompt instructs the LLM to identify the sub-areas relevant to *this* rep's office level before generating queries, with ≥1 query per sub-area where signal is plausible. Replaces the prior "≥2 queries per bucket" hardcoded rule with adaptive coverage matching the breadth of the office (Senator: domestic/foreign/economic/social + hot topics; mayor: housing/transit/schools/local budget; etc.). Flat `_QueryList` output preserved; structured `{bucket, subarea, query}` output is a future upgrade if traces show coverage gaps that need per-sub-area auditing. — _shipped 2026-04-29: `query_gen_system.txt` rewritten against 5-bucket taxonomy with sub-area instructions. **Follow-up:** bump `OVERVIEW_V4_NUM_QUERIES` default from 18 → 25-30 to match the philosophy doc's target query budget; current default still produces 18 queries which constrains how broadly sub-areas can be covered._
 
 ## breadth_search
 
@@ -125,6 +116,7 @@ _Observed: **41.3s — biggest single contributor.** Triage LLM (13.5s, in=12k t
 _Ideas:_
 
 - [x] **[L+Q]** **Reframe triage around staleness, not interestingness.** Triage prompt should look for breadth results that assert a load-bearing time-sensitive fact (running for office / pending case / current role) and only fire depth to verify those. Default decision should be "no depth needed." — _shipped: `research_agent_system.txt` rewritten with "Default decision: do NOT call depth research." Triggering now requires identifying a *specific factual claim* that is (1) time-sensitive, (2) materially misleading if outdated, AND (3) older than 60 days or undated. Concrete qualifying examples (candidacy status, pending litigation, leadership role) and concrete non-qualifying examples (active news coverage, voting record, donors) included._
+- [x] **[Q]** **Add Condition 2: thin-coverage trigger for depth.** Triage now accepts a second justification for depth — when a high-priority bucket is *egregiously* thin in breadth (zero supporting snippets with actual content, OR only generic landing/methodology pages with no real signal), AND that bucket is plausibly retrievable for this rep's office level. High bar: depth is expensive, so this fires only when a bucket is truly missing for a rep where it should exist (e.g. a US Senator with zero usable donor data; a longtime committee chair with no role/leadership signal). Does NOT fire just because a bucket is "lighter than the others." — _shipped 2026-04-29: `research_agent_system.txt` updated with two-condition framing (Condition 1 = stale load-bearing fact; Condition 2 = egregiously thin coverage)._
 - [x] **[L]** Add an explicit "skip depth" path in triage so a fast structured-output decision can avoid spawning subagents at all — most runs probably don't need depth — _addressed via the prompt rewrite above. The new prompt makes "zero depth calls" the explicit default outcome. (No code change yet — the structured-output skip path remains a follow-up if prompt-level steering proves insufficient.)_
 - [x] **[L]** Stream filtered_results to the formatter directly when `OVERVIEW_V4_DEPTH_ENABLED=false` — already supported; benchmark breadth-only vs full to quantify the depth latency tax we're paying for marginal value — _confirmed already shipped: `research_agent.py` short-circuits to empty `depth_search_results` when `OVERVIEW_V4_DEPTH_ENABLED=false`. Benchmarking is the open action — flip the env var in dev and run a few reps. Now that the triage prompt has been reframed to default-no-depth, the gap between the two modes should be smaller anyway._
 - [x] **[L]** Move triage to Haiku (it's just picking topics + reasons, not synthesizing) — _enabled (not yet activated): added `OVERVIEW_V4_TRIAGE_MODEL` env var; defaults to `CLAUDE_MODEL`. Set to `claude-haiku-4-5-20251001` to A/B._
@@ -155,6 +147,7 @@ _Ideas:_
 - [x] **[L]** Smaller/faster model for formatter; the shape of work (extract, cite, format) is more pattern-matchy than reasoning-heavy — _enabled (not yet activated): added `OVERVIEW_V4_FORMATTER_MODEL` env var; defaults to `CLAUDE_MODEL`. Set to `claude-haiku-4-5-20251001` to A/B. Highest expected latency win in the doc — formatter is 26s with 23k input tokens._
 - [ ] **[L]** Stream the bullets so the user sees the first 1–2 within a few seconds rather than waiting 26s for the full block
 - [x] **[Q]** Force coverage of a section taxonomy (e.g. "you must include at least one bullet on policy positions, one on donors if signal exists, one on recent legislative work, one on controversies") — current free-form prompt lets recency-bias eat slots — _shipped (prompt-only): `formatter_system.txt` lists the 7 buckets, asks for 1-3 bullets per bucket where signal exists, skip-entirely if quality bar not met. Mirrors `query_gen_system.txt`. **Revised 2026-04-28**: "Role, leadership & committees" is now an "always include if signal exists" bucket; "Substantive controversies" has explicit exclusions for viral/AI-deepfake/tabloid content; "Signature priorities" replaces broad policy-position survey._
+- [x] **[Q]** **Reframe formatter as group/condense + prune by importance** — formatter prompt now opens with "your two jobs": (1) group related findings within a bucket into a single bullet (all economic-policy findings → one economic bullet; controversy + polling reaction → one bullet), (2) prune by importance via LLM judgment weighting on coverage breadth (option A from the design discussion — broad outlet coverage outweighs single mentions; authoritative single sources like Congress.gov / OpenSecrets / Senate Ethics filings can outweigh many low-quality mentions). Also: 7→5 bucket taxonomy revision (dropped "recent news" and "district / constituency context"); added explicit **rep-agency requirement** (don't surface things done *to* the rep's state by other actors); added "book launches" to the substantive-controversies exclusion list; donors guidance refined to "shape, not names" (top industry + up to ~3 PACs, individuals only if Musk-tier); bullet count target raised to 8–12. — _shipped 2026-04-29: `formatter_system.txt` rewritten._
 - [x] **[Q]** Allow more bullets when the input is rich — current 5–8 cap is hard, but a US Senator with 60+ results worth covering arguably deserves 10–12 — _shipped: cap raised from 5–8 to 6–12 in `formatter_system.txt`._
 - [ ] **[Q]** Make the formatter explicitly emit "no information found" for a topic when results are weak, instead of silently omitting — surfaces gaps to us in traces and to the user as honesty
 - [x] **[Q]** Down-rank / strip advocacy + PR domains (DSCC, schumer.senate.gov press releases, House Appropriations releases, YouTube) before the formatter sees them, so it can't lean on them as citations — _shipped: same combination as above (Tavily exclude_domains for DSCC/YouTube; filter_node self-press URL filter for politician PR pages). Formatter never sees these now._

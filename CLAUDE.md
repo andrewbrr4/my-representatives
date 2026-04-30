@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MyReps — a full-stack app where a user enters their address and gets a list of representatives (municipal, state, federal) with on-demand AI-researched summaries. No auth. Cloud SQL PostgreSQL for cost/usage tracking. Redis optional for caching. Production URL: **https://knowmyreps.org** (API: `https://api.knowmyreps.org`).
 
-**Read [MISSION.md](./docs/MISSION.md) and [DESIGN.md](./docs/DESIGN.md) before making any changes.** MISSION.md defines the product vision and principles. DESIGN.md captures design decisions, tradeoffs, and open challenges.
+**Read [MISSION.md](./docs/MISSION.md), [DESIGN.md](./docs/DESIGN.md), and [V4_PERFORMANCE.md](./docs/initiatives/V4_PERFORMANCE.md) before making any changes.** MISSION.md defines the product vision and principles. DESIGN.md captures design decisions, tradeoffs, and open challenges. V4_PERFORMANCE.md is the **active priority initiative** — it codifies the v4 rep-overview pipeline philosophy (5-bucket taxonomy, breadth/depth/formatter responsibilities) and tracks per-node latency/quality ideas with shipped vs. open status. Read it before proposing any v4 changes or analyzing v4 traces.
 
 ## Commands
 
