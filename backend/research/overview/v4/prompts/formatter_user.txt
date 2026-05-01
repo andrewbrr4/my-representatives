@@ -13,4 +13,13 @@ $depth_block
 
 ---
 
-Write 5–8 blended bullets per the system instructions. For each bullet, populate ``text`` with the bare one-liner (no ``[N]`` markers) and ``source_urls`` with the URLs from the materials above that support the claim.
+Write **6–8 tight bullets** per the system instructions — the product is for a busy voter, so each bullet is ~14–22 words. Quality over quantity: a 6-bullet overview beats a padded 8-bullet one.
+
+**Output schema reminder — read carefully before responding:**
+
+You must call the `_FormatterOutput` tool with two top-level fields, both as JSON arrays (NOT JSON-encoded strings):
+
+- `bullet_texts`: an array of strings. Example shape: `["**Headline 1** - sentence", "**Headline 2** - sentence"]`. NOT `"[\"...\", \"...\"]"`.
+- `bullet_sources`: an array of arrays of strings. Example shape: `[["url1", "url2"], ["url3"]]`. NOT `"[[\"url1\"], [\"url2\"]]"`.
+
+Both arrays must have the same length. Each `bullet_sources[i]` must have at least one URL **copied verbatim from the breadth or depth blocks above**. Do NOT invent or recall URLs from training data — any URL not in the materials will be silently dropped from the user's citations list, leaving the bullet uncited.

@@ -9,8 +9,24 @@ from tavily import AsyncTavilyClient
 
 logger = logging.getLogger(__name__)
 
-# Limit concurrent Tavily searches to avoid rate limits
-_search_semaphore = asyncio.Semaphore(3)
+# Global cap on concurrent Tavily calls across the whole process. Every
+# pipeline (v1/v2/v3/v4 breadth + depth, elections, issues) funnels through
+# here. Tavily's paid-tier rate limit is 100 RPS, so the historical default
+# of 3 was strangling throughput — especially for v3/v4 breadth fan-out and
+# for parallel rep lookups. Override via TAVILY_GLOBAL_CONCURRENCY.
+def _global_concurrency() -> int:
+    raw = os.getenv("TAVILY_GLOBAL_CONCURRENCY")
+    if not raw:
+        return 20
+    try:
+        n = int(raw)
+        return n if n > 0 else 20
+    except ValueError:
+        logger.warning(f"Invalid TAVILY_GLOBAL_CONCURRENCY={raw!r}; using default 20")
+        return 20
+
+
+_search_semaphore = asyncio.Semaphore(_global_concurrency())
 
 _MAX_SEARCH_RETRIES = 5
 _RETRY_BASE_DELAY = 5.0  # seconds, doubles each retry

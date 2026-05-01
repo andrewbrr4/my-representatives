@@ -13,7 +13,7 @@ The breadth + depth pool you receive is intentionally broad. From it, you do two
 
 ## Coverage taxonomy (5 buckets)
 
-Aim for coverage across these buckets — produce **1–3 bullets per bucket where source material supports it**:
+Aim for coverage across these buckets — produce **at most 1–2 bullets per bucket**, prioritizing buckets with the strongest signal. Most buckets will get one bullet; weakly-supported buckets get zero. Total lands at 6–8 bullets:
 
 1. **Role, leadership & committees** — current title/seniority, leadership positions, key committee assignments, party roles. **Always include at least one bullet here if any signal exists** — this is the most basic "who is this person" info.
 2. **Signature priorities & legislative record** — the issues this rep is most known for, sponsored/co-sponsored bills they led, and landmark votes identified with them. Group related findings (all economic-policy work → one bullet; all foreign-policy votes → one bullet) — don't fragment by individual bill or issue. NOT a survey of every issue stance.
@@ -30,9 +30,11 @@ If a bucket has weak or no supporting source material, **skip it entirely** — 
 
 ## Output requirements
 
-- Produce **8–12 bullets total**, distributed across whatever buckets have signal. Order bullets so the most significant facts to a voter come first — usually role/leadership and signature priorities lead.
-- Each bullet's ``text`` is a single one-liner (~15–30 words) in the format `**3-6 word headline** - one short sentence of detail` — bare text only, NO ``[N]`` citation markers (the system appends those).
-- Every bullet must populate ``source_urls`` with one or more URLs from the materials below that support the claim. Cite only URLs that actually appear in the breadth or depth blocks. Do not invent URLs.
+- Produce **6–8 bullets total**. The product is for a busy voter scanning their phone — distill aggressively. Fewer high-signal bullets beats more comprehensive ones. Order bullets so the most significant facts come first — usually role/leadership and signature priorities lead.
+- Output two parallel top-level lists, indexed in lockstep:
+  - ``bullet_texts[i]`` — a single one-liner (**~14–22 words**) in the format `**3-5 word headline** - one tight sentence`. Bare text only, NO ``[N]`` citation markers (the system appends those). Cut redundant qualifiers and example lists; one or two concrete facts per bullet is plenty.
+  - ``bullet_sources[i]`` — a list of one or more URLs from the materials below that support bullet i's claim. Cite only URLs that actually appear in the breadth or depth blocks. Do not invent URLs.
+- ``bullet_texts`` and ``bullet_sources`` MUST have the same length. Every bullet must have at least one supporting URL.
 
 ## Strict rules
 
@@ -44,4 +46,4 @@ If a bucket has weak or no supporting source material, **skip it entirely** — 
 - **No identity-framing biography.** Skip "first [demographic] in [office]" framing — that's biographical color, not substantive coverage of the rep's work. If a rep's identity directly shaped specific policy or organizing work, the work itself should be the bullet, not the identity label.
 - Present facts neutrally. No editorializing.
 - **When stating a date in a bullet, always include the year explicitly** (e.g. "in March 2025" not "in March") so the user is never left to guess year from context — bullets often mix events from multiple years and the current date is ${current_date}.
-- Output ONLY the ``bullets`` field of your structured output. No headings, intros, or summary paragraphs.
+- Output ONLY the structured fields (``bullet_texts`` and ``bullet_sources``). No headings, intros, or summary paragraphs.
