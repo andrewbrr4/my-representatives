@@ -8,8 +8,8 @@ Find your elected representatives at every level of government — federal, stat
 1. Enter your address
 2. Two concurrent lookups find your reps: Census Geocoder + US Congress API (federal), Cicero API (state + municipal)
 3. Representatives appear instantly with basic info and contact links
-4. Click "Generate AI Research" on any rep — the active overview pipeline researches them. The pipeline is versioned and selected by `OVERVIEW_PIPELINE_VERSION`: `v1` (default — 5 per-section agents using Tavily), `v2` (same 5 agents + synthesis into blended bullets), `v3` (static-query fan-out + single distillation), or `v4` (LangGraph breadth + adaptive depth subagent + formatter). See [docs/rep-overview-versions.md](./docs/rep-overview-versions.md).
-5. v1 streams in section-by-section; v2/v3/v4 render once the final distillation/formatter completes. Results cached for 3 days.
+4. Click "Generate AI Research" on any rep — the active overview pipeline researches them. **Production currently runs `v4`** (LangGraph breadth + adaptive depth subagent + formatter). The alternative paradigm `v1` (per-section streaming with skeletons) is also supported and selectable via `OVERVIEW_PIPELINE_VERSION`. v2/v3 are earlier iterations kept for comparison; see [docs/rep-overview-versions.md](./docs/rep-overview-versions.md) for the full version history.
+5. v1 streams in section-by-section; v4 renders the full bullet block once the formatter completes. Results cached for 3 days.
 6. Search for an issue (e.g., "housing affordability") to see how your reps relate to it
 
 ### Elections

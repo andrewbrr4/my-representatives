@@ -2,6 +2,17 @@
 
 Living document tracking the evolution of the representative overview research pipeline.
 
+## Current status (2026-05-01)
+
+| Version | Status | UX |
+|---------|--------|-----|
+| **v4** | **Production default** | Single-block bullet render once the formatter completes |
+| v1 | Actively supported alternative | Per-section streaming with skeletons (different paradigm — section headings appear immediately, fill in top-down as agents complete) |
+| v2 | Legacy (subsumed by v4) | Bullet block, like v4 |
+| v3 | Legacy (subsumed by v4) | Bullet block, like v4 |
+
+v4 does what v2/v3 do but better — same single-block bullet UX, with adaptive depth on volatile claims and a more disciplined breadth/curation flow. v1 is preserved because its **streaming, sectioned** UX is a genuinely different user experience worth A/B-ing against v4's single block. Switch via `OVERVIEW_PIPELINE_VERSION`. Active tuning for v4 lives in [`initiatives/V4_PERFORMANCE.md`](./initiatives/V4_PERFORMANCE.md).
+
 ## The Core Problem
 
 When a user clicks "Generate AI Overview" for a representative, the system needs to:
@@ -12,7 +23,7 @@ These are in tension: broad retrieval requires many web searches, which produces
 
 ---
 
-## V1: Per-Section Agents (default)
+## V1: Per-Section Agents
 
 **Architecture:** 5 independent LangChain agents run in parallel, each focused on one section (policy positions, legislative record, accomplishments, controversies, top donors). Each agent has a Tavily `web_search` tool and produces structured output (bullet points + per-section citations).
 
