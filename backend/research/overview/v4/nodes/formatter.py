@@ -207,20 +207,19 @@ async def formatter(state: V4State) -> dict:
         depth_block=depth_block,
     )
 
-    try:
-        result = await structured.ainvoke(
-            [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)],
-            config={
-                "callbacks": [langfuse_handler, usage_tracker],
-                "run_name": f"v4:formatter:{rep.name}",
-            },
-        )
-    except ValidationError as e:
-        # Both attempts failed — surface an empty summary so the caller
-        # gets a result rather than an exception. The trace will still
-        # show the upstream ValidationError.
-        logger.error(f"[v4] formatter validation failed after retry for {rep.name}: {e}")
-        result = _FormatterOutput()
+    # Let ValidationError propagate when both retry attempts fail. The
+    # caller in pipeline.py catches it, returns (None, total), and the
+    # router marks the task "failed" → frontend shows the error UI. We
+    # used to swallow the exception and return an empty _FormatterOutput
+    # here, but that left the store at status="complete" with bullets=[],
+    # which the frontend rendered as a stuck-forever skeleton.
+    result = await structured.ainvoke(
+        [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)],
+        config={
+            "callbacks": [langfuse_handler, usage_tracker],
+            "run_name": f"v4:formatter:{rep.name}",
+        },
+    )
 
     pairs = _zip_bullets(result)
     citations, url_to_n = _build_citations(pairs, filtered + depth)

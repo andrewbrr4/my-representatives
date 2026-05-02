@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import type { Representative, ResearchSummary } from "@/types";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
 import { IssueSearch } from "@/components/IssueSearch";
-import { ResearchContent } from "@/components/overview";
+import { ResearchContent, isBullets } from "@/components/overview";
 import {
   Card,
   CardContent,
@@ -127,16 +127,31 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
         )}
 
         {researchStatus === "complete" && summary && (
-          <Collapsible defaultOpen>
-            <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
-              <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
-              <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
-              AI Overview
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <ResearchContent summary={summary} />
-            </CollapsibleContent>
-          </Collapsible>
+          // Defensive: a bullets-shaped summary with zero bullets means the
+          // formatter retry exhausted but the backend still marked the task
+          // complete. Treat as failure so the user gets an actionable retry
+          // instead of a stuck-forever skeleton.
+          isBullets(summary) && summary.bullets.length === 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground italic">
+                Research unavailable for this representative.
+              </p>
+              <Button onClick={onResearch} variant="outline" size="sm">
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <Collapsible defaultOpen>
+              <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
+                <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
+                <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
+                AI Overview
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <ResearchContent summary={summary} />
+              </CollapsibleContent>
+            </Collapsible>
+          )
         )}
 
         {researchStatus === "failed" && (
