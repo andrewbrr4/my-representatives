@@ -9,11 +9,65 @@ from tavily import AsyncTavilyClient
 
 logger = logging.getLogger(__name__)
 
-# Limit concurrent Tavily searches to avoid rate limits
-_search_semaphore = asyncio.Semaphore(3)
+# Global cap on concurrent Tavily calls across the whole process. Every
+# pipeline (v1/v2/v3/v4 breadth + depth, elections, issues) funnels through
+# here. Tavily's paid-tier rate limit is 100 RPS, so the historical default
+# of 3 was strangling throughput — especially for v3/v4 breadth fan-out and
+# for parallel rep lookups. Override via TAVILY_GLOBAL_CONCURRENCY.
+def _global_concurrency() -> int:
+    raw = os.getenv("TAVILY_GLOBAL_CONCURRENCY")
+    if not raw:
+        return 20
+    try:
+        n = int(raw)
+        return n if n > 0 else 20
+    except ValueError:
+        logger.warning(f"Invalid TAVILY_GLOBAL_CONCURRENCY={raw!r}; using default 20")
+        return 20
+
+
+_search_semaphore = asyncio.Semaphore(_global_concurrency())
 
 _MAX_SEARCH_RETRIES = 5
 _RETRY_BASE_DELAY = 5.0  # seconds, doubles each retry
+
+# Domains to exclude from all Tavily searches. Skews the pool away from:
+#   - social / video where civic-info signal is low and noise is high
+#   - party-committee press releases that are 100% partisan messaging
+# Tavily matches subdomains, so excluding `dscc.org` also excludes `www.dscc.org`.
+# Politician self-press (e.g. schumer.senate.gov/newsroom/press-releases) is
+# *not* excluded here because it'd nuke all of senate.gov/house.gov; those URL
+# paths are filtered separately downstream.
+_DEFAULT_EXCLUDE_DOMAINS = [
+    "facebook.com",
+    "m.facebook.com",
+    "twitter.com",
+    "x.com",
+    "instagram.com",
+    "tiktok.com",
+    "youtube.com",
+    "m.youtube.com",
+    "reddit.com",
+    "dscc.org",
+    "dccc.org",
+    "nrsc.org",
+    "nrcc.org",
+    "democrats.org",
+    "gop.com",
+]
+
+
+def _exclude_domains() -> list[str]:
+    """Resolve the active exclude list, allowing env-var override.
+
+    Set ``TAVILY_EXCLUDE_DOMAINS`` to a comma-separated list to replace
+    the default (set to an empty string to disable filtering entirely).
+    """
+    override = os.getenv("TAVILY_EXCLUDE_DOMAINS")
+    if override is None:
+        return _DEFAULT_EXCLUDE_DOMAINS
+    return [d.strip() for d in override.split(",") if d.strip()]
+
 
 _tavily_client: AsyncTavilyClient | None = None
 
@@ -40,7 +94,11 @@ async def web_search(query: str) -> str:
         tavily = _get_tavily_client()
         for attempt in range(_MAX_SEARCH_RETRIES):
             try:
-                search_results = await tavily.search(query=query, max_results=5)
+                search_results = await tavily.search(
+                    query=query,
+                    max_results=5,
+                    exclude_domains=_exclude_domains(),
+                )
                 return "\n\n".join(
                     _format_result(r) for r in search_results.get("results", [])
                 )
@@ -77,7 +135,11 @@ async def tavily_search_raw(
         tavily = _get_tavily_client()
         for attempt in range(_MAX_SEARCH_RETRIES):
             try:
-                search_results = await tavily.search(query=query, max_results=max_results)
+                search_results = await tavily.search(
+                    query=query,
+                    max_results=max_results,
+                    exclude_domains=_exclude_domains(),
+                )
                 return [
                     {
                         "title": r.get("title", ""),

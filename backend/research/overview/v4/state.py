@@ -1,6 +1,6 @@
 """LangGraph state schemas for v4.
 
-Three state schemas, one per scope. State isolation across subagent
+Two state schemas, one per scope. State isolation across subagent
 boundaries is the architectural argument for v4: a depth subagent's
 ``messages`` history (potentially N tool results) lives and dies in
 ``DepthState`` and never propagates to ``V4State`` — only structured
@@ -35,22 +35,6 @@ class V4State(TypedDict, total=False):
     usage_log: Annotated[list[UsageStats], operator.add]
 
 
-class ResearchAgentState(AgentState):
-    """Inner state for the research_agent (a ``create_react_agent``).
-
-    Extends LangGraph's prebuilt ``AgentState`` (which provides the
-    ``messages`` channel + step accounting) with the extra channels we
-    need: ``rep`` and ``filtered_results`` are passed in by the wrapper;
-    ``depth_search_results`` accumulates ``SearchResult`` objects written
-    by each ``request_depth_research`` tool call via ``Command(update=...)``.
-    Only ``depth_search_results`` crosses back to ``V4State``.
-    """
-
-    rep: Representative
-    filtered_results: list[SearchResult]
-    depth_search_results: Annotated[list[SearchResult], operator.add]
-
-
 class DepthState(AgentState):
     """Inner state for one depth subagent (also a ``create_react_agent``).
 
@@ -66,4 +50,4 @@ class DepthState(AgentState):
     search_results: Annotated[list[SearchResult], operator.add]
 
 
-__all__ = ["DepthState", "ResearchAgentState", "V4State"]
+__all__ = ["DepthState", "V4State"]

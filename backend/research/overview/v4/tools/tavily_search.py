@@ -3,7 +3,7 @@ search results accumulate in ``DepthState.search_results`` while a
 formatted snippet block goes back to the LLM as a ``ToolMessage``.
 
 The structured ``SearchResult`` list is what crosses out of the depth
-scope (via ``request_depth_research`` to the parent research_agent).
+scope (the research_agent node merges it into V4State).
 The full ``ToolMessage`` history stays inside ``DepthState``.
 """
 
@@ -21,6 +21,7 @@ from research.search import tavily_search_raw
 logger = logging.getLogger(__name__)
 
 _DEPTH_RESULTS_PER_QUERY = int(os.getenv("OVERVIEW_V4_DEPTH_RESULTS_PER_QUERY", "5"))
+_SNIPPET_CHAR_CAP = int(os.getenv("OVERVIEW_V4_SNIPPET_CHAR_CAP", "800"))
 
 
 def _format_for_llm(results: list[SearchResult]) -> str:
@@ -48,7 +49,7 @@ async def depth_tavily_search(
         SearchResult(
             url=r.get("url", ""),
             title=r.get("title", ""),
-            snippet=r.get("snippet", ""),
+            snippet=(r.get("snippet", "") or "")[:_SNIPPET_CHAR_CAP],
             published_date=r.get("published_date", "") or "",
         )
         for r in raw

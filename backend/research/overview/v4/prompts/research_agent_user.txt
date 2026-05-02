@@ -7,4 +7,4 @@ $results_block
 
 ---
 
-Review these results. Identify any claims that look potentially stale and where freshness matters per your instructions, and call ``request_depth_research`` for those (up to $max_depth_calls calls total). When you have used your budget appropriately or determined no depth research is needed, respond with a brief acknowledgement message — the formatter will then write the final overview from the breadth results and any depth findings you surfaced.
+Review these results. Identify any claims that are potentially stale where freshness matters (Condition 1), or any high-priority bucket that is egregiously under-covered (Condition 2), and emit one ``depth_requests`` entry per gap (up to $max_depth_calls). If no depth research is needed, emit ``depth_requests: []``. The formatter will write the final overview from the breadth results plus any depth findings produced in parallel from your requests.
