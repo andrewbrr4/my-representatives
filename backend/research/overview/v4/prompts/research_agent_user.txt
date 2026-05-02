@@ -1,0 +1,10 @@
+Official: $name
+Office: $office
+
+Pre-filtered search results:
+
+$results_block
+
+---
+
+Review these results. Identify any claims that are potentially stale where freshness matters (Condition 1), or any high-priority bucket that is egregiously under-covered (Condition 2), and emit one ``depth_requests`` entry per gap (up to $max_depth_calls). If no depth research is needed, emit ``depth_requests: []``. The formatter will write the final overview from the breadth results plus any depth findings produced in parallel from your requests.

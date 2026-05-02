@@ -1,7 +1,7 @@
 """Dispatch to the active rep overview pipeline version.
 
 Selected at import time via the ``OVERVIEW_PIPELINE_VERSION`` env var.
-Supported values: ``v1`` (default), ``v2``, ``v3``.
+Supported values: ``v1`` (default), ``v2``, ``v3``, ``v4``.
 
 Each version's package must export ``ResearchSummary``,
 ``research_representative``, and ``TOTAL_SECTIONS``.
@@ -17,10 +17,12 @@ elif ACTIVE_VERSION == "v2":
     from .v2 import ResearchSummary, TOTAL_SECTIONS, research_representative
 elif ACTIVE_VERSION == "v3":
     from .v3 import ResearchSummary, TOTAL_SECTIONS, research_representative
+elif ACTIVE_VERSION == "v4":
+    from .v4 import ResearchSummary, TOTAL_SECTIONS, research_representative
 else:
     raise ValueError(
         f"Unknown OVERVIEW_PIPELINE_VERSION: {ACTIVE_VERSION!r}. "
-        "Expected one of: v1, v2, v3."
+        "Expected one of: v1, v2, v3, v4."
     )
 
 __all__ = [

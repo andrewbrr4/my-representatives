@@ -33,6 +33,13 @@ logging.basicConfig(
 # Traces still work correctly — this is cosmetic noise only.
 logging.getLogger("opentelemetry.context").setLevel(logging.CRITICAL)
 
+# Suppress "Propagated attribute 'metadata.langgraph_step' value is not a string"
+# warnings. Langfuse's OTel propagator only allows string-valued attributes, but
+# LangGraph emits int step counters (langgraph_step, langgraph_node iteration, etc.).
+# These get dropped from trace metadata harmlessly — the surrounding spans still
+# carry the LangGraph context. Cosmetic noise only.
+logging.getLogger("langfuse").setLevel(logging.ERROR)
+
 logger = logging.getLogger(__name__)
 
 
