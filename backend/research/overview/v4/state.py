@@ -14,7 +14,7 @@ branches.
 import operator
 from typing import Annotated, TypedDict
 
-from langgraph.prebuilt.chat_agent_executor import AgentState
+from langchain.agents import AgentState
 
 from models import Representative
 from research.overview.v4.models import ResearchSummary, SearchResult
@@ -36,7 +36,7 @@ class V4State(TypedDict, total=False):
 
 
 class DepthState(AgentState):
-    """Inner state for one depth subagent (also a ``create_react_agent``).
+    """Inner state for one depth subagent (also a ``create_agent``).
 
     Receives ``rep``, ``topic``, ``reason``. The depth Tavily tool writes
     ``SearchResult`` objects into ``search_results`` via ``Command(update=...)``;
