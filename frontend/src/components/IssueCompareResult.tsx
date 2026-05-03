@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { Representative } from "@/types";
 import type { RepResult } from "@/hooks/useMultiIssueResearch";
+import { FurtherReading } from "@/components/FurtherReading";
 import { renderInline } from "@/components/overview/renderInline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,11 +56,14 @@ export function IssueCompareResult({ rep, result, onRetry }: IssueCompareResultP
             )}
 
             {(status === "loading" || status === "complete") && summary?.stance_summary && (
-              <ul className="list-disc pl-5 space-y-1 text-sm leading-relaxed">
-                {summary.stance_summary.map((item, i) => (
-                  <li key={i}>{renderInline(item, summary.citations ?? [])}</li>
-                ))}
-              </ul>
+              <>
+                <ul className="list-disc pl-5 space-y-1 text-sm leading-relaxed">
+                  {summary.stance_summary.map((item, i) => (
+                    <li key={i}>{renderInline(item, summary.citations ?? [])}</li>
+                  ))}
+                </ul>
+                <FurtherReading sources={summary.further_reading} />
+              </>
             )}
 
             {status === "failed" && (

@@ -3,10 +3,15 @@
  * inline citation markers resolved against a unified citation pool.
  *
  * Used by any overview pipeline version that produces a BulletsResearchSummary
- * (currently v2 and v3).
+ * (currently v2, v3, v4). When v4 emits ``sources`` (gated on the
+ * ``OVERVIEW_V4_SHOW_SOURCES`` backend flag), an expandable "Further reading (N)"
+ * list renders below the bullets — a jumping-off point for the user's own
+ * research, distinct from the inline citation markers (which exist to back
+ * up the bullets themselves).
  */
 
 import type { BulletsResearchSummary } from "./types";
+import { FurtherReading } from "@/components/FurtherReading";
 import { renderInline } from "@/components/overview/renderInline";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -24,7 +29,7 @@ function BulletsSkeleton() {
 }
 
 export function ResearchContent({ summary }: { summary: BulletsResearchSummary }) {
-  const { bullets, citations } = summary;
+  const { bullets, citations, sources } = summary;
 
   // Empty bullets = task hasn't written synthesis yet; parent's loading message
   // ("Scraping the web...") is the primary indicator — skeleton is the filler below it.
@@ -43,6 +48,7 @@ export function ResearchContent({ summary }: { summary: BulletsResearchSummary }
           <li key={i}>{renderInline(b, citations)}</li>
         ))}
       </ul>
+      <FurtherReading sources={sources} />
     </div>
   );
 }

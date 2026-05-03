@@ -26,6 +26,15 @@ class Citation(BaseModel):
     published_date: str | None = None
 
 
+class SourceLink(BaseModel):
+    """User-facing 'further reading' entry — the deduped Tavily pool that
+    informed a research summary. Distinct from ``Citation``: citations
+    enforce trust on specific bullets via inline ``[N]`` markers, while
+    SourceLinks are the broader exploration pool for the user."""
+    title: str
+    url: str
+
+
 class Representative(BaseModel):
     name: str
     office: str
@@ -159,6 +168,7 @@ class IssueStanceSummary(BaseModel):
     """Single-section summary: where a rep stands on a specific issue."""
     stance_summary: list[str] | None = None
     citations: list[Citation] = Field(default_factory=list)
+    further_reading: list[SourceLink] = Field(default_factory=list)
 
 
 class IssueInfo(BaseModel):

@@ -13,7 +13,7 @@ depth-derived results so the formatter can label them.
 
 from pydantic import BaseModel, Field
 
-from models import Citation
+from models import Citation, SourceLink
 from research.overview._bullet_coercion import BulletList
 
 
@@ -33,10 +33,13 @@ class SearchResult(BaseModel):
 
 
 class ResearchSummary(BaseModel):
-    """v4's user-facing output. Same shape as v2/v3."""
+    """v4's user-facing output. Same shape as v2/v3, plus an optional
+    ``sources`` list (deduped breadth+depth pool) when the show-sources
+    flag is enabled."""
 
     bullets: BulletList = Field(default_factory=list)
     citations: list[Citation] = Field(default_factory=list)
+    sources: list[SourceLink] = Field(default_factory=list)
 
 
-__all__ = ["Citation", "ResearchSummary", "SearchResult"]
+__all__ = ["Citation", "ResearchSummary", "SearchResult", "SourceLink"]

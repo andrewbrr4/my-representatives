@@ -15,8 +15,15 @@ from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel
 
 from db import get_issues_taxonomy
-from models import Citation, IssueInfo, ListSectionResult, Representative
-from research.search import web_search
+from models import (
+    Citation,
+    IssueInfo,
+    IssueStanceSummary,
+    ListSectionResult,
+    Representative,
+    SourceLink,
+)
+from research.search import make_accumulating_web_search, web_search
 from research.usage import UsageStats, UsageTracker
 from store.research_store import InMemoryResearchStore
 
@@ -35,6 +42,14 @@ REJECTION_MESSAGE = (
     "We couldn't match that to a political issue. "
     "Try something like 'gun control' or 'immigration'."
 )
+
+
+def _show_sources_enabled() -> bool:
+    """Gate for the issue 'further reading' feature: accumulate Tavily
+    results during the agent run and pass them through on the summary."""
+    return os.getenv("ISSUES_SHOW_SOURCES", "").strip().lower() in (
+        "1", "true", "yes", "on"
+    )
 
 
 class IssueMatchResult(BaseModel):
@@ -88,8 +103,14 @@ async def _research_issue_stance(
     issue_label: str,
     store: InMemoryResearchStore | None = None,
     research_id: str | None = None,
-) -> tuple[list[str] | None, list[Citation], UsageStats]:
-    """Run one research agent to find a rep's stance on a specific issue."""
+) -> tuple[list[str] | None, list[Citation], list[SourceLink], UsageStats]:
+    """Run one research agent to find a rep's stance on a specific issue.
+
+    When ``ISSUES_SHOW_SOURCES`` is on, swaps the global ``web_search``
+    tool for a per-invocation accumulating variant that captures the
+    full Tavily pool as ``further_reading`` — no extra Tavily calls,
+    just keeping a structured reference to results we already retrieved.
+    """
     langfuse_handler = CallbackHandler()
     usage_tracker = UsageTracker()
     model = ChatAnthropic(
@@ -106,9 +127,16 @@ async def _research_issue_stance(
         issue_label=issue_label,
     )
 
+    show_sources = _show_sources_enabled()
+    if show_sources:
+        search_tool, sources_accumulator = make_accumulating_web_search()
+    else:
+        search_tool = web_search
+        sources_accumulator = []
+
     agent = create_agent(
         model,
-        tools=[web_search],
+        tools=[search_tool],
         response_format=ListSectionResult,
     )
 
@@ -130,12 +158,30 @@ async def _research_issue_stance(
     structured = result["structured_response"]
     items = structured.items
     citations = structured.citations
+    further_reading = list(sources_accumulator)
 
     if store and research_id:
-        await store.complete_section(research_id, "stance_summary", items, citations)
+        # When show-sources is on, ``further_reading`` needs to reach the
+        # task store too. ``complete_section`` only writes a single
+        # section + citations, so we use ``complete()`` (full-summary
+        # atomic write) on that path. With ISSUE_TOTAL_SECTIONS=1 the
+        # two paths are functionally equivalent — ``complete_section``
+        # is kept on the default path purely to minimize blast radius
+        # behind the flag.
+        if show_sources:
+            summary = IssueStanceSummary(
+                stance_summary=items,
+                citations=citations,
+                further_reading=further_reading,
+            )
+            await store.complete(research_id, summary)
+        else:
+            await store.complete_section(
+                research_id, "stance_summary", items, citations
+            )
 
     logger.info(
         f"Issue stance research complete for {rep.name} on {issue_label}: "
-        f"{len(citations)} citations"
+        f"{len(citations)} citations / {len(further_reading)} further-reading"
     )
-    return items, citations, usage_tracker.stats
+    return items, citations, further_reading, usage_tracker.stats

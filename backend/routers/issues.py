@@ -38,7 +38,7 @@ async def _run_issue_research(
     issue_cache = get_issue_cache()
 
     try:
-        items, citations, usage = await _research_issue_stance(
+        items, citations, further_reading, usage = await _research_issue_stance(
             rep=rep,
             issue_label=issue_label,
             store=store,
@@ -49,7 +49,11 @@ async def _run_issue_research(
         if items is None:
             await store.fail(research_id)
         else:
-            summary = IssueStanceSummary(stance_summary=items, citations=citations)
+            summary = IssueStanceSummary(
+                stance_summary=items,
+                citations=citations,
+                further_reading=further_reading,
+            )
             await issue_cache.put(rep.name, rep.office, issue_id, summary)
     except Exception as e:
         logger.error(f"Issue research {research_id} failed for {rep.name}: {e}", exc_info=True)

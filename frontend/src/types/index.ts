@@ -14,7 +14,8 @@ export interface Citation {
 
 // ResearchSummary is version-specific — import from @/components/overview
 import type { ResearchSummary } from "@/components/overview";
-export type { ResearchSummary };
+import type { SourceLink } from "@/components/FurtherReading";
+export type { ResearchSummary, SourceLink };
 
 export interface Representative {
   name: string;
@@ -103,6 +104,7 @@ export interface IssueInfo {
 export interface IssueStanceSummary {
   stance_summary: string[] | null;
   citations: Citation[];
+  further_reading?: SourceLink[];
 }
 
 export interface IssueResearchResponse {
