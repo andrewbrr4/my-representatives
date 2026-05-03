@@ -3,9 +3,12 @@
 import asyncio
 import logging
 import os
+from typing import Any
 
 from langchain_core.tools import tool
 from tavily import AsyncTavilyClient
+
+from models import SourceLink
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +121,65 @@ async def web_search(query: str) -> str:
                 logger.warning(f"Search failed: {error_detail}")
                 return "Search failed. Try a different query."
     return "Search failed. Try a different query."
+
+
+def make_accumulating_web_search() -> tuple[Any, list[SourceLink]]:
+    """Build a per-invocation ``web_search`` tool that records every Tavily
+    result's ``{title, url}`` (deduped, first-occurrence order) on a
+    sidecar list. The tool's returned string matches ``web_search`` so the
+    agent's behavior is unchanged.
+
+    Used by pipelines that surface a 'further reading' list to the user
+    (e.g. issue-stance research) — no extra Tavily calls, just keeping
+    a structured reference to results we already retrieved.
+
+    Returns ``(tool, accumulator)``. The accumulator can be handed
+    directly to a summary's ``further_reading`` field.
+    """
+    accumulator: list[SourceLink] = []
+    seen: set[str] = set()
+
+    @tool
+    async def web_search(query: str) -> str:
+        """Search the web for current information about a topic. Returns relevant search results with snippets."""
+        async with _search_semaphore:
+            tavily = _get_tavily_client()
+            for attempt in range(_MAX_SEARCH_RETRIES):
+                try:
+                    search_results = await tavily.search(
+                        query=query,
+                        max_results=5,
+                        exclude_domains=_exclude_domains(),
+                    )
+                    raw = search_results.get("results", [])
+                    for r in raw:
+                        url = r.get("url", "")
+                        title = r.get("title", "")
+                        if not url or not title or url in seen:
+                            continue
+                        seen.add(url)
+                        accumulator.append(SourceLink(title=title, url=url))
+                    return "\n\n".join(_format_result(r) for r in raw)
+                except Exception as e:
+                    error_detail = str(e)
+                    if hasattr(e, "response"):
+                        try:
+                            error_detail = e.response.text
+                        except Exception:
+                            pass
+                    is_rate_limit = "429" in error_detail or "rate" in error_detail.lower()
+                    if is_rate_limit and attempt < _MAX_SEARCH_RETRIES - 1:
+                        delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                        logger.warning(
+                            f"Search rate-limited, retrying in {delay}s (attempt {attempt + 1})"
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    logger.warning(f"Search failed: {error_detail}")
+                    return "Search failed. Try a different query."
+        return "Search failed. Try a different query."
+
+    return web_search, accumulator
 
 
 async def tavily_search_raw(

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, ChevronDown, ChevronRight } from "lucide-react";
-import type { Representative, Citation } from "@/types";
+import type { Representative, Citation, SourceLink } from "@/types";
 import { useIssueSearch } from "@/hooks/useIssueSearch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,17 +10,20 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { FurtherReading } from "@/components/FurtherReading";
 import { renderInline } from "@/components/overview/renderInline";
 
 function IssueResult({
   label,
   items,
   citations,
+  furtherReading,
   loading,
 }: {
   label: string;
   items: string[] | null;
   citations: Citation[];
+  furtherReading: SourceLink[] | undefined;
   loading: boolean;
 }) {
   return (
@@ -38,11 +41,14 @@ function IssueResult({
               <Skeleton className="h-3.5 w-5/6" />
             </div>
           ) : items ? (
-            <ul className="list-disc pl-5 space-y-1 text-sm leading-relaxed mt-1">
-              {items.map((item, i) => (
-                <li key={i}>{renderInline(item, citations)}</li>
-              ))}
-            </ul>
+            <>
+              <ul className="list-disc pl-5 space-y-1 text-sm leading-relaxed mt-1">
+                {items.map((item, i) => (
+                  <li key={i}>{renderInline(item, citations)}</li>
+                ))}
+              </ul>
+              <FurtherReading sources={furtherReading} />
+            </>
           ) : null}
         </CollapsibleContent>
       </div>
@@ -104,6 +110,7 @@ export function IssueSearch({ rep }: IssueSearchProps) {
           label={entry.issue?.label ?? "Issue"}
           items={entry.summary?.stance_summary ?? null}
           citations={entry.summary?.citations ?? []}
+          furtherReading={entry.summary?.further_reading}
           loading={entry.status === "loading"}
         />
       ))}
