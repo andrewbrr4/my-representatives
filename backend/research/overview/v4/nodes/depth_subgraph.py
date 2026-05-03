@@ -1,4 +1,4 @@
-"""Depth subagent — focused per-topic ``create_react_agent`` with isolated state.
+"""Depth subagent — focused per-topic ``create_agent`` with isolated state.
 
 State (``DepthState``) is fully isolated from the parent. The subagent's
 ``messages`` (Tavily ToolMessage snippets, agent reasoning) live and die
@@ -15,7 +15,7 @@ from string import Template
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 
 from research.overview.v4.state import DepthState
 from research.overview.v4.tools.tavily_search import depth_tavily_search
@@ -32,7 +32,7 @@ def _model_id() -> str:
 
 
 def build_depth_agent():
-    """Build a ``create_react_agent`` for depth research.
+    """Build a ``create_agent`` for depth research.
 
     The agent is built once per depth fanout. Compiled agents are
     stateless and could be cached at module level; we build per-run so
@@ -45,11 +45,11 @@ def build_depth_agent():
         model=_model_id(),
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     )
-    return create_react_agent(
+    return create_agent(
         model,
         tools=[depth_tavily_search],
         state_schema=DepthState,
-        prompt=system_prompt,
+        system_prompt=system_prompt,
     )
 
 

@@ -9,6 +9,7 @@ selected depth subagents in parallel via ``asyncio.gather`` (see
 """
 
 import logging
+import os
 
 from langfuse import observe
 from langgraph.graph import END, START, StateGraph
@@ -77,10 +78,21 @@ async def research_representative(
         return None, total
 
     if store and research_id:
-        # TOTAL_SECTIONS=1 — a single complete_section moves the task to "complete".
-        await store.complete_section(
-            research_id, "bullets", summary.bullets, summary.citations
+        # When show-sources is on, ``summary.sources`` needs to reach the
+        # task store too. ``complete_section`` only writes bullets+citations,
+        # so we use ``complete()`` (full-summary atomic write) for that
+        # path. With TOTAL_SECTIONS=1 the two paths are functionally
+        # equivalent for v4 — ``complete_section`` is kept on the default
+        # path purely to minimize blast radius behind the flag.
+        show_sources = os.getenv("OVERVIEW_V4_SHOW_SOURCES", "").strip().lower() in (
+            "1", "true", "yes", "on"
         )
+        if show_sources:
+            await store.complete(research_id, summary)
+        else:
+            await store.complete_section(
+                research_id, "bullets", summary.bullets, summary.citations
+            )
 
     logger.info(
         f"[v4] Research for {rep.name}: "

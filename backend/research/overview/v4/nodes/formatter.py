@@ -33,13 +33,51 @@ from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field, ValidationError
 
 from models import Citation
-from research.overview.v4.models import ResearchSummary, SearchResult
+from research.overview.v4.models import ResearchSummary, SearchResult, SourceLink
 from research.overview.v4.state import V4State
 from research.usage import UsageTracker
 
 logger = logging.getLogger(__name__)
 
 _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+
+
+def _show_sources_enabled() -> bool:
+    """Gate for the show-sources feature: pre-formatter dedup + ``sources``
+    pass-through on the summary. Read at call time so tests/env flips don't
+    require a restart."""
+    return os.getenv("OVERVIEW_V4_SHOW_SOURCES", "").strip().lower() in (
+        "1", "true", "yes", "on"
+    )
+
+
+def _dedupe_depth_against_breadth(
+    breadth: list[SearchResult],
+    depth: list[SearchResult],
+) -> list[SearchResult]:
+    """Drop depth results whose URL already appears in breadth or earlier
+    in depth. Preserves topic tags on the surviving depth results."""
+    seen: set[str] = {r.url for r in breadth if r.url}
+    out: list[SearchResult] = []
+    for r in depth:
+        if not r.url or r.url in seen:
+            continue
+        seen.add(r.url)
+        out.append(r)
+    return out
+
+
+def _build_sources(pool: list[SearchResult]) -> list[SourceLink]:
+    """Project the combined pool to ``SourceLink`` items, deduping by URL
+    in first-occurrence order. Drops entries with no URL or no title."""
+    seen: set[str] = set()
+    out: list[SourceLink] = []
+    for r in pool:
+        if not r.url or not r.title or r.url in seen:
+            continue
+        seen.add(r.url)
+        out.append(SourceLink(title=r.title, url=r.url))
+    return out
 
 
 def _model_id() -> str:
@@ -179,6 +217,15 @@ async def formatter(state: V4State) -> dict:
     filtered = state.get("filtered_results") or []
     depth = state.get("depth_search_results") or []
 
+    show_sources = _show_sources_enabled()
+    if show_sources:
+        before = len(depth)
+        depth = _dedupe_depth_against_breadth(filtered, depth)
+        logger.info(
+            f"[v4] Formatter dedupe (show-sources on): depth {before} → "
+            f"{len(depth)} after dropping URL collisions with breadth/depth"
+        )
+
     breadth_block = _format_breadth_block(filtered)
     depth_block = _format_depth_block(depth)
 
@@ -224,9 +271,12 @@ async def formatter(state: V4State) -> dict:
     pairs = _zip_bullets(result)
     citations, url_to_n = _build_citations(pairs, filtered + depth)
     bullet_texts = _attach_markers(pairs, url_to_n)
-    summary = ResearchSummary(bullets=bullet_texts, citations=citations)
+    sources = _build_sources(filtered + depth) if show_sources else []
+    summary = ResearchSummary(
+        bullets=bullet_texts, citations=citations, sources=sources
+    )
     logger.info(
         f"[v4] Formatter for {rep.name}: {len(summary.bullets)} bullets / "
-        f"{len(summary.citations)} citations"
+        f"{len(summary.citations)} citations / {len(summary.sources)} sources"
     )
     return {"summary": summary, "usage_log": [usage_tracker.stats]}
