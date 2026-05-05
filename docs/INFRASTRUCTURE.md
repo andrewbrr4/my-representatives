@@ -11,7 +11,7 @@ MyReps runs on Google Cloud Platform (GCP) in the `us-east1` region. Production 
 - **Domain:** `api.knowmyreps.org`
 - **VPC:** Direct VPC egress to `default` network (required for Redis access)
 - **Traffic routing:** Route only private IPs to VPC
-- **Cloud SQL connection:** Add the Cloud SQL instance (`my-representatives-489301:us-central1:my-representatives`) to the service. Cloud Run injects a proxy sidecar that exposes a Unix socket at `/cloudsql/my-representatives-489301:us-central1:my-representatives`. The backend connects via `DB_SOCKET_PATH` env var (see below).
+- **Cloud SQL connection:** Add the Cloud SQL instance (`my-representatives-489301:us-east1:my-reps-small`) to the service. Cloud Run injects a proxy sidecar that exposes a Unix socket at `/cloudsql/my-representatives-489301:us-east1:my-reps-small`. The backend connects via `DB_SOCKET_PATH` env var (see below).
 - **Secrets:** API keys injected via GCP Secret Manager (see below)
 - **Env vars:** `REDIS_URL=redis://10.107.77.182:6379` set as a Cloud Run env var (not a secret — it's a private IP)
 
@@ -45,7 +45,7 @@ API keys are stored in Secret Manager and mounted as env vars in Cloud Run, not 
 
 Non-secret env vars (set directly on Cloud Run):
 - `REDIS_URL` — Redis connection string
-- `DB_SOCKET_PATH` — Cloud SQL Unix socket path (e.g. `/cloudsql/my-representatives-489301:us-central1:my-representatives`)
+- `DB_SOCKET_PATH` — Cloud SQL Unix socket path (e.g. `/cloudsql/my-representatives-489301:us-east1:my-reps-small`)
 - `DB_NAME` — Postgres database name (default `postgres`)
 - `DB_USER` — Postgres user (default `postgres`)
 - `CLAUDE_MODEL` — model ID for research agents
@@ -85,9 +85,9 @@ Cloud Run backend connects to Redis via Direct VPC egress on the `default` netwo
 
 ### Cloud SQL for PostgreSQL
 - **Purpose:** Persists research usage data (`research_tasks`), financial ledger (`transactions`), and future tables (feedback, etc.)
-- **Instance:** `my-representatives-489301:us-central1:my-representatives`
-- **Region:** us-central1
-- **Connection from Cloud Run:** Cloud SQL proxy sidecar → Unix socket at `/cloudsql/my-representatives-489301:us-central1:my-representatives`
+- **Instance:** `my-representatives-489301:us-east1:my-reps-small`
+- **Region:** us-east1
+- **Connection from Cloud Run:** Cloud SQL proxy sidecar → Unix socket at `/cloudsql/my-representatives-489301:us-east1:my-reps-small`
 - **Connection from local dev:** Cloud SQL Auth Proxy → `localhost:5432`
 
 ## Local Development
@@ -102,7 +102,7 @@ Local dev connects to Cloud SQL via the Auth Proxy (authenticates with your `gcl
 
 ```bash
 # Start the proxy (runs in background, proxies localhost:5432 → Cloud SQL)
-cloud-sql-proxy my-representatives-489301:us-central1:my-representatives --port 5432 &
+cloud-sql-proxy my-representatives-489301:us-east1:my-reps-small --port 5432 &
 ```
 
 `.env` should use `127.0.0.1` as the host:
@@ -116,7 +116,7 @@ DATABASE_URL=postgresql://postgres:<password>@127.0.0.1:5432/postgres
 conda activate my-reps
 
 # Start Cloud SQL proxy
-cloud-sql-proxy my-representatives-489301:us-central1:my-representatives --port 5432 &
+cloud-sql-proxy my-representatives-489301:us-east1:my-reps-small --port 5432 &
 
 # Backend + frontend
 cd backend && uvicorn main:app --reload     # :8000

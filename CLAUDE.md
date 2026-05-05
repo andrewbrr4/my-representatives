@@ -98,7 +98,7 @@ cd frontend && npx shadcn@latest add <component-name>
 - `redis.py` — `RedisRepCache` and `RedisElectionCache` (used when `REDIS_URL` is set)
 - `dependencies.py` — lazy singletons: `get_rep_cache()`, `get_election_cache()`, `get_issue_cache()`, `get_research_store()`
 
-**Database** (`db.py`) manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Supports two connection modes: `DB_SOCKET_PATH` for Unix socket (Cloud Run with Cloud SQL proxy sidecar) or `DATABASE_URL` DSN (local dev via Cloud SQL Auth Proxy). Contains `save_research_task()` for persisting research usage data (including model, token costs, search tool, cost per search, environment, and `task_type` — `"rep:v1"` / `"rep:v2"` / `"rep:v3"` / `"rep:v4"` for overview research, `"election"`, or `"issue"`; the suffix encodes the overview pipeline version), `save_transactions()` for writing LLM/search cost outflows to the `transactions` ledger, and `get_issues_taxonomy()` for loading the issues classification taxonomy. The pool is created on first use and closed on app shutdown. SQL migrations live in `migrations/`.
+**Database** (`db.py`) manages an `asyncpg` connection pool (lazy singleton) for Cloud SQL PostgreSQL. Supports two connection modes: `DB_SOCKET_PATH` for Unix socket (Cloud Run with Cloud SQL proxy sidecar) or `DATABASE_URL` DSN (local dev via Cloud SQL Auth Proxy). Contains `save_research_task()` for persisting research usage data (including model, token costs, search tool, cost per search, environment, and `task_type` — `"rep:v1"` / `"rep:v2"` / `"rep:v3"` / `"rep:v4"` for overview research, `"election"`, or `"issue"`; the suffix encodes the overview pipeline version), `save_transactions()` for writing LLM/search cost outflows to the `transactions` ledger, and `get_issues_taxonomy()` for loading the issues classification taxonomy. The pool is created on first use and closed on app shutdown. The full schema lives in `backend/schema.sql` (apply once against a fresh database — no migration history).
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
@@ -184,7 +184,7 @@ Required in `.env` at project root:
 - `DISABLE_REP_CACHE` — set to `true` to skip research cache globally (useful for testing pipeline changes)
 - `REDIS_URL` — Redis connection URL (e.g. `redis://localhost:6379`). When set, uses Redis for rep cache; when absent, rep cache is a no-op (no Redis needed for local dev)
 - `DATABASE_URL` — PostgreSQL connection URL (e.g. `postgresql://postgres:<password>@127.0.0.1:5432/postgres`). Used for local dev (via Cloud SQL Auth Proxy). Uses `asyncpg`.
-- `DB_SOCKET_PATH` — Cloud SQL Unix socket path (e.g. `/cloudsql/my-representatives-489301:us-central1:my-representatives`). When set, `db.py` connects via Unix socket instead of `DATABASE_URL`. Used on Cloud Run where the Cloud SQL proxy sidecar provides the socket automatically.
+- `DB_SOCKET_PATH` — Cloud SQL Unix socket path (e.g. `/cloudsql/my-representatives-489301:us-east1:my-reps-small`). When set, `db.py` connects via Unix socket instead of `DATABASE_URL`. Used on Cloud Run where the Cloud SQL proxy sidecar provides the socket automatically.
 - `DB_NAME` — Postgres database name (default `postgres`). Used with `DB_SOCKET_PATH`.
 - `DB_USER` — Postgres user (default `postgres`). Used with `DB_SOCKET_PATH`.
 - `DB_PASSWORD` — Postgres password. Used with `DB_SOCKET_PATH` on Cloud Run, and by `docker-compose.yml` to construct `DATABASE_URL`.

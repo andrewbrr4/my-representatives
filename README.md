@@ -25,7 +25,7 @@ Prerequisites: Python 3.13+ (conda), Node.js 22+, API keys in `.env` ([full list
 
 ```bash
 # Cloud SQL Auth Proxy (optional — app works without it, just won't persist usage data)
-cloud-sql-proxy my-representatives-489301:us-central1:my-representatives --port 5432 &
+cloud-sql-proxy my-representatives-489301:us-east1:my-reps-small --port 5432 &
 
 # Backend (port 8000)
 conda activate my-reps
