@@ -19,11 +19,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const levelColors: Record<string, string> = {
-  federal: "bg-blue-600 text-white hover:bg-blue-700",
-  state: "bg-amber-600 text-white hover:bg-amber-700",
-  municipal: "bg-emerald-600 text-white hover:bg-emerald-700",
-};
+function getPartyBadge(party: string | null): { label: string; className: string } | null {
+  if (!party) return null;
+  const p = party.trim().toLowerCase();
+  if (p === "d" || p.startsWith("democrat")) {
+    return { label: "Democrat", className: "bg-blue-600 text-white hover:bg-blue-700" };
+  }
+  if (p === "r" || p.startsWith("republican")) {
+    return { label: "Republican", className: "bg-red-600 text-white hover:bg-red-700" };
+  }
+  if (p === "i" || p.startsWith("independent")) {
+    return { label: "Independent", className: "bg-slate-500 text-white hover:bg-slate-600" };
+  }
+  return null;
+}
 
 interface RepCardProps {
   rep: Representative;
@@ -50,9 +59,10 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <CardTitle className="text-lg">{rep.name}</CardTitle>
-            <Badge className={levelColors[rep.level] || ""}>
-              {rep.level}
-            </Badge>
+            {(() => {
+              const badge = getPartyBadge(rep.party);
+              return badge ? <Badge className={badge.className}>{badge.label}</Badge> : null;
+            })()}
           </div>
           <CardDescription className="mt-1">
             {rep.office}
