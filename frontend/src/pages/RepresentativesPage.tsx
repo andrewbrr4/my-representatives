@@ -60,7 +60,7 @@ export function RepresentativesPage() {
 
       {hasResults && (
         <div className="space-y-8">
-          <Alert className="max-w-4xl mx-auto">
+          <Alert className="max-w-4xl mx-auto" role="note">
             <AlertDescription>
               <strong>Tip:</strong> Click "Generate AI Overview" on any rep below to get a live-researched summary of what they've actually been doing in office.
             </AlertDescription>
