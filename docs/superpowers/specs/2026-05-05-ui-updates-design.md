@@ -79,8 +79,12 @@ Pure office-string ranking on the frontend, applied inside `groupByLevel` in `Re
 Ranking function `getSeniorityRank(office: string): number` — lower number sorts first. Matching is case-insensitive, uses `includes` / regex on the `office` string, and falls through to a high default rank for unknown offices.
 
 **Federal:**
-1. U.S. Senator (matches `senator` and not `state`)
-2. U.S. Representative / Congressman / Congresswoman / House (matches `representative` or `house` and not `state`)
+1. President (exact match `office === "President"`, case-insensitive)
+2. Vice President (matches `vice president`)
+3. U.S. Senator (matches `senator` and not `state`)
+4. U.S. Representative / Congressman / Congresswoman / House (matches `representative` or `house` and not `state`)
+
+President and VP come from Cicero (`district_type: NATIONAL_EXEC`), already mapped to `level: "federal"` — no backend change needed; they just need to sort first.
 
 **State:**
 1. Governor (matches `governor` and not `lieutenant`)
