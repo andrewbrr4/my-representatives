@@ -50,6 +50,8 @@ export function getSeniorityRank(office: string, level: string): number {
   }
 
   if (level === "municipal") {
+    // Rank order: Mayor (0) → Other citywide (1, fallthrough) → Council (2) → School Board (3).
+    // The fallthrough at the bottom returns 1 — between Mayor and Council.
     if (o.includes("mayor")) return 0;
     if (
       o.includes("council") || o.includes("alderman") ||
@@ -64,7 +66,7 @@ export function getSeniorityRank(office: string, level: string): number {
     ) {
       return 3;
     }
-    // Other citywide (City Attorney, City Clerk, City Comptroller)
+    // Other citywide (City Attorney, City Clerk, City Comptroller) — rank 1
     return 1;
   }
 
