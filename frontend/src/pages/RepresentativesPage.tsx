@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { RepCard } from "@/components/RepCard";
 import { SkeletonCard } from "@/components/SkeletonCard";
+import { sortBySeniority } from "@/lib/seniority";
 import {
   Collapsible,
   CollapsibleContent,
@@ -22,7 +23,9 @@ function groupByLevel(reps: Representative[]) {
     if (group) group.reps.push(rep);
     else groups[2].reps.push(rep);
   }
-  return groups.filter((g) => g.reps.length > 0);
+  return groups
+    .filter((g) => g.reps.length > 0)
+    .map((g) => ({ ...g, reps: sortBySeniority(g.reps) }));
 }
 
 export function RepresentativesPage() {
