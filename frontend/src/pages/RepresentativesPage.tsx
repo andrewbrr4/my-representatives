@@ -12,6 +12,7 @@ import { useRepresentativesQuery } from "@/hooks/useRepresentativesQuery";
 import { useResearchQuery as useResearch } from "@/hooks/useResearchQuery";
 import { useAddress } from "@/contexts/AddressContext";
 import type { Representative } from "@/types";
+import { CrossLinkCards } from "@/components/CrossLinkCards";
 
 function groupByLevel(reps: Representative[]) {
   const groups: { label: string; level: string; reps: Representative[] }[] = [
@@ -96,6 +97,7 @@ export function RepresentativesPage() {
               </section>
             </Collapsible>
           ))}
+          <CrossLinkCards />
         </div>
       )}
     </>
