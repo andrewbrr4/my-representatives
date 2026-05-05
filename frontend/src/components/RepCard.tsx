@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import type { Representative, ResearchSummary } from "@/types";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
 import { IssueSearch } from "@/components/IssueSearch";
@@ -109,9 +109,15 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
 
         {/* Research states */}
         {researchStatus === "idle" && (
-          <Button onClick={onResearch} variant="outline" className="w-full">
-            Generate AI Overview
-          </Button>
+          <div className="space-y-1">
+            <Button onClick={onResearch} className="w-full">
+              <Sparkles className="h-4 w-4" />
+              Generate AI Overview
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              See their record, accomplishments, and controversies — researched live in ~30 seconds.
+            </p>
+          </div>
         )}
 
         {researchStatus === "loading" && !summary && (
