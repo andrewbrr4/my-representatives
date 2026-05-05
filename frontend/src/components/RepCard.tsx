@@ -23,7 +23,10 @@ function getPartyBadge(party: string | null): { label: string; className: string
   if (!party) return null;
   const p = party.trim().toLowerCase();
   if (p === "d" || p.startsWith("democrat")) {
-    return { label: "Democrat", className: "bg-blue-600 text-white hover:bg-blue-700" };
+    // Match the input form so the badge doesn't say "Democrat" while the
+    // CardDescription says "· Democratic" on the same card.
+    const label = p.startsWith("democratic") ? "Democratic" : "Democrat";
+    return { label, className: "bg-blue-600 text-white hover:bg-blue-700" };
   }
   if (p === "r" || p.startsWith("republican")) {
     return { label: "Republican", className: "bg-red-600 text-white hover:bg-red-700" };
