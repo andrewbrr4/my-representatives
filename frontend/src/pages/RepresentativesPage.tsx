@@ -63,7 +63,7 @@ export function RepresentativesPage() {
         <div className="space-y-8">
           <Alert className="max-w-4xl mx-auto" role="note">
             <AlertDescription>
-              <strong>Tip:</strong> Click "Generate AI Overview" on any rep below to get a live-researched summary of what they've actually been doing in office.
+              <strong>Tip:</strong> Three tabs above — <strong>Representative Overview</strong> to learn about your reps, <strong>On the Issues</strong> to compare them on topics, and <strong>Upcoming Elections</strong> to see your ballot.
             </AlertDescription>
           </Alert>
           {groups.map((group) => (

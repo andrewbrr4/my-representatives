@@ -104,21 +104,28 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
           )}
         </div>
 
-        {/* Issue search */}
-        <IssueSearch rep={rep} />
-
         {/* Research states */}
         {researchStatus === "idle" && (
-          <div className="space-y-1">
-            <Button onClick={onResearch} className="w-full">
-              <Sparkles className="h-4 w-4" />
-              Generate AI Overview
-            </Button>
-            <p className="text-xs text-muted-foreground text-center">
-              See their record, accomplishments, and controversies — researched live in ~30 seconds.
-            </p>
-          </div>
+          <>
+            <div className="space-y-1">
+              <Button onClick={onResearch} variant="secondary" className="w-full">
+                <Sparkles className="h-4 w-4" />
+                Generate AI Overview
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                See their record, accomplishments, and controversies — researched live in ~30 seconds.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-muted-foreground">
+              <div className="flex-1 border-t" />
+              <span>or</span>
+              <div className="flex-1 border-t" />
+            </div>
+          </>
         )}
+
+        {/* Issue search */}
+        <IssueSearch rep={rep} />
 
         {researchStatus === "loading" && !summary && (
           <div className="space-y-2">
