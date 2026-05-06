@@ -7,7 +7,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useRepresentativesQuery } from "@/hooks/useRepresentativesQuery";
 import { useResearchQuery as useResearch } from "@/hooks/useResearchQuery";
 import { useAddress } from "@/contexts/AddressContext";
@@ -61,11 +60,6 @@ export function RepresentativesPage() {
 
       {hasResults && (
         <div className="space-y-8">
-          <Alert className="max-w-4xl mx-auto" role="note">
-            <AlertDescription>
-              <strong>Tip:</strong> Three tabs above — <strong>Representative Overview</strong> to learn about your reps, <strong>On the Issues</strong> to compare them on topics, and <strong>Upcoming Elections</strong> to see your ballot.
-            </AlertDescription>
-          </Alert>
           {groups.map((group) => (
             <Collapsible key={group.level} defaultOpen asChild>
               <section className="max-w-4xl mx-auto">
