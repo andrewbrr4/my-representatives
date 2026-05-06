@@ -12,11 +12,21 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-const levelColors: Record<string, string> = {
-  federal: "bg-blue-600 text-white hover:bg-blue-700",
-  state: "bg-amber-600 text-white hover:bg-amber-700",
-  municipal: "bg-emerald-600 text-white hover:bg-emerald-700",
-};
+function getPartyBadge(party: string | null): { label: string; className: string } | null {
+  if (!party) return null;
+  const p = party.trim().toLowerCase();
+  if (p === "d" || p.startsWith("democrat")) {
+    const label = p.startsWith("democratic") ? "Democratic" : "Democrat";
+    return { label, className: "bg-blue-600 text-white hover:bg-blue-700" };
+  }
+  if (p === "r" || p.startsWith("republican")) {
+    return { label: "Republican", className: "bg-red-600 text-white hover:bg-red-700" };
+  }
+  if (p === "i" || p.startsWith("independent")) {
+    return { label: "Independent", className: "bg-slate-500 text-white hover:bg-slate-600" };
+  }
+  return null;
+}
 
 interface IssueCompareResultProps {
   rep: Representative;
@@ -35,9 +45,10 @@ export function IssueCompareResult({ rep, result, onRetry }: IssueCompareResultP
           <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden flex-shrink-0" />
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <span className="font-semibold text-foreground">{rep.name}</span>
-            <Badge className={levelColors[rep.level] || ""} variant="default">
-              {rep.level}
-            </Badge>
+            {(() => {
+              const badge = getPartyBadge(rep.party);
+              return badge ? <Badge className={badge.className}>{badge.label}</Badge> : null;
+            })()}
             <span className="text-sm text-muted-foreground">
               {rep.office}
               {rep.party && ` · ${rep.party}`}

@@ -91,7 +91,7 @@ export function IssueSearch({ rep }: IssueSearchProps) {
             placeholder="Look up a specific issue (e.g. immigration, housing)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="pl-9"
+            className="pl-9 bg-muted/40"
             disabled={searching}
           />
         </div>

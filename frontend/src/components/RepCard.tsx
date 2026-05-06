@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
 import type { Representative, ResearchSummary } from "@/types";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
 import { IssueSearch } from "@/components/IssueSearch";
@@ -19,11 +19,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const levelColors: Record<string, string> = {
-  federal: "bg-blue-600 text-white hover:bg-blue-700",
-  state: "bg-amber-600 text-white hover:bg-amber-700",
-  municipal: "bg-emerald-600 text-white hover:bg-emerald-700",
-};
+function getPartyBadge(party: string | null): { label: string; className: string } | null {
+  if (!party) return null;
+  const p = party.trim().toLowerCase();
+  if (p === "d" || p.startsWith("democrat")) {
+    // Match the input form so the badge doesn't say "Democrat" while the
+    // CardDescription says "· Democratic" on the same card.
+    const label = p.startsWith("democratic") ? "Democratic" : "Democrat";
+    return { label, className: "bg-blue-600 text-white hover:bg-blue-700" };
+  }
+  if (p === "r" || p.startsWith("republican")) {
+    return { label: "Republican", className: "bg-red-600 text-white hover:bg-red-700" };
+  }
+  if (p === "i" || p.startsWith("independent")) {
+    return { label: "Independent", className: "bg-slate-500 text-white hover:bg-slate-600" };
+  }
+  return null;
+}
 
 interface RepCardProps {
   rep: Representative;
@@ -50,9 +62,10 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <CardTitle className="text-lg">{rep.name}</CardTitle>
-            <Badge className={levelColors[rep.level] || ""}>
-              {rep.level}
-            </Badge>
+            {(() => {
+              const badge = getPartyBadge(rep.party);
+              return badge ? <Badge className={badge.className}>{badge.label}</Badge> : null;
+            })()}
           </div>
           <CardDescription className="mt-1">
             {rep.office}
@@ -91,14 +104,18 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
           )}
         </div>
 
-        {/* Issue search */}
-        <IssueSearch rep={rep} />
-
-        {/* Research states */}
+        {/* Research states — kept above IssueSearch in every state so the
+            issue search never jumps up when the AI button is clicked. */}
         {researchStatus === "idle" && (
-          <Button onClick={onResearch} variant="outline" className="w-full">
-            Generate AI Overview
-          </Button>
+          <div className="space-y-1">
+            <Button onClick={onResearch} variant="secondary" className="w-full">
+              <Sparkles className="h-4 w-4" />
+              Generate AI Overview
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              See their record, accomplishments, and controversies — researched live in ~30 seconds.
+            </p>
+          </div>
         )}
 
         {researchStatus === "loading" && !summary && (
@@ -164,6 +181,18 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
             </Button>
           </div>
         )}
+
+        {/* OR divider — only when both options are equally salient (idle) */}
+        {researchStatus === "idle" && (
+          <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-muted-foreground">
+            <div className="flex-1 border-t" />
+            <span>or</span>
+            <div className="flex-1 border-t" />
+          </div>
+        )}
+
+        {/* Issue search — always at the bottom so it doesn't shift on click */}
+        <IssueSearch rep={rep} />
       </CardContent>
     </Card>
   );
