@@ -10,10 +10,16 @@ interface AddressSearchProps {
 
 export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
   const [address, setAddress] = useState("");
+  const [selectedFullText, setSelectedFullText] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const { suggestions, isOpen, onInputChange, close, clear } =
     useAddressAutocomplete();
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const hasValidSelection =
+    address.trim().length > 0 && address === selectedFullText;
+  const showPickHint =
+    address.trim().length >= 3 && !hasValidSelection && !isOpen;
 
   // Click-outside to dismiss dropdown
   useEffect(() => {
@@ -32,6 +38,7 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
   // Selecting a suggestion populates the input and auto-submits the search
   function selectSuggestion(fullText: string) {
     setAddress(fullText);
+    setSelectedFullText(fullText);
     clear();
     setHighlightedIndex(-1);
     onSearch(fullText);
@@ -39,6 +46,8 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
 
   function handleInputChange(value: string) {
     setAddress(value);
+    // Any edit invalidates the prior pick — user must re-select from dropdown
+    if (value !== selectedFullText) setSelectedFullText("");
     setHighlightedIndex(-1);
     onInputChange(value);
   }
@@ -67,73 +76,80 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (address.trim()) {
+    if (hasValidSelection) {
       clear();
       onSearch(address.trim());
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-3 w-full max-w-xl">
-      <div ref={wrapperRef} className="relative flex-1">
-        <Input
-          type="text"
-          placeholder="Enter your address (e.g. 123 Main St, Austin, TX 78701)"
-          value={address}
-          onChange={(e) => handleInputChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="w-full"
-          disabled={loading}
-          autoComplete="off"
-          role="combobox"
-          aria-expanded={isOpen}
-          aria-autocomplete="list"
-          aria-controls="address-suggestions"
-          aria-activedescendant={
-            highlightedIndex >= 0
-              ? `suggestion-${highlightedIndex}`
-              : undefined
-          }
-        />
-        {isOpen && suggestions.length > 0 && (
-          <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
-            <ul
-              id="address-suggestions"
-              role="listbox"
-            >
-              {suggestions.map((s, i) => (
-                <li
-                  key={`${s.fullText}-${i}`}
-                  id={`suggestion-${i}`}
-                  role="option"
-                  aria-selected={i === highlightedIndex}
-                  className={`cursor-pointer px-3 py-2 text-sm ${
-                    i === highlightedIndex
-                      ? "bg-accent text-accent-foreground"
-                      : "hover:bg-accent/50"
-                  }`}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    selectSuggestion(s.fullText);
-                  }}
-                  onMouseEnter={() => setHighlightedIndex(i)}
-                >
-                  <span className="font-medium">{s.mainText}</span>{" "}
-                  <span className="text-muted-foreground text-xs">
-                    {s.secondaryText}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <div className="px-3 py-1.5 text-[10px] text-muted-foreground text-right border-t">
-              Powered by Google
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full max-w-xl">
+      <div className="flex gap-3">
+        <div ref={wrapperRef} className="relative flex-1">
+          <Input
+            type="text"
+            placeholder="Start typing your address…"
+            value={address}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-full"
+            disabled={loading}
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={isOpen}
+            aria-autocomplete="list"
+            aria-controls="address-suggestions"
+            aria-activedescendant={
+              highlightedIndex >= 0
+                ? `suggestion-${highlightedIndex}`
+                : undefined
+            }
+          />
+          {isOpen && suggestions.length > 0 && (
+            <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+              <ul
+                id="address-suggestions"
+                role="listbox"
+              >
+                {suggestions.map((s, i) => (
+                  <li
+                    key={`${s.fullText}-${i}`}
+                    id={`suggestion-${i}`}
+                    role="option"
+                    aria-selected={i === highlightedIndex}
+                    className={`cursor-pointer px-3 py-2 text-sm ${
+                      i === highlightedIndex
+                        ? "bg-accent text-accent-foreground"
+                        : "hover:bg-accent/50"
+                    }`}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      selectSuggestion(s.fullText);
+                    }}
+                    onMouseEnter={() => setHighlightedIndex(i)}
+                  >
+                    <span className="font-medium">{s.mainText}</span>{" "}
+                    <span className="text-muted-foreground text-xs">
+                      {s.secondaryText}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="px-3 py-1.5 text-[10px] text-muted-foreground text-right border-t">
+                Powered by Google
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+        <Button type="submit" disabled={loading || !hasValidSelection}>
+          {loading ? "Searching…" : "Search"}
+        </Button>
       </div>
-      <Button type="submit" disabled={loading || !address.trim()}>
-        {loading ? "Searching…" : "Search"}
-      </Button>
+      {showPickHint && (
+        <p className="text-xs text-muted-foreground px-1" role="status">
+          Pick your address from the dropdown to search.
+        </p>
+      )}
     </form>
   );
 }

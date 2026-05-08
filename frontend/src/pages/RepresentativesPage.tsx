@@ -24,9 +24,7 @@ function groupByLevel(reps: Representative[]) {
     if (group) group.reps.push(rep);
     else groups[2].reps.push(rep);
   }
-  return groups
-    .filter((g) => g.reps.length > 0)
-    .map((g) => ({ ...g, reps: sortBySeniority(g.reps) }));
+  return groups.map((g) => ({ ...g, reps: sortBySeniority(g.reps) }));
 }
 
 export function RepresentativesPage() {
@@ -77,15 +75,21 @@ export function RepresentativesPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="grid gap-4 grid-cols-1 mt-4">
-                    {group.reps.map((rep) => (
-                      <RepCard
-                        key={`${rep.name}-${rep.office}`}
-                        rep={rep}
-                        researchStatus={getStatus(rep)}
-                        summary={getSummary(rep)}
-                        onResearch={() => requestResearch(rep)}
-                      />
-                    ))}
+                    {group.reps.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-2">
+                        We couldn't find {group.label.toLowerCase()} representatives for this address.
+                      </p>
+                    ) : (
+                      group.reps.map((rep) => (
+                        <RepCard
+                          key={`${rep.name}-${rep.office}`}
+                          rep={rep}
+                          researchStatus={getStatus(rep)}
+                          summary={getSummary(rep)}
+                          onResearch={() => requestResearch(rep)}
+                        />
+                      ))
+                    )}
                   </div>
                 </CollapsibleContent>
               </section>

@@ -111,9 +111,19 @@ async def get_federal_representatives(address: str) -> list[Representative]:
         resp.raise_for_status()
         all_members = resp.json().get("members", [])
 
-        # Filter to senators (district=None) and the matching House district
+        # Filter to senators (district=None) and the matching House district.
+        # Skip members whose latest term has an endYear — the API still lists
+        # members who served in this congress but have since left (e.g. Rubio,
+        # confirmed as Secretary of State, has endYear=2025 on his only term).
         relevant = []
         for m in all_members:
+            term_items = m.get("terms", {}).get("item", [])
+            if term_items and term_items[-1].get("endYear") is not None:
+                logger.info(
+                    f"Skipping {m.get('name')} (term ended {term_items[-1].get('endYear')})"
+                )
+                continue
+
             m_district = m.get("district")
             if m_district is None:
                 relevant.append(m)
