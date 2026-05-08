@@ -48,12 +48,7 @@ export function useAddressAutocomplete() {
           body: JSON.stringify({
             input,
             includedRegionCodes: ["us"],
-            includedPrimaryTypes: [
-              "street_address",
-              "subpremise",
-              "route",
-              "locality",
-            ],
+            includedPrimaryTypes: ["street_address", "subpremise"],
           }),
           signal: controller.signal,
         });

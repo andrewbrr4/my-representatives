@@ -18,8 +18,6 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
 
   const hasValidSelection =
     address.trim().length > 0 && address === selectedFullText;
-  const showPickHint =
-    address.trim().length >= 3 && !hasValidSelection && !isOpen;
 
   // Click-outside to dismiss dropdown
   useEffect(() => {
@@ -119,7 +117,7 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
                     aria-selected={i === highlightedIndex}
                     className={`cursor-pointer px-3 py-2 text-sm ${
                       i === highlightedIndex
-                        ? "bg-accent text-accent-foreground"
+                        ? "bg-blue-600 text-white"
                         : "hover:bg-accent/50"
                     }`}
                     onMouseDown={(e) => {
@@ -129,7 +127,13 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
                     onMouseEnter={() => setHighlightedIndex(i)}
                   >
                     <span className="font-medium">{s.mainText}</span>{" "}
-                    <span className="text-muted-foreground text-xs">
+                    <span
+                      className={`text-xs ${
+                        i === highlightedIndex
+                          ? "text-blue-100"
+                          : "text-muted-foreground"
+                      }`}
+                    >
                       {s.secondaryText}
                     </span>
                   </li>
@@ -145,11 +149,6 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
           {loading ? "Searching…" : "Search"}
         </Button>
       </div>
-      {showPickHint && (
-        <p className="text-xs text-muted-foreground px-1" role="status">
-          Pick your address from the dropdown to search.
-        </p>
-      )}
     </form>
   );
 }
