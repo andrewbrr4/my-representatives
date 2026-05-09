@@ -1,30 +1,44 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAddressAutocomplete } from "@/hooks/useAddressAutocomplete";
+import { US_STATES } from "@/lib/usStates";
 
 interface AddressSearchProps {
   onSearch: (address: string) => void;
   loading: boolean;
 }
 
+const ZIP_REGEX = /^\d{5}(-\d{4})?$/;
+
 export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
-  const [address, setAddress] = useState("");
-  const [selectedFullText, setSelectedFullText] = useState("");
+  const [street, setStreet] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zip, setZip] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const { suggestions, isOpen, onInputChange, close, clear } =
+  const { suggestions, isOpen, onInputChange, fetchPlaceDetails, close, clear } =
     useAddressAutocomplete();
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const streetWrapperRef = useRef<HTMLDivElement>(null);
 
-  const hasValidSelection =
-    address.trim().length > 0 && address === selectedFullText;
+  const isValid =
+    street.trim().length > 0 &&
+    city.trim().length > 0 &&
+    state.length > 0 &&
+    ZIP_REGEX.test(zip.trim());
 
-  // Click-outside to dismiss dropdown
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
+        streetWrapperRef.current &&
+        !streetWrapperRef.current.contains(e.target as Node)
       ) {
         close();
       }
@@ -33,39 +47,40 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [close]);
 
-  // Selecting a suggestion populates the input and auto-submits the search
-  function selectSuggestion(fullText: string) {
-    setAddress(fullText);
-    setSelectedFullText(fullText);
+  async function selectSuggestion(placeId: string, fallbackFullText: string) {
     clear();
     setHighlightedIndex(-1);
-    onSearch(fullText);
+    const details = await fetchPlaceDetails(placeId);
+    if (details) {
+      if (details.street) setStreet(details.street);
+      else setStreet(fallbackFullText);
+      if (details.city) setCity(details.city);
+      if (details.state) setState(details.state);
+      if (details.zip) setZip(details.zip);
+    } else {
+      // Place Details failed — leave the user with the picked text in Street.
+      setStreet(fallbackFullText);
+    }
   }
 
-  function handleInputChange(value: string) {
-    setAddress(value);
-    // Any edit invalidates the prior pick — user must re-select from dropdown
-    if (value !== selectedFullText) setSelectedFullText("");
+  function handleStreetChange(value: string) {
+    setStreet(value);
     setHighlightedIndex(-1);
     onInputChange(value);
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function handleStreetKeyDown(e: React.KeyboardEvent) {
     if (!isOpen || suggestions.length === 0) return;
-
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setHighlightedIndex((i) =>
-        i < suggestions.length - 1 ? i + 1 : 0
-      );
+      setHighlightedIndex((i) => (i < suggestions.length - 1 ? i + 1 : 0));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlightedIndex((i) =>
-        i > 0 ? i - 1 : suggestions.length - 1
-      );
+      setHighlightedIndex((i) => (i > 0 ? i - 1 : suggestions.length - 1));
     } else if (e.key === "Enter" && highlightedIndex >= 0) {
       e.preventDefault();
-      selectSuggestion(suggestions[highlightedIndex].fullText);
+      const picked = suggestions[highlightedIndex];
+      void selectSuggestion(picked.placeId, picked.fullText);
     } else if (e.key === "Escape") {
       close();
       setHighlightedIndex(-1);
@@ -74,23 +89,29 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (hasValidSelection) {
-      clear();
-      onSearch(address.trim());
-    }
+    if (!isValid) return;
+    clear();
+    onSearch(`${street.trim()}, ${city.trim()}, ${state} ${zip.trim()}`);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full max-w-xl">
-      <div className="flex gap-3">
-        <div ref={wrapperRef} className="relative flex-1">
+    <form
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-4 w-full max-w-xl"
+    >
+      {/* Street with autocomplete */}
+      <div className="flex flex-col gap-1">
+        <label htmlFor="street" className="text-sm font-medium">
+          Street address
+        </label>
+        <div ref={streetWrapperRef} className="relative">
           <Input
+            id="street"
             type="text"
-            placeholder="Start typing your address…"
-            value={address}
-            onChange={(e) => handleInputChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="w-full"
+            placeholder="123 Main St"
+            value={street}
+            onChange={(e) => handleStreetChange(e.target.value)}
+            onKeyDown={handleStreetKeyDown}
             disabled={loading}
             autoComplete="off"
             role="combobox"
@@ -98,31 +119,26 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
             aria-autocomplete="list"
             aria-controls="address-suggestions"
             aria-activedescendant={
-              highlightedIndex >= 0
-                ? `suggestion-${highlightedIndex}`
-                : undefined
+              highlightedIndex >= 0 ? `suggestion-${highlightedIndex}` : undefined
             }
           />
           {isOpen && suggestions.length > 0 && (
             <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
-              <ul
-                id="address-suggestions"
-                role="listbox"
-              >
+              <ul id="address-suggestions" role="listbox">
                 {suggestions.map((s, i) => (
                   <li
-                    key={`${s.fullText}-${i}`}
+                    key={`${s.placeId}-${i}`}
                     id={`suggestion-${i}`}
                     role="option"
                     aria-selected={i === highlightedIndex}
                     className={`cursor-pointer px-3 py-2 text-sm ${
                       i === highlightedIndex
-                        ? "bg-blue-600 text-white"
+                        ? "bg-primary text-primary-foreground"
                         : "hover:bg-accent/50"
                     }`}
                     onMouseDown={(e) => {
                       e.preventDefault();
-                      selectSuggestion(s.fullText);
+                      void selectSuggestion(s.placeId, s.fullText);
                     }}
                     onMouseEnter={() => setHighlightedIndex(i)}
                   >
@@ -130,7 +146,7 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
                     <span
                       className={`text-xs ${
                         i === highlightedIndex
-                          ? "text-blue-100"
+                          ? "opacity-80"
                           : "text-muted-foreground"
                       }`}
                     >
@@ -145,7 +161,61 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
             </div>
           )}
         </div>
-        <Button type="submit" disabled={loading || !hasValidSelection}>
+      </div>
+
+      {/* City | State | ZIP */}
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="city" className="text-sm font-medium">
+            City
+          </label>
+          <Input
+            id="city"
+            type="text"
+            placeholder="Austin"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            disabled={loading}
+            autoComplete="off"
+          />
+        </div>
+        <div className="flex flex-col gap-1 sm:w-40">
+          <label htmlFor="state" className="text-sm font-medium">
+            State
+          </label>
+          <Select value={state} onValueChange={setState} disabled={loading}>
+            <SelectTrigger id="state">
+              <SelectValue placeholder="Select" />
+            </SelectTrigger>
+            <SelectContent>
+              {US_STATES.map((s) => (
+                <SelectItem key={s.code} value={s.code}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1 sm:w-32">
+          <label htmlFor="zip" className="text-sm font-medium">
+            ZIP code
+          </label>
+          <Input
+            id="zip"
+            type="text"
+            inputMode="numeric"
+            maxLength={10}
+            placeholder="78701"
+            value={zip}
+            onChange={(e) => setZip(e.target.value)}
+            disabled={loading}
+            autoComplete="off"
+          />
+        </div>
+      </div>
+
+      <div>
+        <Button type="submit" disabled={loading || !isValid}>
           {loading ? "Searching…" : "Search"}
         </Button>
       </div>
