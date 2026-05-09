@@ -11,22 +11,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-
-function getPartyBadge(party: string | null): { label: string; className: string } | null {
-  if (!party) return null;
-  const p = party.trim().toLowerCase();
-  if (p === "d" || p.startsWith("democrat")) {
-    const label = p.startsWith("democratic") ? "Democratic" : "Democrat";
-    return { label, className: "bg-blue-600 text-white hover:bg-blue-700" };
-  }
-  if (p === "r" || p.startsWith("republican")) {
-    return { label: "Republican", className: "bg-red-600 text-white hover:bg-red-700" };
-  }
-  if (p === "i" || p.startsWith("independent")) {
-    return { label: "Independent", className: "bg-slate-500 text-white hover:bg-slate-600" };
-  }
-  return null;
-}
+import { getPartyBadge } from "@/lib/partyBadge";
 
 interface IssueCompareResultProps {
   rep: Representative;

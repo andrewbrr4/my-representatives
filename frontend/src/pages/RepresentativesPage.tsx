@@ -66,7 +66,7 @@ export function RepresentativesPage() {
                     <ChevronRight className="h-5 w-5 group-data-[state=open]:hidden" />
                     <ChevronDown className="h-5 w-5 group-data-[state=closed]:hidden" />
                   </span>
-                  <h2 className="text-xl font-semibold">
+                  <h2 className="text-2xl font-semibold">
                     {group.label}
                   </h2>
                   <span className="text-sm text-muted-foreground">
