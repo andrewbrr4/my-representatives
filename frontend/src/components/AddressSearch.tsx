@@ -184,7 +184,7 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
             State
           </label>
           <Select value={state} onValueChange={setState} disabled={loading}>
-            <SelectTrigger id="state">
+            <SelectTrigger id="state" className="w-full">
               <SelectValue placeholder="Select" />
             </SelectTrigger>
             <SelectContent>
