@@ -26,8 +26,17 @@ export interface Representative {
   contact: Contact;
 }
 
+export interface DistrictInfo {
+  state: string | null;
+  congressional_district: string | null;
+  state_senate_district: string | null;
+  state_house_district: string | null;
+  municipality: string | null;
+}
+
 export interface RepresentativesResponse {
   representatives: Representative[];
+  district_info: DistrictInfo | null;
 }
 
 export interface ResearchResponse {

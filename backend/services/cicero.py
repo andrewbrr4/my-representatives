@@ -22,6 +22,29 @@ DISTRICT_TYPE_TO_LEVEL = {
 PRESIDENT_VP_OFFICES = {"President", "Vice President"}
 
 
+def _extract_districts(officials: list[dict]) -> dict:
+    """Pull state senate, state house, and municipality from Cicero officials.
+
+    Each official's office has a `district` block with `district_type`,
+    `district_id`, and `label`. State legislative districts use the numeric
+    `district_id`; municipality is taken from the LOCAL_EXEC (mayor-equivalent)
+    district's `city` or `label` since LOCAL districts can also be county/school.
+    """
+    info: dict = {}
+    for official in officials:
+        office = official.get("office", {})
+        district = office.get("district", {}) or {}
+        dtype = district.get("district_type", "")
+
+        if dtype == "STATE_UPPER" and "state_senate_district" not in info:
+            info["state_senate_district"] = district.get("district_id")
+        elif dtype == "STATE_LOWER" and "state_house_district" not in info:
+            info["state_house_district"] = district.get("district_id")
+        elif dtype == "LOCAL_EXEC" and "municipality" not in info:
+            info["municipality"] = district.get("city") or district.get("label")
+    return info
+
+
 async def _fetch_officials(client: httpx.AsyncClient, api_key: str, address: str) -> list[dict]:
     """Fetch raw officials list from Cicero for an address."""
     resp = await client.get(
@@ -93,17 +116,21 @@ def _parse_officials(officials: list[dict], skip_federal_legislators: bool = Tru
     return representatives
 
 
-async def get_state_local_representatives(address: str) -> list[Representative]:
+async def get_state_local_representatives(address: str) -> tuple[list[Representative], dict]:
     """Get state, municipal, and executive representatives from Cicero.
 
     Cicero inconsistently returns President/VP depending on the address.
     When missing, a fallback lookup using the White House address fills the gap.
+
+    Returns ``(reps, districts)`` where ``districts`` aggregates state senate,
+    state house, and municipality from the user's officials (not the fallback).
     """
     api_key = os.environ["CICERO_API_KEY"]
 
     async with httpx.AsyncClient() as client:
         officials = await _fetch_officials(client, api_key, address)
         reps = _parse_officials(officials)
+        districts = _extract_districts(officials)
 
         # Check if President/VP are present
         existing_offices = {r.office for r in reps}
@@ -118,4 +145,4 @@ async def get_state_local_representatives(address: str) -> list[Representative]:
                     reps.append(rep)
 
     logger.info(f"Cicero returned {len(reps)} elected officials")
-    return reps
+    return reps, districts

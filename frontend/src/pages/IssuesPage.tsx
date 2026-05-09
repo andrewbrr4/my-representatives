@@ -30,7 +30,8 @@ function repId(rep: Representative): string {
 
 export function IssuesPage() {
   const { address } = useAddress();
-  const { data: representatives = [], isLoading: repsLoading } = useRepresentativesQuery(address);
+  const { data, isLoading: repsLoading } = useRepresentativesQuery(address);
+  const representatives = data?.representatives ?? [];
 
   const {
     query,

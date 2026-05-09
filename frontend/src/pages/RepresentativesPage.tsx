@@ -12,6 +12,7 @@ import { useResearchQuery as useResearch } from "@/hooks/useResearchQuery";
 import { useAddress } from "@/contexts/AddressContext";
 import type { Representative } from "@/types";
 import { CrossLinkCards } from "@/components/CrossLinkCards";
+import { formatDistrictBreakdown } from "@/lib/districts";
 
 function groupByLevel(reps: Representative[]) {
   const groups: { label: string; level: string; reps: Representative[] }[] = [
@@ -29,11 +30,17 @@ function groupByLevel(reps: Representative[]) {
 
 export function RepresentativesPage() {
   const { address } = useAddress();
-  const { data: representatives = [], isLoading, error } = useRepresentativesQuery(address);
+  const { data, isLoading, error } = useRepresentativesQuery(address);
+  const representatives = data?.representatives ?? [];
+  const districtInfo = data?.district_info ?? null;
   const { requestResearch, getStatus, getSummary } = useResearch();
 
   const hasResults = representatives.length > 0;
   const groups = groupByLevel(representatives);
+  const districtBreakdown = districtInfo ? formatDistrictBreakdown(districtInfo) : null;
+  const hasBreakdown =
+    !!districtBreakdown &&
+    (districtBreakdown.federal || districtBreakdown.state || districtBreakdown.municipal);
 
   return (
     <>
@@ -58,6 +65,42 @@ export function RepresentativesPage() {
 
       {hasResults && (
         <div className="space-y-8">
+          {hasBreakdown && districtBreakdown && (
+            <div className="max-w-4xl mx-auto rounded-lg border bg-muted/30 p-4 text-sm">
+              <p className="mb-2 text-muted-foreground">
+                Based on your address, here's where you live in each level of government:
+              </p>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+                {districtBreakdown.federal && (
+                  <>
+                    <dt className="font-semibold">Federal</dt>
+                    <dd>
+                      {districtBreakdown.federal}
+                      <span className="text-muted-foreground"> — picks your U.S. House Representative</span>
+                    </dd>
+                  </>
+                )}
+                {districtBreakdown.state && (
+                  <>
+                    <dt className="font-semibold">State</dt>
+                    <dd>
+                      {districtBreakdown.state}
+                      <span className="text-muted-foreground"> — picks your state legislators</span>
+                    </dd>
+                  </>
+                )}
+                {districtBreakdown.municipal && (
+                  <>
+                    <dt className="font-semibold">Municipal</dt>
+                    <dd>
+                      {districtBreakdown.municipal}
+                      <span className="text-muted-foreground"> — your city/town government</span>
+                    </dd>
+                  </>
+                )}
+              </dl>
+            </div>
+          )}
           {groups.map((group) => (
             <Collapsible key={group.level} defaultOpen asChild>
               <section className="max-w-4xl mx-auto">

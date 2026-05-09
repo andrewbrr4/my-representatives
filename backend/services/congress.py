@@ -92,8 +92,12 @@ def _member_to_representative(member: dict) -> Representative:
     )
 
 
-async def get_federal_representatives(address: str) -> list[Representative]:
-    """Look up federal representatives using Census geocoder + Congress API."""
+async def get_federal_representatives(address: str) -> tuple[list[Representative], dict]:
+    """Look up federal representatives using Census geocoder + Congress API.
+
+    Returns ``(reps, geo)`` where ``geo`` is ``{"state": str, "district": str}``
+    so callers can also surface the user's congressional district.
+    """
     api_key = os.environ["US_CONGRESS_API_KEY"]
 
     async with httpx.AsyncClient() as client:
@@ -151,4 +155,4 @@ async def get_federal_representatives(address: str) -> list[Representative]:
 
         representatives = list(await asyncio.gather(*[_fetch_detail(m) for m in relevant]))
 
-    return representatives
+    return representatives, geo

@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from models import AddressRequest, RepresentativesResponse
+from models import AddressRequest, DistrictInfo, RepresentativesResponse
 from services.cicero import get_state_local_representatives
 from services.congress import get_federal_representatives
 
@@ -26,7 +26,7 @@ async def lookup_representatives(
     logger.info(f"Looking up representatives for: {address_request.address}")
 
     try:
-        federal_reps, state_local_reps = await asyncio.gather(
+        (federal_reps, federal_geo), (state_local_reps, cicero_districts) = await asyncio.gather(
             get_federal_representatives(address_request.address),
             get_state_local_representatives(address_request.address),
         )
@@ -48,4 +48,12 @@ async def lookup_representatives(
     level_order = {"federal": 0, "state": 1, "municipal": 2}
     reps.sort(key=lambda r: level_order.get(r.level, 3))
 
-    return RepresentativesResponse(representatives=reps)
+    district_info = DistrictInfo(
+        state=federal_geo.get("state"),
+        congressional_district=federal_geo.get("district"),
+        state_senate_district=cicero_districts.get("state_senate_district"),
+        state_house_district=cicero_districts.get("state_house_district"),
+        municipality=cicero_districts.get("municipality"),
+    )
+
+    return RepresentativesResponse(representatives=reps, district_info=district_info)

@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Representative, RepresentativesResponse } from "@/types";
+import type { RepresentativesResponse } from "@/types";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const STALE_TIME = 5 * 60 * 1000; // 5 minutes
 
-async function fetchRepresentatives(address: string): Promise<Representative[]> {
+async function fetchRepresentatives(address: string): Promise<RepresentativesResponse> {
   const resp = await fetch(`${API_URL}/api/representatives`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -16,8 +16,7 @@ async function fetchRepresentatives(address: string): Promise<Representative[]> 
     throw new Error(data?.detail || `Request failed (${resp.status})`);
   }
 
-  const { representatives }: RepresentativesResponse = await resp.json();
-  return representatives;
+  return resp.json();
 }
 
 export function useRepresentativesQuery(address: string | null) {

@@ -44,8 +44,17 @@ class Representative(BaseModel):
     contact: Contact = Contact()
 
 
+class DistrictInfo(BaseModel):
+    state: str | None = None
+    congressional_district: str | None = None
+    state_senate_district: str | None = None
+    state_house_district: str | None = None
+    municipality: str | None = None
+
+
 class RepresentativesResponse(BaseModel):
     representatives: list[Representative]
+    district_info: DistrictInfo | None = None
 
 
 class PollingLocation(BaseModel):
