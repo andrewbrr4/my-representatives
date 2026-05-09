@@ -51,7 +51,7 @@ export function CandidateCard({
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <CardTitle className="text-lg">{candidate.name}</CardTitle>
+            <CardTitle className="text-xl font-semibold">{candidate.name}</CardTitle>
             {(() => {
               const badge = getPartyBadge(candidate.party);
               return badge ? <Badge className={badge.className}>{badge.label}</Badge> : null;

@@ -44,7 +44,7 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <CardTitle className="text-lg">{rep.name}</CardTitle>
+            <CardTitle className="text-xl font-semibold">{rep.name}</CardTitle>
             {(() => {
               const badge = getPartyBadge(rep.party);
               return badge ? <Badge className={badge.className}>{badge.label}</Badge> : null;
