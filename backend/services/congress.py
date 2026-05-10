@@ -13,21 +13,49 @@ CENSUS_GEOCODER_URL = "https://geocoding.geo.census.gov/geocoder/geographies/one
 
 CURRENT_CONGRESS = 119
 
+_GEOCODER_MAX_ATTEMPTS = 4
+_GEOCODER_BASE_DELAY = 0.5  # seconds; doubles each retry → 0.5, 1, 2, 4
+
 
 async def _geocode_address(client: httpx.AsyncClient, address: str) -> dict:
-    """Use Census geocoder to get state and congressional district from address."""
-    resp = await client.get(
-        CENSUS_GEOCODER_URL,
-        params={
-            "address": address,
-            "benchmark": "Public_AR_Current",
-            "vintage": "Current_Current",
-            "format": "json",
-        },
-        timeout=15,
-    )
-    resp.raise_for_status()
-    data = resp.json()
+    """Use Census geocoder to get state and congressional district from address.
+
+    Census Geocoder is a free service that returns transient 5xx and timeouts
+    under load. Retry with exponential backoff before surfacing the error.
+    """
+    params = {
+        "address": address,
+        "benchmark": "Public_AR_Current",
+        "vintage": "Current_Current",
+        "format": "json",
+    }
+
+    last_exc: Exception | None = None
+    for attempt in range(_GEOCODER_MAX_ATTEMPTS):
+        try:
+            resp = await client.get(CENSUS_GEOCODER_URL, params=params, timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
+            break
+        except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.TransportError) as e:
+            # Retry only on transient errors: 5xx, timeouts, network blips.
+            # 4xx (bad address) should fail fast.
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            is_transient = (
+                isinstance(e, (httpx.TimeoutException, httpx.TransportError))
+                or (status is not None and 500 <= status < 600)
+            )
+            if not is_transient or attempt == _GEOCODER_MAX_ATTEMPTS - 1:
+                raise
+            delay = _GEOCODER_BASE_DELAY * (2**attempt)
+            logger.warning(
+                f"Census geocoder transient error ({type(e).__name__}, status={status}); "
+                f"retrying in {delay}s (attempt {attempt + 1}/{_GEOCODER_MAX_ATTEMPTS})"
+            )
+            last_exc = e
+            await asyncio.sleep(delay)
+    else:  # pragma: no cover — defensive; loop always breaks or raises
+        raise last_exc or RuntimeError("Census geocoder failed without exception")
 
     matches = data.get("result", {}).get("addressMatches", [])
     if not matches:
