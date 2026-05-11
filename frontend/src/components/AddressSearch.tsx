@@ -24,8 +24,9 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
   const [state, setState] = useState("");
   const [zip, setZip] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const selectedStateBbox = US_STATES.find((s) => s.code === state)?.bbox;
   const { suggestions, isOpen, onInputChange, fetchPlaceDetails, close, clear } =
-    useAddressAutocomplete();
+    useAddressAutocomplete(selectedStateBbox);
   const streetWrapperRef = useRef<HTMLDivElement>(null);
 
   const isValid =
@@ -66,7 +67,17 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
   function handleStreetChange(value: string) {
     setStreet(value);
     setHighlightedIndex(-1);
+    if (!state) {
+      clear();
+      return;
+    }
     onInputChange(value);
+  }
+
+  function handleStateChange(code: string) {
+    setState(code);
+    clear();
+    setHighlightedIndex(-1);
   }
 
   function handleStreetKeyDown(e: React.KeyboardEvent) {
@@ -99,6 +110,25 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
       onSubmit={handleSubmit}
       className="flex flex-col gap-4 w-full max-w-xl"
     >
+      {/* State (picked first so autocomplete can narrow by state) */}
+      <div className="flex flex-col gap-1 sm:w-56">
+        <label htmlFor="state" className="text-sm font-medium">
+          State
+        </label>
+        <Select value={state} onValueChange={handleStateChange} disabled={loading}>
+          <SelectTrigger id="state" className="w-full">
+            <SelectValue placeholder="Select a state" />
+          </SelectTrigger>
+          <SelectContent>
+            {US_STATES.map((s) => (
+              <SelectItem key={s.code} value={s.code}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Street with autocomplete */}
       <div className="flex flex-col gap-1">
         <label htmlFor="street" className="text-sm font-medium">
@@ -108,11 +138,11 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
           <Input
             id="street"
             type="text"
-            placeholder="123 Main St"
+            placeholder={state ? "123 Main St" : "Select a state first"}
             value={street}
             onChange={(e) => handleStreetChange(e.target.value)}
             onKeyDown={handleStreetKeyDown}
-            disabled={loading}
+            disabled={loading || !state}
             autoComplete="off"
             role="combobox"
             aria-expanded={isOpen}
@@ -163,8 +193,8 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
         </div>
       </div>
 
-      {/* City | State | ZIP */}
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3">
+      {/* City | ZIP */}
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor="city" className="text-sm font-medium">
             City
@@ -178,23 +208,6 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
             disabled={loading}
             autoComplete="off"
           />
-        </div>
-        <div className="flex flex-col gap-1 sm:w-40">
-          <label htmlFor="state" className="text-sm font-medium">
-            State
-          </label>
-          <Select value={state} onValueChange={setState} disabled={loading}>
-            <SelectTrigger id="state" className="w-full">
-              <SelectValue placeholder="Select" />
-            </SelectTrigger>
-            <SelectContent>
-              {US_STATES.map((s) => (
-                <SelectItem key={s.code} value={s.code}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
         <div className="flex flex-col gap-1 sm:w-32">
           <label htmlFor="zip" className="text-sm font-medium">

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import type { Bbox } from "@/lib/usStates";
 
 interface PlaceSuggestion {
   mainText: string;
@@ -52,7 +53,7 @@ function parseAddressComponents(
   return { street, city, state, zip };
 }
 
-export function useAddressAutocomplete() {
+export function useAddressAutocomplete(stateBbox?: Bbox) {
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,17 +83,21 @@ export function useAddressAutocomplete() {
       abortRef.current = controller;
 
       try {
+        const body: Record<string, unknown> = {
+          input,
+          includedRegionCodes: ["us"],
+          includedPrimaryTypes: ["street_address", "subpremise"],
+        };
+        if (stateBbox) {
+          body.locationRestriction = { rectangle: stateBbox };
+        }
         const resp = await fetch(PLACES_AUTOCOMPLETE_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "X-Goog-Api-Key": apiKey,
           },
-          body: JSON.stringify({
-            input,
-            includedRegionCodes: ["us"],
-            includedPrimaryTypes: ["street_address", "subpremise"],
-          }),
+          body: JSON.stringify(body),
           signal: controller.signal,
         });
 
@@ -141,7 +146,7 @@ export function useAddressAutocomplete() {
         setIsOpen(false);
       }
     },
-    [apiKey]
+    [apiKey, stateBbox]
   );
 
   const fetchPlaceDetails = useCallback(
