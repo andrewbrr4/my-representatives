@@ -43,55 +43,64 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
           </div>
         )}
         <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+            {rep.office}
+          </p>
           <div className="flex items-center gap-2 flex-wrap">
-            <CardTitle className="text-xl font-semibold">{rep.name}</CardTitle>
+            <CardTitle className="text-2xl font-bold tracking-tight">{rep.name}</CardTitle>
             {(() => {
               const badge = getPartyBadge(rep.party);
               return badge ? <Badge className={badge.className}>{badge.label}</Badge> : null;
             })()}
           </div>
-          <CardDescription className="mt-1">
-            {rep.office}
-            {rep.party && ` · ${rep.party}`}
-          </CardDescription>
+          {rep.party && (
+            <CardDescription className="mt-1 text-sm">{rep.party}</CardDescription>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Contact links */}
-        <div className="flex gap-3 text-sm flex-wrap">
-          {rep.contact.website && (
-            <a
-              href={rep.contact.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary underline underline-offset-2 hover:text-primary/80"
-            >
-              Website
-            </a>
-          )}
-          {rep.contact.phone && (
-            <a
-              href={`tel:${rep.contact.phone}`}
-              className="text-primary underline underline-offset-2 hover:text-primary/80"
-            >
-              {rep.contact.phone}
-            </a>
-          )}
-          {rep.contact.email && (
-            <a
-              href={`mailto:${rep.contact.email}`}
-              className="text-primary underline underline-offset-2 hover:text-primary/80"
-            >
-              Email
-            </a>
-          )}
-        </div>
+        {(rep.contact.website || rep.contact.phone || rep.contact.email) && (
+          <div className="space-y-1">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Contact
+            </p>
+            <div className="flex gap-4 text-sm flex-wrap">
+              {rep.contact.website && (
+                <a
+                  href={rep.contact.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                >
+                  Website
+                </a>
+              )}
+              {rep.contact.phone && (
+                <a
+                  href={`tel:${rep.contact.phone}`}
+                  className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                >
+                  {rep.contact.phone}
+                </a>
+              )}
+              {rep.contact.email && (
+                <a
+                  href={`mailto:${rep.contact.email}`}
+                  className="font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                >
+                  Email
+                </a>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Research states — kept above IssueSearch in every state so the
             issue search never jumps up when the AI button is clicked. */}
         {researchStatus === "idle" && (
-          <div className="space-y-1">
-            <Button onClick={onResearch} variant="secondary" className="w-full">
+          <div className="space-y-1.5">
+            <Button onClick={onResearch} variant="secondary" className="w-full font-semibold uppercase tracking-wide">
               <Sparkles className="h-4 w-4" />
               Generate AI Overview
             </Button>
@@ -114,11 +123,11 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
 
         {(researchStatus === "loading" && summary) && (
           <Collapsible defaultOpen>
-            <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
+            <CollapsibleTrigger className="flex w-full items-center gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer group">
               <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
               <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
               AI Overview
-              <span className="ml-1 text-xs text-muted-foreground italic">(Scraping the web for information about your representative -- this usually takes 30-60 seconds...)</span>
+              <span className="ml-2 text-[11px] font-medium normal-case tracking-normal text-muted-foreground italic">(scraping the web — usually 30-60 seconds…)</span>
             </CollapsibleTrigger>
             <CollapsibleContent>
               <ResearchContent summary={summary} />
@@ -142,7 +151,7 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
             </div>
           ) : (
             <Collapsible defaultOpen>
-              <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
+              <CollapsibleTrigger className="flex w-full items-center gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer group">
                 <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
                 <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
                 AI Overview

@@ -19,20 +19,21 @@ function ResultsLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold tracking-tight mb-2">KnowMyReps</h1>
-          <p className="text-muted-foreground">
-            Find your elected representatives at every level of government.
+          <h1 className="text-5xl font-bold tracking-tight mb-2">KnowMyReps</h1>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Your elected officials, at every level
           </p>
         </div>
 
         <div className="flex justify-center mb-6">
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">
-              Results for: <strong className="text-foreground">{address}</strong>
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Results for
             </span>
+            <strong className="text-foreground font-semibold">{address}</strong>
             <button
               onClick={clearAddress}
-              className="text-primary underline underline-offset-2 hover:text-primary/80"
+              className="text-xs font-semibold uppercase tracking-wider text-primary underline underline-offset-2 hover:text-primary/80"
             >
               New search
             </button>

@@ -27,10 +27,11 @@ export function FurtherReading({ sources }: FurtherReadingProps) {
 
   return (
     <Collapsible className="not-prose mt-4">
-      <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-semibold text-foreground hover:text-foreground/80 cursor-pointer group">
+      <CollapsibleTrigger className="flex w-full items-center gap-1 text-xs font-bold uppercase tracking-wider text-foreground hover:text-foreground/80 cursor-pointer group">
         <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
         <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
-        Further reading ({sources.length})
+        Further reading
+        <span className="ml-1 font-bold text-muted-foreground">({sources.length})</span>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <ul className="list-disc pl-5 mt-2 space-y-1.5 text-sm">

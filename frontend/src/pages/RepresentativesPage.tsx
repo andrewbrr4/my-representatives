@@ -66,34 +66,34 @@ export function RepresentativesPage() {
       {hasResults && (
         <div className="space-y-8">
           {hasBreakdown && districtBreakdown && (
-            <div className="max-w-4xl mx-auto rounded-lg border bg-muted/30 p-4 text-sm">
-              <p className="mb-2 text-muted-foreground">
-                Based on your address, here's where you live in each level of government:
+            <div className="max-w-4xl mx-auto rounded-lg border bg-muted/30 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
+                Where you live
               </p>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
                 {districtBreakdown.federal && (
                   <>
-                    <dt className="font-semibold">Federal</dt>
+                    <dt className="text-xs font-bold uppercase tracking-wider text-foreground self-center">Federal</dt>
                     <dd>
-                      {districtBreakdown.federal}
+                      <span className="font-semibold text-foreground">{districtBreakdown.federal}</span>
                       <span className="text-muted-foreground"> — picks your U.S. House Representative</span>
                     </dd>
                   </>
                 )}
                 {districtBreakdown.state && (
                   <>
-                    <dt className="font-semibold">State</dt>
+                    <dt className="text-xs font-bold uppercase tracking-wider text-foreground self-center">State</dt>
                     <dd>
-                      {districtBreakdown.state}
+                      <span className="font-semibold text-foreground">{districtBreakdown.state}</span>
                       <span className="text-muted-foreground"> — picks your state legislators</span>
                     </dd>
                   </>
                 )}
                 {districtBreakdown.municipal && (
                   <>
-                    <dt className="font-semibold">Municipal</dt>
+                    <dt className="text-xs font-bold uppercase tracking-wider text-foreground self-center">Municipal</dt>
                     <dd>
-                      {districtBreakdown.municipal}
+                      <span className="font-semibold text-foreground">{districtBreakdown.municipal}</span>
                       <span className="text-muted-foreground"> — your city/town government</span>
                     </dd>
                   </>
@@ -106,14 +106,14 @@ export function RepresentativesPage() {
               <section className="max-w-4xl mx-auto">
                 <CollapsibleTrigger className="flex w-full items-center gap-2 border-b pb-2 cursor-pointer group">
                   <span className="text-muted-foreground transition-transform group-data-[state=closed]:rotate-0 group-data-[state=open]:rotate-0">
-                    <ChevronRight className="h-5 w-5 group-data-[state=open]:hidden" />
-                    <ChevronDown className="h-5 w-5 group-data-[state=closed]:hidden" />
+                    <ChevronRight className="h-6 w-6 group-data-[state=open]:hidden" />
+                    <ChevronDown className="h-6 w-6 group-data-[state=closed]:hidden" />
                   </span>
-                  <h2 className="text-2xl font-semibold">
+                  <h2 className="text-3xl font-bold tracking-tight">
                     {group.label}
                   </h2>
-                  <span className="text-sm text-muted-foreground">
-                    ({group.reps.length})
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground self-end pb-1">
+                    {group.reps.length} {group.reps.length === 1 ? "rep" : "reps"}
                   </span>
                 </CollapsibleTrigger>
                 <CollapsibleContent>

@@ -32,7 +32,7 @@ function IssueResult({
         <CollapsibleTrigger className="flex w-full items-center gap-1 cursor-pointer group">
           <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
           <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
-          <h4 className="font-semibold text-sm text-foreground">{label}</h4>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">{label}</h4>
         </CollapsibleTrigger>
         <CollapsibleContent>
           {loading && !items ? (
