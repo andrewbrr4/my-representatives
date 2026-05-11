@@ -50,20 +50,22 @@ export function CandidateCard({
           </div>
         )}
         <div className="flex-1 min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+            {candidate.office}
+          </p>
           <div className="flex items-center gap-2 flex-wrap">
-            <CardTitle className="text-xl font-semibold">{candidate.name}</CardTitle>
+            <CardTitle className="text-2xl font-bold tracking-tight">{candidate.name}</CardTitle>
             {(() => {
               const badge = getPartyBadge(candidate.party);
               return badge ? <Badge className={badge.className}>{badge.label}</Badge> : null;
             })()}
             {candidate.incumbent && (
-              <Badge variant="outline">Incumbent</Badge>
+              <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-wider">Incumbent</Badge>
             )}
           </div>
-          <CardDescription className="mt-1">
-            {candidate.office}
-            {candidate.party && ` · ${candidate.party}`}
-          </CardDescription>
+          {candidate.party && (
+            <CardDescription className="mt-1 text-sm">{candidate.party}</CardDescription>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -72,7 +74,7 @@ export function CandidateCard({
 
         {/* Research states */}
         {researchStatus === "idle" && (
-          <Button onClick={onResearch} variant="outline" className="w-full">
+          <Button onClick={onResearch} variant="outline" className="w-full font-semibold uppercase tracking-wide">
             Generate AI Overview
           </Button>
         )}
@@ -90,11 +92,11 @@ export function CandidateCard({
 
         {researchStatus === "loading" && summary && (
           <Collapsible defaultOpen>
-            <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
+            <CollapsibleTrigger className="flex w-full items-center gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer group">
               <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
               <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
               AI Overview
-              <span className="ml-1 text-xs text-muted-foreground italic">(Scraping the web for information about this candidate -- this usually takes 30-60 seconds...)</span>
+              <span className="ml-2 text-[11px] font-medium normal-case tracking-normal text-muted-foreground italic">(scraping the web — usually 30-60 seconds…)</span>
             </CollapsibleTrigger>
             <CollapsibleContent>
               <ResearchContent summary={summary} />
@@ -104,7 +106,7 @@ export function CandidateCard({
 
         {researchStatus === "complete" && summary && (
           <Collapsible defaultOpen>
-            <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
+            <CollapsibleTrigger className="flex w-full items-center gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer group">
               <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
               <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
               AI Overview

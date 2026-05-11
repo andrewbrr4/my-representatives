@@ -28,13 +28,13 @@ export function IssueCompareResult({ rep, result, onRetry }: IssueCompareResultP
         <CollapsibleTrigger className="flex w-full items-center gap-2 cursor-pointer group">
           <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden flex-shrink-0" />
           <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden flex-shrink-0" />
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <span className="font-semibold text-foreground">{rep.name}</span>
+          <div className="flex items-baseline gap-2 flex-wrap min-w-0">
+            <span className="text-lg font-bold tracking-tight text-foreground">{rep.name}</span>
             {(() => {
               const badge = getPartyBadge(rep.party);
               return badge ? <Badge className={badge.className}>{badge.label}</Badge> : null;
             })()}
-            <span className="text-sm text-muted-foreground">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
               {rep.office}
               {rep.party && ` · ${rep.party}`}
             </span>

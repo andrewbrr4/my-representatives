@@ -74,7 +74,7 @@ export function IssuesPage() {
         <form onSubmit={onSubmit} className="space-y-4">
           {/* Issue input */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Issue</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Issue</label>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -90,7 +90,7 @@ export function IssuesPage() {
 
           {/* Rep selection */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
               Select representatives to compare
             </label>
 
@@ -107,8 +107,8 @@ export function IssuesPage() {
             )}
 
             {groups.map((group) => (
-              <div key={group.level} className="mb-3">
-                <h3 className="text-sm font-semibold text-muted-foreground mb-1.5">
+              <div key={group.level} className="mb-4">
+                <h3 className="text-[11px] font-bold uppercase tracking-widest text-foreground mb-1.5">
                   {group.label}
                 </h3>
                 <div className="space-y-1">
@@ -125,7 +125,7 @@ export function IssuesPage() {
                           disabled={compareStatus === "matching"}
                         />
                         <span className="text-sm">
-                          {rep.name}
+                          <span className="font-semibold text-foreground">{rep.name}</span>
                           <span className="text-muted-foreground">
                             {" "}&mdash; {rep.office}
                             {rep.party && ` · ${rep.party}`}
@@ -140,9 +140,9 @@ export function IssuesPage() {
           </div>
 
           {/* Submit button */}
-          <Button type="submit" disabled={!canSubmit} className="w-full">
+          <Button type="submit" disabled={!canSubmit} className="w-full font-semibold uppercase tracking-wide">
             {compareStatus === "matching"
-              ? "Matching issue..."
+              ? "Matching issue…"
               : `Compare${selected.size > 0 ? ` (${selected.size} selected)` : ""}`}
           </Button>
         </form>
@@ -155,9 +155,14 @@ export function IssuesPage() {
         {/* Results area */}
         {showResults && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">
-              {matchedIssue.label}
-            </h2>
+            <div className="border-b pb-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Comparing on
+              </p>
+              <h2 className="text-3xl font-bold tracking-tight">
+                {matchedIssue.label}
+              </h2>
+            </div>
             <div className="space-y-3">
               {comparedReps.map((rep) => (
                 <IssueCompareResult

@@ -26,7 +26,7 @@ interface ParagraphSectionProps {
 function ParagraphSection({ title, content, citations }: ParagraphSectionProps) {
   return (
     <div>
-      <h4 className="font-semibold text-foreground">{title}</h4>
+      <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">{title}</h4>
       {content === null ? (
         <SectionSkeleton />
       ) : (
@@ -45,7 +45,7 @@ interface ListSectionProps {
 function ListSection({ title, items, citations }: ListSectionProps) {
   return (
     <div>
-      <h4 className="font-semibold text-foreground">{title}</h4>
+      <h4 className="text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">{title}</h4>
       {items === null ? (
         <SectionSkeleton />
       ) : (
@@ -78,7 +78,7 @@ export function ResearchContent({ summary }: { summary: ResearchSummary }) {
   let allPriorComplete = true;
 
   return (
-    <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
+    <div className="space-y-4 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
       {SECTION_ORDER.map((section) => {
         const content = summary[section.key];
         const citations = (summary[section.citationsKey] as Citation[]) ?? [];

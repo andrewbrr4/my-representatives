@@ -42,8 +42,8 @@ export function ResearchContent({ summary }: { summary: BulletsResearchSummary }
   }
 
   return (
-    <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
-      <ul className="list-disc pl-5 space-y-1">
+    <div className="space-y-3 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none mt-2">
+      <ul className="list-disc pl-5 space-y-1.5 marker:text-muted-foreground">
         {bullets.map((b, i) => (
           <li key={i}>{renderInline(b, citations)}</li>
         ))}

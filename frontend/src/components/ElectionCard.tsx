@@ -97,16 +97,16 @@ export function ElectionCard({
   return (
     <Card className="overflow-hidden">
       <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <Badge className={typeColors[election.election_type] || typeColors.general}>
+        <div className="flex justify-between items-start gap-4">
+          <div className="min-w-0">
+            <Badge className={`${typeColors[election.election_type] || typeColors.general} text-[10px] font-bold uppercase tracking-wider`}>
               {election.election_type}
             </Badge>
-            <CardTitle className="text-xl mt-2">{election.name}</CardTitle>
+            <CardTitle className="text-2xl font-bold tracking-tight mt-2">{election.name}</CardTitle>
           </div>
-          <div className="text-right">
-            <div className="font-medium">{election.date}</div>
-            <div className="text-sm text-muted-foreground">{daysLabel}</div>
+          <div className="text-right flex-shrink-0">
+            <div className="text-lg font-bold tracking-tight text-foreground">{election.date}</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-0.5">{daysLabel}</div>
           </div>
         </div>
       </CardHeader>
@@ -115,12 +115,12 @@ export function ElectionCard({
         {/* AI Ballot Overview */}
         {(researchStatus === "loading" || researchStatus === "complete") && (
           <Collapsible defaultOpen>
-            <CollapsibleTrigger className="flex w-full items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer group">
+            <CollapsibleTrigger className="flex w-full items-center gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer group">
               <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
               <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
               AI Ballot Overview
               {researchStatus === "loading" && (
-                <span className="ml-1 text-xs italic">(loading...)</span>
+                <span className="ml-2 text-[11px] font-medium normal-case tracking-normal italic">(loading…)</span>
               )}
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -142,11 +142,14 @@ export function ElectionCard({
         {/* Polling Location */}
         {election.polling_location && (
           <div className="p-3 rounded-lg bg-muted/30 border">
-            <h4 className="text-xs font-medium text-muted-foreground mb-1">Polling Location</h4>
-            <div className="text-sm font-medium">{election.polling_location.name}</div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Polling Location</h4>
+            <div className="text-sm font-semibold text-foreground">{election.polling_location.name}</div>
             <div className="text-sm text-muted-foreground">{election.polling_location.address}</div>
             {election.polling_location.hours && (
-              <div className="text-sm text-muted-foreground">Hours: {election.polling_location.hours}</div>
+              <div className="text-sm text-muted-foreground">
+                <span className="text-xs font-bold uppercase tracking-wider mr-1">Hours:</span>
+                {election.polling_location.hours}
+              </div>
             )}
           </div>
         )}
@@ -154,24 +157,24 @@ export function ElectionCard({
         {/* Voter Info */}
         {election.voter_info && (
           <div className="p-3 rounded-lg bg-muted/30 border space-y-2">
-            <h4 className="text-xs font-medium text-muted-foreground">Voter Resources</h4>
-            <div className="flex flex-wrap gap-3 text-sm">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Voter Resources</h4>
+            <div className="flex flex-wrap gap-4 text-sm">
               {election.voter_info.registration_url && (
-                <a href={election.voter_info.registration_url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary/80">Register to Vote</a>
+                <a href={election.voter_info.registration_url} target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-2 hover:text-primary/80">Register to Vote</a>
               )}
               {election.voter_info.absentee_url && (
-                <a href={election.voter_info.absentee_url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary/80">Absentee/Mail-In Voting</a>
+                <a href={election.voter_info.absentee_url} target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-2 hover:text-primary/80">Absentee/Mail-In Voting</a>
               )}
               {election.voter_info.ballot_info_url && (
-                <a href={election.voter_info.ballot_info_url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:text-primary/80">Ballot Information</a>
+                <a href={election.voter_info.ballot_info_url} target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline underline-offset-2 hover:text-primary/80">Ballot Information</a>
               )}
             </div>
             {election.voter_info.mail_only && (
-              <p className="text-xs text-muted-foreground">This is a mail-only election.</p>
+              <p className="text-xs text-muted-foreground italic">This is a mail-only election.</p>
             )}
             {election.voter_info.early_vote_sites.length > 0 && (
               <div>
-                <h5 className="text-xs text-muted-foreground font-medium mt-2">Early Vote Sites</h5>
+                <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mt-3 mb-1">Early Vote Sites</h5>
                 {election.voter_info.early_vote_sites.map((site, i) => (
                   <div key={i} className="text-sm mt-1">
                     <div className="font-medium">{site.name} — {site.address}</div>
@@ -194,14 +197,14 @@ export function ElectionCard({
         {/* What's on your ballot */}
         {election.contests.length > 0 && (
           <div>
-            <h3 className="font-semibold mb-4">Electoral Contests</h3>
+            <h3 className="text-xl font-bold tracking-tight mb-4">Electoral Contests</h3>
             <div className="space-y-6">
               {election.contests.map((contest) => (
                 <div key={contest.office}>
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground border-b pb-1 mb-3">
+                  <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b pb-1.5 mb-3">
                     {contest.office}
                     {contest.district_name && (
-                      <span className="ml-1">— {contest.district_name}</span>
+                      <span className="ml-1 font-medium normal-case tracking-normal text-muted-foreground">— {contest.district_name}</span>
                     )}
                   </div>
                   <div className="space-y-4">
@@ -225,30 +228,30 @@ export function ElectionCard({
         {/* Referenda & Propositions */}
         {election.ballot_measures.length > 0 && (
           <div>
-            <h3 className="font-semibold mb-4">Referenda & Propositions</h3>
+            <h3 className="text-xl font-bold tracking-tight mb-4">Referenda & Propositions</h3>
             <div className="space-y-4">
               {election.ballot_measures.map((measure, i) => (
                 <div key={i} className="p-4 rounded-lg bg-muted/30 border">
                   {(measure.district_name || measure.district_scope) && (
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                    <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
                       {measure.district_name}
                       {measure.district_scope && (
                         measure.district_name ? (
-                          <span className="ml-1">— {measure.district_scope}</span>
+                          <span className="ml-1 font-medium normal-case tracking-normal">— {measure.district_scope}</span>
                         ) : (
                           <span>{measure.district_scope}</span>
                         )
                       )}
                     </div>
                   )}
-                  <h4 className="font-medium text-sm mb-2">{measure.title}</h4>
+                  <h4 className="text-base font-bold tracking-tight mb-2">{measure.title}</h4>
                   <p className="text-sm leading-relaxed text-muted-foreground">
                     {measure.description}
                   </p>
                   {measure.responses.length > 0 && (
                     <div className="flex gap-2 mt-3">
                       {measure.responses.map((r, j) => (
-                        <span key={j} className="text-xs px-2 py-1 rounded-full bg-muted font-medium">
+                        <span key={j} className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-muted text-foreground">
                           {r}
                         </span>
                       ))}

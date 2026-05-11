@@ -41,11 +41,11 @@ export function CrossLinkCards() {
         >
           <Card className="h-full transition-colors hover:border-primary group-focus-visible:border-primary">
             <CardHeader>
-              <CardTitle className="text-base">{link.title}</CardTitle>
-              <CardDescription>{link.body}</CardDescription>
+              <CardTitle className="text-lg font-bold tracking-tight leading-snug">{link.title}</CardTitle>
+              <CardDescription className="text-sm leading-relaxed">{link.body}</CardDescription>
             </CardHeader>
             <CardContent>
-              <span className="inline-flex items-center gap-1 text-sm font-medium text-primary group-hover:underline group-focus-visible:underline underline-offset-2">
+              <span className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-primary group-hover:underline group-focus-visible:underline underline-offset-2">
                 {link.cta}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </span>
