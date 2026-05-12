@@ -3,8 +3,9 @@
  * inline citation markers resolved against a unified citation pool.
  *
  * Used by any overview pipeline version that produces a BulletsResearchSummary
- * (currently v2, v3, v4). When v4 emits ``sources`` (gated on the
- * ``OVERVIEW_V4_SHOW_SOURCES`` backend flag), an expandable "Further reading (N)"
+ * (the default pipeline plus legacy v2/v3). When the default pipeline emits
+ * ``sources`` (gated on the ``OVERVIEW_V4_SHOW_SOURCES`` backend flag), an
+ * expandable "Further reading (N)"
  * list renders below the bullets — a jumping-off point for the user's own
  * research, distinct from the inline citation markers (which exist to back
  * up the bullets themselves).

@@ -8,8 +8,8 @@ Find your elected representatives at every level of government — federal, stat
 1. Enter your address
 2. Two concurrent lookups find your reps: Census Geocoder + US Congress API (federal), Cicero API (state + municipal)
 3. Representatives appear instantly with basic info and contact links
-4. Click "Generate AI Research" on any rep — the active overview pipeline researches them. **Production currently runs `v4`** (LangGraph breadth + adaptive depth subagent + formatter). The alternative paradigm `v1` (per-section streaming with skeletons) is also supported and selectable via `OVERVIEW_PIPELINE_VERSION`. v2/v3 are earlier iterations kept for comparison; see [docs/rep-overview-versions.md](./docs/rep-overview-versions.md) for the full version history.
-5. v1 streams in section-by-section; v4 renders the full bullet block once the formatter completes. Results cached for 3 days.
+4. Click "Generate AI Research" on any rep — the active overview pipeline researches them. **Production runs the default top-level pipeline** at `research/overview/` (LangGraph breadth + adaptive depth subagent + formatter). Legacy variants `v1` (per-section streaming with skeletons), `v2`, and `v3` are kept under `research/overview/legacy/` for trace/cost comparison and are selectable via `OVERVIEW_PIPELINE_VERSION`. See [docs/rep-overview-versions.md](./docs/rep-overview-versions.md) for the full version history.
+5. The default pipeline renders the full bullet block once the formatter completes. Legacy `v1` streams in section-by-section. Results cached for 3 days.
 6. Search for an issue (e.g., "housing affordability") to see how your reps relate to it
 
 ### Elections
@@ -71,7 +71,7 @@ pkill cloud-sql-proxy                              # stop proxy
 | [CLAUDE.md](./CLAUDE.md) | Dev reference — architecture, commands, env vars, all implementation details |
 | [MISSION.md](./docs/MISSION.md) | Product vision and principles |
 | [DESIGN.md](./docs/DESIGN.md) | Design approach, card sections, open challenges |
-| [rep-overview-versions.md](./docs/rep-overview-versions.md) | History and architecture of the v1/v2/v3/v4 rep overview pipelines |
+| [rep-overview-versions.md](./docs/rep-overview-versions.md) | History and architecture of the default + legacy (v1/v2/v3) rep overview pipelines |
 | [INFRASTRUCTURE.md](./docs/INFRASTRUCTURE.md) | GCP deployment, secrets, networking |
 | [V4_PERFORMANCE.md](./docs/initiatives/V4_PERFORMANCE.md) | Active priority initiative — v4 pipeline philosophy + per-node latency/quality tuning |
 | [FRONTEND_ELI5.md](./frontend/FRONTEND_ELI5.md) | Frontend explained for backend devs |

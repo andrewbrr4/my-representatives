@@ -58,7 +58,7 @@ Non-secret env vars (set directly on Cloud Run):
 - `COST_PER_SEARCH` — USD per Tavily search (cost tracking)
 - `SEARCH_TOOL` — search provider name (default `tavily`)
 - `ENVIRONMENT` — `dev` or `prod` (recorded in research_tasks)
-- `OVERVIEW_PIPELINE_VERSION` — which rep-overview pipeline to run. **Production runs `v4`** (LangGraph breadth + adaptive depth). Set explicitly on Cloud Run rather than relying on the code default — makes the deployed version visible in the Cloud Run console. Other valid values: `v1` (per-section streaming), `v2` / `v3` (kept available, subsumed by v4).
+- `OVERVIEW_PIPELINE_VERSION` — which rep-overview pipeline to run. **Default `v4`** (the flat top-level pipeline at `research/overview/` — LangGraph breadth + adaptive depth). Set explicitly on Cloud Run rather than relying on the code default — makes the deployed version visible in the Cloud Run console. Other valid values: `v1` / `v2` / `v3` — these load legacy variants from `research/overview/legacy/`.
 - `TAVILY_GLOBAL_CONCURRENCY` — process-global cap on concurrent Tavily calls. Defaults to `20` if unset, which is correct for prod (Tavily paid tier supports ~100 RPS). Set explicitly only if we need to throttle below 20 (e.g. during a Tavily-side incident).
 
 | Secret name | Env var | Used by |

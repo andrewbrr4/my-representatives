@@ -10,10 +10,11 @@ For the product vision and principles that inform these decisions, see [MISSION.
 1. User enters their address.
 2. Third-party APIs return a list of representatives at every level of government.
 3. The user sees a card for each representative with basic info and a "Learn More" button.
-4. When the user clicks "Learn More" on a specific rep, the active overview research pipeline crawls the web to gather information about that representative. The pipeline is versioned and swappable at runtime via `OVERVIEW_PIPELINE_VERSION` (`v1` / `v2` / `v3`); see [rep-overview-versions.md](./rep-overview-versions.md) for the architecture of each.
+4. When the user clicks "Learn More" on a specific rep, the active overview research pipeline crawls the web to gather information about that representative. The default pipeline (LangGraph breadth + adaptive depth + formatter) lives at `backend/research/overview/`; legacy variants `v1` / `v2` / `v3` are kept under `backend/research/overview/legacy/` and selectable via `OVERVIEW_PIPELINE_VERSION`; see [rep-overview-versions.md](./rep-overview-versions.md) for the architecture of each.
 5. Rendering depends on the version:
-   - **v1**: results stream into the card section-by-section as each of 5 parallel agents completes. Sections are revealed in display order — a section stays as a skeleton placeholder until all preceding sections are complete, so the user always sees a clean top-down fill.
-   - **v2/v3**: a single distilled bullet list renders once synthesis/distillation completes (no per-section streaming).
+   - **Default**: a single distilled bullet list renders once the formatter completes (no per-section streaming).
+   - **Legacy `v1`**: results stream into the card section-by-section as each of 5 parallel agents completes. Sections are revealed in display order — a section stays as a skeleton placeholder until all preceding sections are complete, so the user always sees a clean top-down fill.
+   - **Legacy `v2` / `v3`**: like the default — a single distilled bullet list once synthesis/distillation completes.
 
 Research is **on-demand** — only triggered for reps the user explicitly wants to learn about. This cuts API costs ~80%+ compared to researching every rep on every lookup, since most users only care about a few of their ~15+ representatives.
 
@@ -35,7 +36,7 @@ The election research pipeline is lighter than rep research — 1 section (ballo
 
 Agentic coding via Claude Code makes the technical aspects of building the functionality quite smooth. The true challenge of this project lies in the design of the product itself — specifically, crafting the content of the summary cards. For now, we are more focused on optimizing this content than the visual UI components such as color, font, etc.
 
-The content in these cards is ultimately determined by the prompts given to the active overview pipeline under [`backend/research/overview/`](../backend/research/overview/) and the Pydantic models used to structure the data. Each pipeline version owns its own prompts (`v1/prompts/`, `v2/prompts/`, `v3/prompts/`).
+The content in these cards is ultimately determined by the prompts given to the active overview pipeline under [`backend/research/overview/`](../backend/research/overview/) and the Pydantic models used to structure the data. The default pipeline's prompts live in `research/overview/prompts/`; each legacy variant owns its own under `research/overview/legacy/vN/prompts/`.
 
 ### Challenges
 
@@ -49,7 +50,7 @@ Crafting these cards is not easy. We need to strike several difficult balances:
 
 The card output format depends on `OVERVIEW_PIPELINE_VERSION`:
 
-**v1 — five sections**, each a bulleted list with per-section citations:
+**Legacy `v1` — five sections**, each a bulleted list with per-section citations:
 
 | Section | Description | Format |
 |---------|-------------|--------|
@@ -59,7 +60,7 @@ The card output format depends on `OVERVIEW_PIPELINE_VERSION`:
 | **Controversies** | Scandals, ethics complaints, controversial votes or statements, lawsuits, and public criticism. | Bulleted list |
 | **Top Donors** | List of the representative's largest political donors, five max. | Bulleted list |
 
-**v2 / v3 — a single blended bullet list** (5–8 bullets) with a unified citation pool and inline `[N]` markers. V2 derives this from the same five section agents via a synthesis step; v3 derives it from a breadth-first search fan-out and a single distillation. See [rep-overview-versions.md](./rep-overview-versions.md).
+**Default and legacy `v2` / `v3` — a single blended bullet list** (6–8 bullets in the default, 5–8 in legacy) with a unified citation pool and inline `[N]` markers. The default derives this from a LangGraph breadth+depth flow; legacy `v2` from five section agents via a synthesis step; legacy `v3` from a breadth-first search fan-out and a single distillation. See [rep-overview-versions.md](./rep-overview-versions.md).
 
 ### Election Card Sections
 

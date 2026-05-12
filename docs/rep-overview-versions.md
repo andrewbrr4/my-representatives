@@ -2,16 +2,16 @@
 
 Living document tracking the evolution of the representative overview research pipeline.
 
-## Current status (2026-05-01)
+## Current status (2026-05-11)
 
-| Version | Status | UX |
-|---------|--------|-----|
-| **v4** | **Production default** | Single-block bullet render once the formatter completes |
-| v1 | Actively supported alternative | Per-section streaming with skeletons (different paradigm — section headings appear immediately, fill in top-down as agents complete) |
-| v2 | Legacy (subsumed by v4) | Bullet block, like v4 |
-| v3 | Legacy (subsumed by v4) | Bullet block, like v4 |
+| Variant | Status | UX | Code location |
+|---------|--------|-----|---------------|
+| **Default** (formerly "v4") | **Production** | Single-block bullet render once the formatter completes | `backend/research/overview/` |
+| Legacy `v1` | Kept for comparison | Per-section streaming with skeletons (different paradigm — section headings appear immediately, fill in top-down as agents complete) | `backend/research/overview/legacy/v1/` |
+| Legacy `v2` | Kept for comparison | Bullet block, like the default | `backend/research/overview/legacy/v2/` |
+| Legacy `v3` | Kept for comparison | Bullet block, like the default | `backend/research/overview/legacy/v3/` |
 
-v4 does what v2/v3 do but better — same single-block bullet UX, with adaptive depth on volatile claims and a more disciplined breadth/curation flow. v1 is preserved because its **streaming, sectioned** UX is a genuinely different user experience worth A/B-ing against v4's single block. Switch via `OVERVIEW_PIPELINE_VERSION`. Active tuning for v4 lives in [`initiatives/V4_PERFORMANCE.md`](./initiatives/V4_PERFORMANCE.md).
+The default pipeline does what legacy v2/v3 do but better — same single-block bullet UX, with adaptive depth on volatile claims and a more disciplined breadth/curation flow. Legacy variants are still importable behind `OVERVIEW_PIPELINE_VERSION` (`v1` / `v2` / `v3`) for trace/cost comparison, but they are not the focus of further iteration. The "v4" naming is preserved internally as a generation marker — env vars (`OVERVIEW_V4_*`), trace names (`v4-*`), and DB `task_type` strings (`rep:v4`) all keep the v4 prefix for deployment, analytics, and Langfuse continuity. Active tuning for the default pipeline lives in [`initiatives/V4_PERFORMANCE.md`](./initiatives/V4_PERFORMANCE.md).
 
 ## The Core Problem
 
@@ -27,9 +27,9 @@ These are in tension: broad retrieval requires many web searches, which produces
 
 **Architecture:** 5 independent LangChain agents run in parallel, each focused on one section (policy positions, legislative record, accomplishments, controversies, top donors). Each agent has a Tavily `web_search` tool and produces structured output (bullet points + per-section citations).
 
-**Backend:** `research/overview/v1/pipeline.py`
+**Backend:** `research/overview/legacy/v1/pipeline.py`
 **Frontend:** `components/overview/v1/ResearchContent.tsx`
-**Prompts:** `research/overview/v1/prompts/`
+**Prompts:** `research/overview/legacy/v1/prompts/`
 
 **How it works:**
 - Each section agent gets its own system + user prompt
@@ -54,9 +54,9 @@ A previous single-agent approach blew up input tokens. The agent loop pattern me
 
 **Architecture:** Same 5 section agents as v1, but their outputs are no longer delivered straight to the user. Instead, they feed a second-stage synthesis call that collapses the dossier into a single blended bullet list.
 
-**Backend:** `research/overview/v2/pipeline.py`
-**Frontend:** shares `components/overview/bullets/` with v3 (dispatched by response shape in `components/overview/index.tsx`)
-**Prompts:** `research/overview/v2/prompts/` (5 section system/user prompts + `synthesis_system.txt` + `synthesis_user.txt`)
+**Backend:** `research/overview/legacy/v2/pipeline.py`
+**Frontend:** shares `components/overview/bullets/` with legacy v3 and the default (dispatched by response shape in `components/overview/index.tsx`)
+**Prompts:** `research/overview/legacy/v2/prompts/` (5 section system/user prompts + `synthesis_system.txt` + `synthesis_user.txt`)
 
 **How it works:**
 - Stage 1 — run the 5 section agents concurrently (v2 owns its own copies of the agent code and prompts; nothing is imported from v1). Section prompts ask for **plain one-sentence findings with `[N]` citation markers** — no markdown, no headlines, no display formatting. Section outputs are not user-facing; the synthesis step rewrites every bullet from scratch.
@@ -88,9 +88,9 @@ None of these are fixed by the recent synthesis/schema cleanup — the cleanup w
 
 **Architecture:** The "Recommended direction" from the research section below, implemented. Search happens entirely outside the LLM loop; the LLM only sees pre-fetched snippets at the very end.
 
-**Backend:** `research/overview/v3/pipeline.py` (+ `prefilter.py`)
-**Frontend:** shares `components/overview/bullets/` with v2
-**Prompts:** `research/overview/v3/prompts/` (`query_gen_system.txt`, `query_gen_user.txt`, `distill_system.txt`, `distill_user.txt`)
+**Backend:** `research/overview/legacy/v3/pipeline.py` (+ `prefilter.py`)
+**Frontend:** shares `components/overview/bullets/` with legacy v2 and the default
+**Prompts:** `research/overview/legacy/v3/prompts/` (`query_gen_system.txt`, `query_gen_user.txt`, `distill_system.txt`, `distill_user.txt`)
 
 **How it works:**
 1. **Query generation** — 1 LLM call with `with_structured_output(_QueryList)` emits `OVERVIEW_V3_NUM_QUERIES` (default 15) diverse search queries. No tools.
@@ -111,9 +111,9 @@ None of these are fixed by the recent synthesis/schema cleanup — the cleanup w
 
 **Architecture:** v3's breadth-first search posture, plus an optional depth pass for volatile/thinly-covered subtopics, expressed as a LangGraph `StateGraph(V4State)`. The research_agent is a structured-output triage call (not a react loop); only the depth subagent retains `create_react_agent`. State isolation across the subagent boundary prevents token accumulation.
 
-**Backend:** `research/overview/v4/pipeline.py`
+**Backend:** `research/overview/pipeline.py` (the default pipeline, flat at the top level)
 **Frontend:** shares `components/overview/bullets/` with v2/v3 (dispatched by response shape in `components/overview/index.tsx`)
-**Prompts:** `research/overview/v4/prompts/` (`query_gen_*`, `research_agent_*`, `depth_agent_*`, `formatter_*`)
+**Prompts:** `research/overview/prompts/` (`query_gen_*`, `research_agent_*`, `depth_agent_*`, `formatter_*`)
 
 **How it works:**
 1. **query_generator** — 1 LLM call with `with_structured_output(_QueryList)` emits `OVERVIEW_V4_NUM_QUERIES` (default 18) breadth-first queries. No tools.
