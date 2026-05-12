@@ -12,7 +12,7 @@ from langfuse import observe
 from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
 
-from research.overview.v4.state import V4State
+from research.overview.state import V4State
 from research.usage import UsageTracker
 
 logger = logging.getLogger(__name__)

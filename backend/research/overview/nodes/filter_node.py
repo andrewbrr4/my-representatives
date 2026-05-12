@@ -6,8 +6,8 @@ import re
 
 from langfuse import observe
 
-from research.overview.v4.models import SearchResult
-from research.overview.v4.state import V4State
+from research.overview.models import SearchResult
+from research.overview.state import V4State
 
 logger = logging.getLogger(__name__)
 

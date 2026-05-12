@@ -13,7 +13,9 @@ import os
 ACTIVE_VERSION = os.getenv("OVERVIEW_PIPELINE_VERSION", "v4")
 
 if ACTIVE_VERSION == "v4":
-    from .v4 import ResearchSummary, TOTAL_SECTIONS, research_representative
+    from .models import ResearchSummary
+    from .pipeline import research_representative
+    TOTAL_SECTIONS = 1
 elif ACTIVE_VERSION == "v1":
     from .legacy.v1 import ResearchSummary, TOTAL_SECTIONS, research_representative
 elif ACTIVE_VERSION == "v2":

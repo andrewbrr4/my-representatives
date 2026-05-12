@@ -15,13 +15,13 @@ from langfuse import observe
 from langgraph.graph import END, START, StateGraph
 
 from models import Representative
-from research.overview.v4.models import ResearchSummary
-from research.overview.v4.nodes.breadth_search import breadth_search
-from research.overview.v4.nodes.filter_node import filter_node
-from research.overview.v4.nodes.formatter import formatter
-from research.overview.v4.nodes.query_generator import query_generator
-from research.overview.v4.nodes.research_agent import research_agent_node
-from research.overview.v4.state import V4State
+from research.overview.models import ResearchSummary
+from research.overview.nodes.breadth_search import breadth_search
+from research.overview.nodes.filter_node import filter_node
+from research.overview.nodes.formatter import formatter
+from research.overview.nodes.query_generator import query_generator
+from research.overview.nodes.research_agent import research_agent_node
+from research.overview.state import V4State
 from research.usage import UsageStats
 from store.research_store import InMemoryResearchStore
 

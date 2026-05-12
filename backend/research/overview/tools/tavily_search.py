@@ -15,7 +15,7 @@ from langchain_core.messages import ToolMessage
 from langchain_core.tools import InjectedToolCallId, tool
 from langgraph.types import Command
 
-from research.overview.v4.models import SearchResult
+from research.overview.models import SearchResult
 from research.search import tavily_search_raw
 
 logger = logging.getLogger(__name__)

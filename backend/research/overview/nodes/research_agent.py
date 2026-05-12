@@ -26,13 +26,13 @@ from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
 
 from models import Representative
-from research.overview.v4.models import SearchResult
-from research.overview.v4.nodes.depth_subgraph import (
+from research.overview.models import SearchResult
+from research.overview.nodes.depth_subgraph import (
     DEPTH_RECURSION_LIMIT,
     build_depth_agent,
     build_depth_initial_user_message,
 )
-from research.overview.v4.state import V4State
+from research.overview.state import V4State
 from research.usage import UsageStats, UsageTracker
 
 logger = logging.getLogger(__name__)

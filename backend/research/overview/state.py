@@ -17,7 +17,7 @@ from typing import Annotated, TypedDict
 from langchain.agents import AgentState
 
 from models import Representative
-from research.overview.v4.models import ResearchSummary, SearchResult
+from research.overview.models import ResearchSummary, SearchResult
 from research.usage import UsageStats
 
 

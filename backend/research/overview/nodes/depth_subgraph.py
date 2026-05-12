@@ -17,8 +17,8 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
 from langchain.agents import create_agent
 
-from research.overview.v4.state import DepthState
-from research.overview.v4.tools.tavily_search import depth_tavily_search
+from research.overview.state import DepthState
+from research.overview.tools.tavily_search import depth_tavily_search
 
 logger = logging.getLogger(__name__)
 
