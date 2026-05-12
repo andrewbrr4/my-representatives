@@ -23,7 +23,7 @@ from research.overview.tools.tavily_search import depth_tavily_search
 logger = logging.getLogger(__name__)
 
 _PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
-_DEPTH_RECURSION_LIMIT = int(os.getenv("OVERVIEW_V4_DEPTH_RECURSION_LIMIT", "8"))
+DEPTH_RECURSION_LIMIT = int(os.getenv("OVERVIEW_V4_DEPTH_RECURSION_LIMIT", "8"))
 
 
 def _model_id() -> str:
@@ -64,10 +64,6 @@ def build_depth_initial_user_message(state: DepthState) -> HumanMessage:
         reason=state["reason"],
     )
     return HumanMessage(content=user_prompt)
-
-
-# Re-export for callers/tests.
-DEPTH_RECURSION_LIMIT = _DEPTH_RECURSION_LIMIT
 
 
 __all__ = ["DEPTH_RECURSION_LIMIT", "build_depth_agent", "build_depth_initial_user_message"]
