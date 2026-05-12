@@ -18,7 +18,7 @@ from models import (
     ListSectionResult,
     Representative,
 )
-from research.overview.v1.models import ResearchSummary
+from research.overview.legacy.v1.models import ResearchSummary
 from research.search import web_search
 from research.usage import UsageStats, UsageTracker
 from store.research_store import InMemoryResearchStore

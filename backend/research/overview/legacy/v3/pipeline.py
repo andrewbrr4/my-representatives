@@ -21,8 +21,8 @@ from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
 
 from models import Representative
-from research.overview.v3.models import ResearchSummary
-from research.overview.v3.prefilter import prefilter_results
+from research.overview.legacy.v3.models import ResearchSummary
+from research.overview.legacy.v3.prefilter import prefilter_results
 from research.search import tavily_search_raw
 from research.usage import UsageStats, UsageTracker
 from store.research_store import InMemoryResearchStore

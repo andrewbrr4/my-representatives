@@ -26,8 +26,8 @@ from pydantic import BaseModel
 
 from models import Citation, ListSectionResult, Representative
 from research.overview._bullet_coercion import BulletList
-from research.overview.v2.models import ResearchSummary
-from research.overview.v2.synthesis_input import DossierResult, build_dossier
+from research.overview.legacy.v2.models import ResearchSummary
+from research.overview.legacy.v2.synthesis_input import DossierResult, build_dossier
 from research.search import web_search
 from research.usage import UsageStats, UsageTracker
 from store.research_store import InMemoryResearchStore
