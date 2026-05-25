@@ -1,10 +1,10 @@
 import { NavLink } from "react-router-dom";
 
 function tabClass({ isActive }: { isActive: boolean }) {
-  return `px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${
+  return `px-4 py-2.5 text-xs font-bold uppercase tracking-wider border-b-2 -mb-px transition-colors rounded-t-sm ${
     isActive
-      ? "border-primary text-foreground"
-      : "border-transparent text-muted-foreground hover:text-foreground"
+      ? "border-foreground text-foreground bg-card"
+      : "border-transparent text-muted-foreground hover:text-foreground hover:bg-card/60"
   }`;
 }
 
