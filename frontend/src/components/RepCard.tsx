@@ -100,11 +100,15 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
             issue search never jumps up when the AI button is clicked. */}
         {researchStatus === "idle" && (
           <div className="space-y-1.5">
-            <Button onClick={onResearch} variant="secondary" className="w-full font-semibold uppercase tracking-wide">
-              <Sparkles className="h-4 w-4" />
+            <Button
+              onClick={onResearch}
+              size="lg"
+              className="w-full bg-foreground text-background hover:bg-foreground/90 font-semibold uppercase tracking-wide shadow-md ring-1 ring-foreground/30 hover:shadow-lg hover:-translate-y-px transition-all"
+            >
+              <Sparkles className="h-5 w-5" />
               Generate AI Overview
             </Button>
-            <p className="text-xs text-muted-foreground text-center">
+            <p className="text-xs text-foreground/70 text-center font-medium">
               See their record, accomplishments, and controversies — researched live in ~30 seconds.
             </p>
           </div>

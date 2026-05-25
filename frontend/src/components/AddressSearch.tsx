@@ -228,8 +228,13 @@ export function AddressSearch({ onSearch, loading }: AddressSearchProps) {
       </div>
 
       <div>
-        <Button type="submit" disabled={loading || !isValid}>
-          {loading ? "Searching…" : "Search"}
+        <Button
+          type="submit"
+          size="lg"
+          disabled={loading || !isValid}
+          className="bg-foreground text-background hover:bg-foreground/90 font-semibold uppercase tracking-wide px-8 shadow-md ring-1 ring-foreground/30 hover:shadow-lg hover:-translate-y-px transition-all"
+        >
+          {loading ? "Searching…" : "Find My Reps"}
         </Button>
       </div>
     </form>

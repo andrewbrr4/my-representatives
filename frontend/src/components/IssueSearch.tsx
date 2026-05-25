@@ -85,17 +85,21 @@ export function IssueSearch({ rep }: IssueSearchProps) {
     <div>
       <form onSubmit={handleSubmit} className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/70" />
           <Input
             type="text"
             placeholder="Look up a specific issue (e.g. immigration, housing)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="pl-9 bg-muted/40"
+            className="pl-9 bg-card border-foreground/30 hover:border-foreground/60 focus-visible:border-foreground transition-colors"
             disabled={searching}
           />
         </div>
-        <Button type="submit" variant="outline" size="sm" disabled={searching || !query.trim()}>
+        <Button
+          type="submit"
+          disabled={searching || !query.trim()}
+          className="bg-foreground text-background hover:bg-foreground/90 font-semibold"
+        >
           {searching ? "Searching…" : "Search"}
         </Button>
       </form>
