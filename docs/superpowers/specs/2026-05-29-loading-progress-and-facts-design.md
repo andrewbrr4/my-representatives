@@ -3,7 +3,6 @@
 **Status:** Spec — pending implementation
 **Branch:** `formatter-streaming`
 **Pipeline:** v4 rep overview (the production default at `research/overview/`)
-**Related:** [2026-05-12-formatter-streaming-design.md](./2026-05-12-formatter-streaming-design.md) — the NDJSON formatter streaming this spec depends on and folds in.
 
 ## Goal
 
@@ -28,7 +27,7 @@ Three layers, all riding existing infrastructure:
 
 1. **Per-node progress reporting.** Each of the five v4 nodes reports its step (a label + percent) to the research store on entry. The store carries `progress_pct` + `progress_label`; the poll endpoint surfaces them in a new `progress` field on `ResearchResponse`. The existing 2s frontend poll reads them.
 
-2. **Bullet streaming at the formatter.** Implement the formatter NDJSON streaming from [the formatter-streaming spec](./2026-05-12-formatter-streaming-design.md), defaulted **on**. As each bullet is parsed it is written to the store via `update_partial()`; the poll picks it up. The first bullet flips the frontend from the progress+facts view to the live bullets view.
+2. **Bullet streaming at the formatter.** Replace the formatter's blocking `with_structured_output` call with NDJSON line streaming (one JSON object per line: `{"text":"...","sources":["url",...]}`), defaulted **on**. As each line is parsed, citations and `[N]` markers are built in Python and the growing summary is written to the store via `update_partial()`; the poll picks it up. The first bullet flips the frontend from the progress+facts view to the live bullets view.
 
 3. **Fun-facts carousel from the DB.** A `facts` table + `GET /api/facts` endpoint + a TanStack-cached frontend hook. A self-contained carousel component rotates the facts while the progress view is showing.
 
@@ -168,7 +167,7 @@ The terminal `await store.complete(research_id, summary)` stays. For streaming r
 
 ### Backend: `research/overview/nodes/formatter.py`
 
-Per the formatter-streaming spec, split into a dispatch:
+The current `formatter()` body (the `with_structured_output` + `with_retry` call, `_FormatterOutput`, `_zip_bullets`, `_build_citations`, `_attach_markers`, `_build_sources`, `_format_breadth_block`, `_format_depth_block`, `_show_sources_enabled`, `_dedupe_depth_against_breadth`, `_model_id`) stays. The top-level `formatter()` becomes a thin dispatch and the existing body is lifted verbatim into `_formatter_structured()`:
 
 ```python
 @observe(name="v4-formatter")
@@ -179,10 +178,32 @@ async def formatter(state: V4State) -> dict:
     return await _formatter_structured(state)
 ```
 
-- `_formatter_structured()` — today's `with_structured_output` body lifted as-is (the fallback path).
-- `_formatter_streaming()` — NDJSON line stream (`{"text":"...","sources":["url",...]}` one object per line). Maintains a line buffer; on each completed line parses JSON, builds `Citation`s + `[N]` markers in Python (URLs not in the breadth/depth pool dropped silently with a log, matching `_build_citations`), appends the bullet, and `await store.update_partial(...)`. End-of-stream: drain the buffer; if `len(bullets) < MIN_BULLETS` raise `RuntimeError` (→ pipeline returns `(None, total)` → router `store.fail()` → frontend failure UI).
+All the existing module-level helpers stay shared between the two branches (same prompt loading, breadth/depth block formatting, citation building, source assembly). Both branches return `{"summary": ResearchSummary, "usage_log": [stats]}`.
 
-Gating helpers:
+**`_formatter_streaming(state)`** does:
+
+1. Resolve `rep`, `filtered`, `depth`, `show_sources` exactly as `_formatter_structured` does (including the `_dedupe_depth_against_breadth` step when show-sources is on). Compute `breadth_block` / `depth_block` via the same helpers.
+2. Build `pool_by_url: dict[str, SearchResult]` from `filtered + depth` for citation lookups, and compute `sources` once via `_build_sources()` if `_show_sources_enabled()`.
+3. Load `formatter_system.txt` (unchanged) and the new `formatter_user_streaming.txt`, substituting the same template vars.
+4. Open the stream: `async for chunk in model.astream([SystemMessage, HumanMessage], config={"callbacks": [langfuse_handler, usage_tracker], "run_name": f"v4:formatter:{rep.name}"})`. No `with_structured_output` — raw text chunks.
+5. Maintain `line_buffer: str`, `bullets: list[str]`, `citations: list[Citation]`, `url_to_n: dict[str, int]`. On each chunk, append `chunk.content` (string-coerce defensively — see open questions) to `line_buffer`; while `"\n" in line_buffer`, split off the line and call `_handle_line(...)`.
+6. After the stream ends, drain `line_buffer` (model may not terminate with `\n`): one final `_handle_line` if non-empty.
+7. If `len(bullets) < _min_bullets()`: raise `RuntimeError("formatter produced too few valid bullets")` → caught by `pipeline.py`'s `try/except` → returns `(None, total)` → router calls `store.fail()` → frontend failure UI.
+8. Build the final `ResearchSummary(bullets=bullets, citations=citations, sources=sources)` and return `{"summary": summary, "usage_log": [usage_tracker.stats]}`.
+
+**`_handle_line(line, *, pool_by_url, bullets, citations, url_to_n, research_id, store)`** (the per-line parser; mutates the running lists and writes a partial):
+
+- Strip whitespace; skip if empty.
+- `try: obj = json.loads(line)` — `JSONDecodeError` → log warning + skip (continue stream).
+- Validate shape: `obj` must be a dict with `text: str` (non-empty after strip) and `sources: list[str]`. Bad shape → log + skip.
+- For each URL in `sources` (preserving order): if not already in `url_to_n` and present in `pool_by_url`, append a `Citation(title, url, published_date)` and set `url_to_n[url] = len(citations)` (1-indexed N). URLs not in the pool are dropped silently with one warning log per URL — matching the existing `_build_citations` hallucination-drop philosophy.
+- Compute `marker = "".join(f"[{n}]" for n in sorted({url_to_n[u] for u in sources if u in url_to_n}))`.
+- Append `f"{text} {marker}".rstrip()` (or bare `text` if no marker) to `bullets`.
+- `await store.update_partial(research_id, ResearchSummary(bullets=bullets, citations=citations, sources=sources))`.
+
+This reuses the same citation/marker semantics as the structured path (`_build_citations` + `_attach_markers`), just applied incrementally per line instead of once over the full `pairs` list — so streaming and structured produce equivalent final output.
+
+Gating helpers (module level):
 
 ```python
 def _streaming_enabled() -> bool:
@@ -192,13 +213,31 @@ def _min_bullets() -> int:
     return int(os.getenv("OVERVIEW_V4_FORMATTER_MIN_BULLETS", "3"))
 ```
 
-**Delta from the formatter-streaming spec:** that spec defaulted `OVERVIEW_V4_FORMATTER_STREAMING=false` for a cautious prod rollout. Here it defaults **`true`** — streaming is the experience being built. The env flag and the structured-output path remain as a one-flip escape hatch.
+**Default-on rationale:** streaming is the experience being built, so `OVERVIEW_V4_FORMATTER_STREAMING` defaults `true`. The env flag and the `_formatter_structured` path remain as a one-flip escape hatch; flipping it off restores today's `with_structured_output` + `with_retry` safety net and `_zip_bullets` length-tolerance immediately.
 
-See the formatter-streaming spec for the full `_handle_line` logic, chunk-buffering details, `formatter_user_streaming.txt` prompt contents, and per-line error handling. This spec does not restate them.
+**Min-bullets threshold:** the only new failure mode. It exists because the streaming path loses the schema validation `with_structured_output` provided. Pegged at 3 (out of a 6–8 target) — intentionally lenient, so a run that emits 4–5 valid bullets after one or two malformed lines still shows the user something rather than failing. Tunable via `OVERVIEW_V4_FORMATTER_MIN_BULLETS`.
+
+**Observability:** the `@observe(name="v4-formatter")` decorator stays on the dispatching `formatter()`, so traces span the whole node regardless of branch. `UsageTracker()` works identically with `astream` (same `config={"callbacks": […]}`). Add one end-of-stream info log: `f"[v4] Formatter streamed {len(bullets)} bullets in {n_chunks} chunks; dropped {n_malformed} malformed lines, {n_hallucinated} unknown URLs"`.
 
 ### Backend: `research/overview/prompts/formatter_user_streaming.txt` (new)
 
-Per the formatter-streaming spec: a copy of `formatter_user.txt` with the trailing wire-shape reminder rewritten for the NDJSON one-object-per-line shape (`text` + `sources` keys, no outer array, no `[N]` markers — the system appends those).
+A copy of `formatter_user.txt` with the trailing wire-shape reminder rewritten for NDJSON. The system prompt (`formatter_system.txt`) is unchanged — all bucket taxonomy, importance-pruning, 6–8 bullet count, ~14–22 word count, no-identity-framing, and date-tagging rules continue to apply. The rewritten reminder:
+
+> **OUTPUT FORMAT (CRITICAL):**
+> Emit one bullet per line as a single JSON object on each line. No outer array, no markdown, no commentary, no leading/trailing text — just one JSON object per line, separated by `\n`.
+>
+> Wire shape per line:
+>
+> ```
+> {"text": "Bullet content here.", "sources": ["https://example.com/a", "https://example.com/b"]}
+> {"text": "Next bullet.", "sources": ["https://example.com/c"]}
+> ```
+>
+> Rules:
+> - Exactly one JSON object per line.
+> - Keys are `text` (string) and `sources` (array of URL strings).
+> - URLs in `sources` must be pulled from the breadth/depth blocks above. Do not invent URLs.
+> - Do NOT emit `[N]` markers — the system appends them after parsing.
 
 ### Backend: `routers/overview.py`
 
@@ -318,7 +357,7 @@ Optionally prefetched on the results layout mount so facts are ready before the 
 
 ### Frontend: `components/overview/ResearchProgress.tsx` (new)
 
-Presentational. Takes `{ pct, label }` (falls back to `0 / "Getting started"` if progress is null on the first tick). Renders a filling bar, the percentage, and the current label.
+Presentational. Takes `progress?: ProgressInfo | null` and falls back to `{ pct: 0, label: "Getting started" }` when it's null on the first tick. Renders a filling bar, the percentage, and the current label.
 
 ### Frontend: `components/overview/FactsCarousel.tsx` (new)
 
@@ -326,7 +365,36 @@ Self-contained, no props. Calls `useFactsQuery()`, rotates through facts on a ~6
 
 ### Frontend: rendering gate
 
-In the bullets `ResearchContent` (and/or its parent loading branch), implement the gate from the table above. The loading branch (`status === "loading" && bullets.length === 0`) renders `<ResearchProgress>` + `<FactsCarousel>` in place of today's skeleton. The streaming branch (`bullets.length > 0`) renders the bullets plus a trailer skeleton while still loading, per the formatter-streaming spec.
+`ResearchContent` (the bullets renderer) takes a new optional `status?: "loading" | "complete" | "failed"` prop so it can distinguish "nothing yet" from "more coming":
+
+```tsx
+export function ResearchContent({ summary, progress, status }: {
+  summary: BulletsResearchSummary;
+  progress?: ProgressInfo | null;
+  status?: "loading" | "complete" | "failed";
+}) {
+  const { bullets, citations, sources } = summary;
+
+  if (bullets.length === 0) {
+    return (
+      <>
+        <ResearchProgress progress={progress} />
+        <FactsCarousel />
+      </>
+    );  // loading state: progress bar + facts, replaces today's skeleton
+  }
+
+  return (
+    <div>
+      <ul>{bullets.map(/* ... */)}</ul>
+      {status === "loading" && <BulletsTrailerSkeleton />}
+      <FurtherReading sources={sources} />
+    </div>
+  );
+}
+```
+
+`BulletsTrailerSkeleton` is a 2-row variant of the existing bullets skeleton — same widths, shorter — that signals "more coming" while bullets are still streaming. It disappears the instant `status === "complete"`. `FurtherReading` already no-ops on empty `sources`, so it stays invisible until sources land. Callers (`RepCard`, `CandidateCard`) already hold the status; they pass `status` and `progress` through.
 
 ### Frontend: `RepCard.tsx`, `CandidateCard.tsx`
 
@@ -358,7 +426,7 @@ t=end   stream done → store.complete(...) → next poll: status complete → t
 | Node raises mid-pipeline | pipeline `try/except` → `store.fail()` | failure UI replaces progress/facts |
 | Facts endpoint fails / empty | `useFactsQuery` returns `[]` | carousel renders nothing; progress bar unaffected |
 | Streaming < `MIN_BULLETS` valid bullets | end-of-stream check | `RuntimeError` → `store.fail()` → failure UI |
-| Single malformed/hallucinated line | per-line parse/pool check | logged + skipped; stream continues (per streaming spec) |
+| Single malformed/hallucinated line | per-line parse/pool check | logged + skipped; stream continues |
 
 The graph is linear (`query_generator → breadth_search → filter → research_agent → formatter`), so progress is monotonic — no out-of-order completion to reconcile.
 
@@ -368,7 +436,7 @@ The graph is linear (`query_generator → breadth_search → filter → research
 - `update_progress` sets `progress_pct`/`progress_label` and transitions `pending → in_progress`.
 - `report_step` no-ops when `store`/`research_id` are absent from state; writes the right label/pct when present.
 - `get_civics_facts` returns only `active` rows, ordered.
-- Formatter streaming tests per the streaming spec: `_handle_line` parse/skip/dedupe/drop-unknown-url, chunk buffering, min-bullets threshold, dispatch picks streaming vs. structured by env flag.
+- Formatter streaming tests: `_handle_line` parse/skip/dedupe/drop-unknown-url, chunk buffering (lines split across chunks reassembled correctly), min-bullets threshold raises, dispatch picks streaming vs. structured by env flag.
 
 **Backend integration:**
 - Run the `formatter` node against a recorded chunk fixture; assert the store sees monotonically growing partial writes and the final summary matches the all-at-once expectation.
@@ -418,5 +486,5 @@ The structured-output formatter path stays in the codebase as the `OVERVIEW_V4_F
 ## Open implementation questions
 
 - **`PROGRESS_STEPS` percentages** are first-draft guesses; calibrate against observed per-node timings during dev smoke testing (step 3).
-- **`chunk.content` shape** on a LangChain `AIMessageChunk` is `str | list` — coerce defensively (per the formatter-streaming spec's open question).
+- **`chunk.content` shape** on a LangChain `AIMessageChunk` is typed `str | list` — for `ChatAnthropic` it's a string, but coerce defensively (`if isinstance(content, str)`). Confirm against the actual chunk type at implementation time.
 - **Facts prefetch** — whether to prefetch `/api/facts` on results-layout mount or lazily on first carousel render. Default to prefetch for a ready-on-first-click experience; decide during implementation.
