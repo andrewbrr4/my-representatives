@@ -355,7 +355,7 @@ async def _formatter_streaming(state: V4State) -> dict:
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     )
 
-    system_template = Template((_PROMPTS_DIR / "formatter_system.txt").read_text())
+    system_template = Template((_PROMPTS_DIR / "formatter_system_streaming.txt").read_text())
     user_template = Template((_PROMPTS_DIR / "formatter_user_streaming.txt").read_text())
     system_prompt = system_template.substitute(current_date=date.today().isoformat())
     user_prompt = user_template.substitute(
@@ -373,7 +373,15 @@ async def _formatter_streaming(state: V4State) -> dict:
                 "run_name": f"v4:formatter:{rep.name}",
             },
         ):
-            yield chunk.content
+            content = chunk.content
+            if isinstance(content, str):
+                yield content
+            elif isinstance(content, list):
+                for block in content:
+                    if isinstance(block, str):
+                        yield block
+                    elif isinstance(block, dict) and block.get("type") == "text":
+                        yield block.get("text", "")
 
     summary = await _consume_stream(
         _content_iter(),
