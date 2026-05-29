@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from models import Citation
 from research.overview.models import ResearchSummary, SearchResult, SourceLink
+from research.overview.progress import report_step
 from research.overview.state import V4State
 from store.research_store import InMemoryResearchStore
 from research.usage import UsageTracker
@@ -323,10 +324,89 @@ async def _consume_stream(
     return ResearchSummary(bullets=bullets, citations=citations, sources=sources)
 
 
+async def _formatter_streaming(state: V4State) -> dict:
+    """NDJSON line-streaming formatter: emits bullets to the store as they
+    land via update_partial(). Falls back to RuntimeError (-> task fail) if
+    fewer than _min_bullets() valid bullets are produced."""
+    rep = state["rep"]
+    filtered = state.get("filtered_results") or []
+    depth = state.get("depth_search_results") or []
+    store = state.get("store")
+    research_id = state.get("research_id")
+
+    show_sources = _show_sources_enabled()
+    if show_sources:
+        before = len(depth)
+        depth = _dedupe_depth_against_breadth(filtered, depth)
+        logger.info(
+            f"[v4] Formatter dedupe (show-sources on): depth {before} -> {len(depth)}"
+        )
+
+    breadth_block = _format_breadth_block(filtered)
+    depth_block = _format_depth_block(depth)
+    pool = filtered + depth
+    pool_by_url = {r.url: r for r in pool if r.url}
+    sources = _build_sources(pool) if show_sources else []
+
+    langfuse_handler = CallbackHandler()
+    usage_tracker = UsageTracker()
+    model = ChatAnthropic(
+        model=_model_id(),
+        max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
+    )
+
+    system_template = Template((_PROMPTS_DIR / "formatter_system.txt").read_text())
+    user_template = Template((_PROMPTS_DIR / "formatter_user_streaming.txt").read_text())
+    system_prompt = system_template.substitute(current_date=date.today().isoformat())
+    user_prompt = user_template.substitute(
+        name=rep.name,
+        office=rep.office,
+        breadth_block=breadth_block,
+        depth_block=depth_block,
+    )
+
+    async def _content_iter():
+        async for chunk in model.astream(
+            [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)],
+            config={
+                "callbacks": [langfuse_handler, usage_tracker],
+                "run_name": f"v4:formatter:{rep.name}",
+            },
+        ):
+            yield chunk.content
+
+    summary = await _consume_stream(
+        _content_iter(),
+        pool_by_url=pool_by_url,
+        sources=sources,
+        store=store,
+        research_id=research_id,
+    )
+
+    if len(summary.bullets) < _min_bullets():
+        raise RuntimeError(
+            f"formatter produced too few valid bullets: {len(summary.bullets)}"
+        )
+
+    logger.info(
+        f"[v4] Formatter (streaming) for {rep.name}: {len(summary.bullets)} bullets / "
+        f"{len(summary.citations)} citations / {len(summary.sources)} sources"
+    )
+    return {"summary": summary, "usage_log": [usage_tracker.stats]}
+
+
 @observe(name="v4-formatter")
 async def formatter(state: V4State) -> dict:
+    """Dispatch: report the formatter step, then stream or use structured output."""
+    await report_step(state, "formatter")
+    if _streaming_enabled():
+        return await _formatter_streaming(state)
+    return await _formatter_structured(state)
+
+
+async def _formatter_structured(state: V4State) -> dict:
     """Format breadth + depth search results into bullets; assemble
-    citations in python."""
+    citations in python. (Structured-output path — the streaming fallback.)"""
     rep = state["rep"]
     filtered = state.get("filtered_results") or []
     depth = state.get("depth_search_results") or []
