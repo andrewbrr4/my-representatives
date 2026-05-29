@@ -22,6 +22,8 @@ class ResearchTask:
     summary: PydanticBaseModel | None = None
     completed_sections: int = 0
     created_at: float = field(default_factory=time.time)
+    progress_pct: int = 0
+    progress_label: str = "Getting started"
 
 
 class InMemoryResearchStore:
@@ -71,6 +73,31 @@ class InMemoryResearchStore:
                 task.status = "in_progress"
             if task.completed_sections >= task.total_sections:
                 task.status = "complete"
+
+    async def update_progress(self, research_id: str, pct: int, label: str) -> None:
+        """Update the per-node progress shown while research is in flight."""
+        async with self._lock:
+            task = self._tasks.get(research_id)
+            if not task:
+                return
+            task.progress_pct = pct
+            task.progress_label = label
+            if task.status == "pending":
+                task.status = "in_progress"
+
+    async def update_partial(self, research_id: str, summary: PydanticBaseModel) -> None:
+        """Replace the in-progress summary with a newer partial (streaming bullets).
+
+        Sets status to in_progress if pending. Does NOT mark complete — the
+        caller invokes complete() at the end (or fail() on error).
+        """
+        async with self._lock:
+            task = self._tasks.get(research_id)
+            if not task:
+                return
+            task.summary = summary
+            if task.status == "pending":
+                task.status = "in_progress"
 
     async def complete(self, research_id: str, summary: PydanticBaseModel) -> None:
         """Mark task fully complete with a complete summary (used for cache hits)."""
