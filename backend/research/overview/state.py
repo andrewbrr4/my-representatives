@@ -12,13 +12,14 @@ branches.
 """
 
 import operator
-from typing import Annotated, TypedDict
+from typing import Annotated, NotRequired, TypedDict
 
 from langchain.agents import AgentState
 
 from models import Representative
 from research.overview.models import ResearchSummary, SearchResult
 from research.usage import UsageStats
+from store.research_store import InMemoryResearchStore
 
 
 class V4State(TypedDict, total=False):
@@ -33,6 +34,10 @@ class V4State(TypedDict, total=False):
     # Aggregated LLM/tool usage. Each node that does LLM work appends a
     # ``UsageStats`` to this list; the pipeline entrypoint sums them.
     usage_log: Annotated[list[UsageStats], operator.add]
+    # Plumbed from the entrypoint for progress reporting + formatter streaming.
+    # Other nodes ignore them.
+    store: NotRequired[InMemoryResearchStore]
+    research_id: NotRequired[str]
 
 
 class DepthState(AgentState):

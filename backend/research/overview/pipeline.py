@@ -62,6 +62,9 @@ async def research_representative(
     logger.info(f"[v4] Starting research for {rep.name}")
 
     initial: V4State = {"rep": rep, "usage_log": []}
+    if store is not None and research_id is not None:
+        initial["store"] = store
+        initial["research_id"] = research_id
     try:
         result = await pipeline_graph.ainvoke(
             initial,
