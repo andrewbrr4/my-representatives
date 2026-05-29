@@ -80,7 +80,7 @@ class InMemoryResearchStore:
             task = self._tasks.get(research_id)
             if not task:
                 return
-            task.progress_pct = pct
+            task.progress_pct = max(0, min(100, pct))
             task.progress_label = label
             if task.status == "pending":
                 task.status = "in_progress"

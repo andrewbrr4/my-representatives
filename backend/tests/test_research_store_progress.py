@@ -43,3 +43,12 @@ def test_update_partial_replaces_summary_without_completing():
     task = asyncio.run(run())
     assert task.summary.bullets == ["one"]
     assert task.status == "in_progress"  # NOT complete
+
+
+def test_update_partial_missing_task_is_noop():
+    store = InMemoryResearchStore()
+
+    async def run():
+        await store.update_partial("nope", _Summary(bullets=["x"]))  # must not raise
+
+    asyncio.run(run())  # no exception = pass
