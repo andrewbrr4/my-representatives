@@ -20,6 +20,7 @@ remaining wire-shape misses is handled by LangChain's standard retry
 wrapper (``with_retry``).
 """
 
+import json
 import logging
 import os
 from datetime import date
@@ -34,6 +35,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from models import Citation
 from research.overview.models import ResearchSummary, SearchResult, SourceLink
+from store.research_store import InMemoryResearchStore
 from research.overview.state import V4State
 from research.usage import UsageTracker
 
@@ -207,6 +209,118 @@ def _attach_markers(
         text = text.rstrip()
         out.append(f"{text} {marker}".rstrip() if marker else text)
     return out
+
+
+def _streaming_enabled() -> bool:
+    """Default ON — streaming is the intended formatter experience. Flip the
+    env var to ``false`` to fall back to the structured-output path."""
+    return os.getenv("OVERVIEW_V4_FORMATTER_STREAMING", "true").strip().lower() in (
+        "1", "true", "yes", "on"
+    )
+
+
+def _min_bullets() -> int:
+    return int(os.getenv("OVERVIEW_V4_FORMATTER_MIN_BULLETS", "3"))
+
+
+async def _handle_line(
+    line: str,
+    *,
+    pool_by_url: dict[str, SearchResult],
+    bullets: list[str],
+    citations: list[Citation],
+    url_to_n: dict[str, int],
+    sources: list[SourceLink],
+    store: InMemoryResearchStore | None,
+    research_id: str | None,
+) -> bool:
+    """Parse one NDJSON line, append a bullet + citations, write a partial.
+
+    Mutates ``bullets`` / ``citations`` / ``url_to_n`` in place. Returns True
+    if a bullet was appended, False if the line was skipped (blank, malformed
+    JSON, or wrong shape). URLs not in ``pool_by_url`` are dropped (logged) —
+    same hallucination-drop philosophy as the structured path.
+    """
+    line = line.strip()
+    if not line:
+        return False
+    try:
+        obj = json.loads(line)
+    except json.JSONDecodeError:
+        logger.warning(f"[v4] formatter stream: skipping malformed line: {line[:120]}")
+        return False
+    if not isinstance(obj, dict):
+        logger.warning("[v4] formatter stream: skipping non-object line")
+        return False
+    text = obj.get("text")
+    srcs = obj.get("sources")
+    if not isinstance(text, str) or not text.strip() or not isinstance(srcs, list):
+        logger.warning("[v4] formatter stream: skipping bad-shape line")
+        return False
+
+    for url in srcs:
+        if not isinstance(url, str) or not url or url in url_to_n:
+            continue
+        sr = pool_by_url.get(url)
+        if sr is None:
+            logger.warning(f"[v4] formatter stream cited URL not in pool, dropping: {url}")
+            continue
+        citations.append(
+            Citation(title=sr.title or url, url=url, published_date=sr.published_date or None)
+        )
+        url_to_n[url] = len(citations)  # 1-indexed N
+
+    ns = sorted({url_to_n[u] for u in srcs if isinstance(u, str) and u in url_to_n})
+    marker = "".join(f"[{n}]" for n in ns)
+    text = text.strip()
+    bullets.append(f"{text} {marker}".rstrip() if marker else text)
+
+    if store is not None and research_id is not None:
+        await store.update_partial(
+            research_id,
+            ResearchSummary(
+                bullets=list(bullets), citations=list(citations), sources=sources
+            ),
+        )
+    return True
+
+
+async def _consume_stream(
+    content_iter,
+    *,
+    pool_by_url: dict[str, SearchResult],
+    sources: list[SourceLink],
+    store: InMemoryResearchStore | None,
+    research_id: str | None,
+) -> ResearchSummary:
+    """Drive the NDJSON line loop over an async iterator of content strings.
+
+    Buffers partial lines across chunks; drains a trailing unterminated line
+    at the end. Returns the final ResearchSummary.
+    """
+    line_buffer = ""
+    bullets: list[str] = []
+    citations: list[Citation] = []
+    url_to_n: dict[str, int] = {}
+    n_chunks = 0
+
+    async for content in content_iter:
+        n_chunks += 1
+        line_buffer += content if isinstance(content, str) else str(content)
+        while "\n" in line_buffer:
+            line, line_buffer = line_buffer.split("\n", 1)
+            await _handle_line(
+                line, pool_by_url=pool_by_url, bullets=bullets, citations=citations,
+                url_to_n=url_to_n, sources=sources, store=store, research_id=research_id,
+            )
+    if line_buffer.strip():
+        await _handle_line(
+            line_buffer, pool_by_url=pool_by_url, bullets=bullets, citations=citations,
+            url_to_n=url_to_n, sources=sources, store=store, research_id=research_id,
+        )
+
+    logger.info(f"[v4] Formatter streamed {len(bullets)} bullets in {n_chunks} chunks")
+    return ResearchSummary(bullets=bullets, citations=citations, sources=sources)
 
 
 @observe(name="v4-formatter")
