@@ -941,7 +941,7 @@ async def _formatter_streaming(state: V4State) -> dict:
         max_tokens=int(os.environ["RESEARCH_MAX_TOKENS"]),
     )
 
-    system_template = Template((_PROMPTS_DIR / "formatter_system.txt").read_text())
+    system_template = Template((_PROMPTS_DIR / "formatter_system_streaming.txt").read_text())
     user_template = Template((_PROMPTS_DIR / "formatter_user_streaming.txt").read_text())
     system_prompt = system_template.substitute(current_date=date.today().isoformat())
     user_prompt = user_template.substitute(
@@ -1009,57 +1009,89 @@ git commit -m "feat(formatter): dispatch between streaming and structured paths"
 
 ---
 
-## Task 8: Streaming prompt file
+## Task 8: Streaming prompt files (system + user)
 
 **Files:**
+- Create: `backend/research/overview/prompts/formatter_system_streaming.txt`
 - Create: `backend/research/overview/prompts/formatter_user_streaming.txt`
 
-- [ ] **Step 1: Read the existing user prompt**
+> **Why both:** `formatter_system.txt` hard-prescribes the structured `bullet_texts`/`bullet_sources` tool schema ("Output two parallel top-level lists … Output ONLY the structured fields"). The streaming path calls `model.astream()` with no tool binding and parses NDJSON `{"text","sources"}` lines, so it needs its own system prompt whose Output section describes the NDJSON shape. `_formatter_streaming` (Task 7) loads `formatter_system_streaming.txt` + `formatter_user_streaming.txt`. All content/taxonomy rules (5 buckets, 6–8 bullets, ~14–22 words, no-identity-framing, substantive-controversies-only, explicit-year dates, source priority) carry over unchanged — only the output-shape instructions differ.
 
-Run: `cd backend && cat research/overview/prompts/formatter_user.txt`
-Expected: shows the current prompt (template vars `$name`, `$office`, `$breadth_block`, `$depth_block`, and a trailing wire-shape reminder for the structured `bullet_texts`/`bullet_sources` shape).
+- [ ] **Step 1: Read the existing prompts**
 
-- [ ] **Step 2: Create the streaming variant**
+Run: `cd backend && cat research/overview/prompts/formatter_system.txt research/overview/prompts/formatter_user.txt`
+Expected: shows both current prompts. Note `formatter_system.txt` uses the `${current_date}` template var and its `## Output requirements` section + final "Output ONLY the structured fields" line describe `bullet_texts`/`bullet_sources`. `formatter_user.txt` uses `$name`, `$office`, `$breadth_block`, `$depth_block` and ends with an `_FormatterOutput` tool-schema reminder.
 
-Create `backend/research/overview/prompts/formatter_user_streaming.txt` as a copy of `formatter_user.txt` with everything identical **except** the trailing OUTPUT FORMAT block, which becomes:
+- [ ] **Step 2: Create the streaming SYSTEM prompt**
+
+Create `backend/research/overview/prompts/formatter_system_streaming.txt` as a copy of `formatter_system.txt` with EVERYTHING identical (keep the `${current_date}` references, the 5-bucket taxonomy, source priority, and all the strict rules) **except** the `## Output requirements` section, which is replaced with:
 
 ```
-**OUTPUT FORMAT (CRITICAL):**
-Emit one bullet per line as a single JSON object on each line. No outer array, no markdown, no commentary, no leading/trailing text — just one JSON object per line, separated by newlines.
+## Output requirements
+
+- Produce **6–8 bullets total**. The product is for a busy voter scanning their phone — distill aggressively. Fewer high-signal bullets beats more comprehensive ones. Order bullets so the most significant facts come first — usually role/leadership and signature priorities lead.
+- Emit **one bullet per line** as a single JSON object on each line (NDJSON). Do NOT wrap them in an array, and do NOT call any tool. No markdown, no commentary, no leading or trailing text — just one JSON object per line, separated by newlines.
+- Each line has exactly two keys:
+  - `text` — a single one-liner (**~14–22 words**) in the format `**3-5 word headline** - one tight sentence`. Bare text only, NO `[N]` citation markers (the system appends those).
+  - `sources` — a JSON array of one or more URLs (copied verbatim from the breadth/depth blocks below) that support this bullet's claim. Cite only URLs that actually appear in the materials. Do not invent URLs. Every bullet must have at least one supporting URL.
+- Wire shape (one object per line):
+
+{"text": "**Headline one** - tight sentence.", "sources": ["https://example.com/a", "https://example.com/b"]}
+{"text": "**Headline two** - tight sentence.", "sources": ["https://example.com/c"]}
+```
+
+Also replace the final strict-rules line `- Output ONLY the structured fields (\`\`bullet_texts\`\` and \`\`bullet_sources\`\`). No headings, intros, or summary paragraphs.` with:
+
+```
+- Output ONLY the NDJSON bullet lines. No headings, intros, summary paragraphs, surrounding array, or tool calls.
+```
+
+Keep the `${current_date}` template variable working (the streaming system prompt is substituted with `current_date` exactly like the structured one). If any literal `$` appears in your replacement text, escape it as `$$`.
+
+- [ ] **Step 3: Create the streaming USER prompt**
+
+Create `backend/research/overview/prompts/formatter_user_streaming.txt` as a copy of `formatter_user.txt` with everything identical **except** the trailing `**Output schema reminder …**` block (the `_FormatterOutput` tool reminder), which is replaced with:
+
+```
+**OUTPUT FORMAT — read carefully before responding:**
+
+Emit one bullet per line as a single JSON object on each line. No outer array, no markdown, no commentary, no leading or trailing text, and do NOT call any tool — just one JSON object per line, separated by newlines.
 
 Wire shape per line:
 
-{"text": "Bullet content here.", "sources": ["https://example.com/a", "https://example.com/b"]}
-{"text": "Next bullet.", "sources": ["https://example.com/c"]}
+{"text": "**Headline** - sentence", "sources": ["https://example.com/a", "https://example.com/b"]}
+{"text": "**Next headline** - sentence", "sources": ["https://example.com/c"]}
 
 Rules:
-- Exactly one JSON object per line.
-- Keys are `text` (string) and `sources` (array of URL strings).
-- URLs in `sources` must be pulled from the breadth/depth blocks above. Do not invent URLs.
+- Exactly one JSON object per line. Keys are `text` (string) and `sources` (array of URL strings).
+- Each `sources` array must have at least one URL **copied verbatim from the breadth or depth blocks above**. Do NOT invent or recall URLs from training data — any URL not in the materials is silently dropped from the user's citations.
 - Do NOT emit [N] markers — the system appends them after parsing.
 ```
 
-Keep the same template variables (`$name`, `$office`, `$breadth_block`, `$depth_block`) in the same positions as `formatter_user.txt`. Do not introduce new `$`-variables (the `string.Template` substitution only provides those four). If example text contains a literal `$`, escape it as `$$`.
+Keep the same template variables (`$name`, `$office`, `$breadth_block`, `$depth_block`) in the same positions. Do not introduce new `$`-variables. Escape any literal `$` as `$$`.
 
-- [ ] **Step 3: Verify the template substitutes cleanly**
+- [ ] **Step 4: Verify both templates substitute cleanly**
 
 Run:
 ```bash
 cd backend && conda run -n my-reps python -c "
 from string import Template
 from pathlib import Path
-t = Template(Path('research/overview/prompts/formatter_user_streaming.txt').read_text())
-print(t.substitute(name='X', office='Y', breadth_block='B', depth_block='D')[:80])
+base = Path('research/overview/prompts')
+sysp = Template((base / 'formatter_system_streaming.txt').read_text())
+usrp = Template((base / 'formatter_user_streaming.txt').read_text())
+print(sysp.substitute(current_date='2026-05-29')[:60])
+print(usrp.substitute(name='X', office='Y', breadth_block='B', depth_block='D')[:60])
 print('ok')
 "
 ```
-Expected: prints a prompt prefix then `ok` (no `KeyError`/`ValueError` from stray `$`).
+Expected: prints two prompt prefixes then `ok` (no `KeyError`/`ValueError` from a stray `$`).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add backend/research/overview/prompts/formatter_user_streaming.txt
-git commit -m "feat(formatter): add NDJSON streaming user prompt"
+git add backend/research/overview/prompts/formatter_system_streaming.txt backend/research/overview/prompts/formatter_user_streaming.txt
+git commit -m "feat(formatter): add NDJSON streaming system + user prompts"
 ```
 
 ---

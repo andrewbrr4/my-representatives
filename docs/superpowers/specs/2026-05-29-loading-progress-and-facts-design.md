@@ -184,7 +184,7 @@ All the existing module-level helpers stay shared between the two branches (same
 
 1. Resolve `rep`, `filtered`, `depth`, `show_sources` exactly as `_formatter_structured` does (including the `_dedupe_depth_against_breadth` step when show-sources is on). Compute `breadth_block` / `depth_block` via the same helpers.
 2. Build `pool_by_url: dict[str, SearchResult]` from `filtered + depth` for citation lookups, and compute `sources` once via `_build_sources()` if `_show_sources_enabled()`.
-3. Load `formatter_system.txt` (unchanged) and the new `formatter_user_streaming.txt`, substituting the same template vars.
+3. Load the new `formatter_system_streaming.txt` and `formatter_user_streaming.txt`, substituting the same template vars. (The streaming path needs its own system prompt because `formatter_system.txt` prescribes the structured `bullet_texts`/`bullet_sources` tool schema — incompatible with the NDJSON consumer.)
 4. Open the stream: `async for chunk in model.astream([SystemMessage, HumanMessage], config={"callbacks": [langfuse_handler, usage_tracker], "run_name": f"v4:formatter:{rep.name}"})`. No `with_structured_output` — raw text chunks.
 5. Maintain `line_buffer: str`, `bullets: list[str]`, `citations: list[Citation]`, `url_to_n: dict[str, int]`. On each chunk, append `chunk.content` (string-coerce defensively — see open questions) to `line_buffer`; while `"\n" in line_buffer`, split off the line and call `_handle_line(...)`.
 6. After the stream ends, drain `line_buffer` (model may not terminate with `\n`): one final `_handle_line` if non-empty.
@@ -219,9 +219,9 @@ def _min_bullets() -> int:
 
 **Observability:** the `@observe(name="v4-formatter")` decorator stays on the dispatching `formatter()`, so traces span the whole node regardless of branch. `UsageTracker()` works identically with `astream` (same `config={"callbacks": […]}`). Add one end-of-stream info log: `f"[v4] Formatter streamed {len(bullets)} bullets in {n_chunks} chunks; dropped {n_malformed} malformed lines, {n_hallucinated} unknown URLs"`.
 
-### Backend: `research/overview/prompts/formatter_user_streaming.txt` (new)
+### Backend: `research/overview/prompts/formatter_system_streaming.txt` + `formatter_user_streaming.txt` (new)
 
-A copy of `formatter_user.txt` with the trailing wire-shape reminder rewritten for NDJSON. The system prompt (`formatter_system.txt`) is unchanged — all bucket taxonomy, importance-pruning, 6–8 bullet count, ~14–22 word count, no-identity-framing, and date-tagging rules continue to apply. The rewritten reminder:
+The streaming path uses its own copies of both prompts because `formatter_system.txt` prescribes the structured `bullet_texts`/`bullet_sources` tool schema. The system copy keeps all bucket taxonomy, importance-pruning, 6–8 bullet count, ~14–22 word count, no-identity-framing, and date-tagging rules — only its `## Output requirements` section is rewritten to describe the NDJSON `{"text","sources"}`-per-line shape. The user copy's trailing wire-shape reminder is rewritten to:
 
 > **OUTPUT FORMAT (CRITICAL):**
 > Emit one bullet per line as a single JSON object on each line. No outer array, no markdown, no commentary, no leading/trailing text — just one JSON object per line, separated by `\n`.
@@ -467,7 +467,7 @@ The structured-output formatter path stays in the codebase as the `OVERVIEW_V4_F
 - `backend/research/overview/pipeline.py` — populate them in the initial state
 - `backend/research/overview/nodes/query_generator.py`, `breadth_search.py`, `filter_node.py`, `research_agent.py` — `report_step` call at node entry
 - `backend/research/overview/nodes/formatter.py` — streaming/structured split + `report_step`
-- `backend/research/overview/prompts/formatter_user_streaming.txt` — **new**
+- `backend/research/overview/prompts/formatter_system_streaming.txt`, `formatter_user_streaming.txt` — **new**
 - `backend/routers/overview.py` — `ProgressInfo`, `progress` on `ResearchResponse`
 - `backend/routers/facts.py` — **new** (`GET /api/facts`)
 - `backend/main.py` — register facts router
