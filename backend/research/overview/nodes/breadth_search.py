@@ -7,6 +7,7 @@ import os
 from langfuse import observe
 
 from research.overview.models import SearchResult
+from research.overview.progress import report_step
 from research.overview.state import V4State
 from research.search import tavily_search_raw
 from research.usage import UsageStats
@@ -20,6 +21,7 @@ _SEARCH_CONCURRENCY = int(os.getenv("OVERVIEW_V4_SEARCH_CONCURRENCY", "5"))
 @observe(name="v4-breadth-search")
 async def breadth_search(state: V4State) -> dict:
     """Run all queries in parallel against Tavily, bounded by a semaphore."""
+    await report_step(state, "breadth_search")
     queries = state["queries"]
     sem = asyncio.Semaphore(_SEARCH_CONCURRENCY)
 

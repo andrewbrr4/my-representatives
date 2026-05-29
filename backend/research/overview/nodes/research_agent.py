@@ -32,6 +32,7 @@ from research.overview.nodes.depth_subgraph import (
     build_depth_agent,
     build_depth_initial_user_message,
 )
+from research.overview.progress import report_step
 from research.overview.state import V4State
 from research.usage import UsageStats, UsageTracker
 
@@ -132,6 +133,7 @@ async def research_agent_node(state: V4State) -> dict:
        each invoking an isolated depth subagent.
     3. Tagged depth results merge into ``depth_search_results``.
     """
+    await report_step(state, "research_agent")
     rep = state["rep"]
     filtered_results = state.get("filtered_results") or []
 

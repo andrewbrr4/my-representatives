@@ -7,6 +7,7 @@ import re
 from langfuse import observe
 
 from research.overview.models import SearchResult
+from research.overview.progress import report_step
 from research.overview.state import V4State
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ def _is_self_press(url: str) -> bool:
 @observe(name="v4-filter")
 async def filter_node(state: V4State) -> dict:
     """Dedupe by URL + snippet, drop self-press URLs, truncate snippets, cap total."""
+    await report_step(state, "filter")
     raw = state["raw_results"]
     seen_urls: set[str] = set()
     seen_snippets: set[str] = set()
