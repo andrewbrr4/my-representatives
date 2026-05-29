@@ -177,3 +177,39 @@ def test_streaming_enabled_default_true(monkeypatch):
 def test_min_bullets_default(monkeypatch):
     monkeypatch.delenv("OVERVIEW_V4_FORMATTER_MIN_BULLETS", raising=False)
     assert _min_bullets() == 3
+
+
+def test_consume_stream_empty_stream_returns_empty_summary():
+    async def run():
+        return await _consume_stream(
+            _gen([]),
+            pool_by_url=_pool(),
+            sources=[],
+            store=None,
+            research_id=None,
+        )
+
+    summary = asyncio.run(run())
+    assert summary.bullets == []
+    assert summary.citations == []
+
+
+def test_consume_stream_handles_crlf_line_endings():
+    # CRLF terminators: splitting on "\n" leaves a trailing "\r" that
+    # _handle_line's .strip() removes before json.loads, so parsing succeeds.
+    chunk = (
+        '{"text": "One", "sources": ["https://a.com"]}\r\n'
+        '{"text": "Two", "sources": ["https://b.com"]}\r\n'
+    )
+
+    async def run():
+        return await _consume_stream(
+            _gen([chunk]),
+            pool_by_url=_pool(),
+            sources=[],
+            store=None,
+            research_id=None,
+        )
+
+    summary = asyncio.run(run())
+    assert summary.bullets == ["One [1]", "Two [2]"]

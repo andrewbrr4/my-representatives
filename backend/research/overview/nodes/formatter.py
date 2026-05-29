@@ -35,8 +35,8 @@ from pydantic import BaseModel, Field, ValidationError
 
 from models import Citation
 from research.overview.models import ResearchSummary, SearchResult, SourceLink
-from store.research_store import InMemoryResearchStore
 from research.overview.state import V4State
+from store.research_store import InMemoryResearchStore
 from research.usage import UsageTracker
 
 logger = logging.getLogger(__name__)
