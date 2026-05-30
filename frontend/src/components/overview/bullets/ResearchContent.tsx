@@ -2,42 +2,45 @@
  * Bullets research content renderer — single blended bullet list with
  * inline citation markers resolved against a unified citation pool.
  *
- * Used by any overview pipeline version that produces a BulletsResearchSummary
- * (the default pipeline plus legacy v2/v3). When the default pipeline emits
- * ``sources`` (gated on the ``OVERVIEW_V4_SHOW_SOURCES`` backend flag), an
- * expandable "Further reading (N)"
- * list renders below the bullets — a jumping-off point for the user's own
- * research, distinct from the inline citation markers (which exist to back
- * up the bullets themselves).
+ * While loading with no bullets yet, shows a per-node progress bar plus a
+ * rotating fun-facts carousel. Once bullets start streaming in, renders them
+ * with a small trailer skeleton until the task completes.
  */
 
 import type { BulletsResearchSummary } from "./types";
+import type { ProgressInfo } from "@/types";
 import { FurtherReading } from "@/components/FurtherReading";
 import { renderInline } from "@/components/overview/renderInline";
+import { ResearchProgress } from "@/components/overview/ResearchProgress";
+import { FactsCarousel } from "@/components/overview/FactsCarousel";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function BulletsSkeleton() {
+function BulletsTrailerSkeleton() {
   return (
-    <div className="space-y-2 mt-1">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="space-y-1">
-          <Skeleton className="h-3.5 w-5/6" />
-          <Skeleton className="h-3.5 w-3/4" />
-        </div>
-      ))}
+    <div className="space-y-1 pt-1" aria-hidden>
+      <Skeleton className="h-3.5 w-5/6" />
+      <Skeleton className="h-3.5 w-2/3" />
     </div>
   );
 }
 
-export function ResearchContent({ summary }: { summary: BulletsResearchSummary }) {
+export function ResearchContent({
+  summary,
+  status,
+  progress,
+}: {
+  summary: BulletsResearchSummary;
+  status?: "loading" | "complete" | "failed";
+  progress?: ProgressInfo | null;
+}) {
   const { bullets, citations, sources } = summary;
 
-  // Empty bullets = task hasn't written synthesis yet; parent's loading message
-  // ("Scraping the web...") is the primary indicator — skeleton is the filler below it.
+  // Nothing written yet: show the progress bar + facts carousel.
   if (bullets.length === 0) {
     return (
-      <div className="space-y-2 text-sm leading-relaxed prose prose-sm prose-neutral dark:prose-invert max-w-none">
-        <BulletsSkeleton />
+      <div className="space-y-2 text-sm leading-relaxed">
+        <ResearchProgress progress={progress} />
+        <FactsCarousel />
       </div>
     );
   }
@@ -49,6 +52,7 @@ export function ResearchContent({ summary }: { summary: BulletsResearchSummary }
           <li key={i}>{renderInline(b, citations)}</li>
         ))}
       </ul>
+      {status === "loading" && <BulletsTrailerSkeleton />}
       <FurtherReading sources={sources} />
     </div>
   );
