@@ -12,6 +12,7 @@ from langfuse import observe
 from langfuse.langchain import CallbackHandler
 from pydantic import BaseModel, Field
 
+from research.overview.progress import report_step
 from research.overview.state import V4State
 from research.usage import UsageTracker
 
@@ -33,6 +34,7 @@ class _QueryList(BaseModel):
 @observe(name="v4-query-gen")
 async def query_generator(state: V4State) -> dict:
     """Single LLM call (no tools) that emits ``_NUM_QUERIES`` diverse queries."""
+    await report_step(state, "query_generator")
     rep = state["rep"]
     langfuse_handler = CallbackHandler()
     usage_tracker = UsageTracker()

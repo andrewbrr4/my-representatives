@@ -1,4 +1,4 @@
-import type { Candidate, Representative, ResearchSummary } from "@/types";
+import type { Candidate, Representative, ResearchSummary, ProgressInfo } from "@/types";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
 import {
   Card,
@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Collapsible,
   CollapsibleContent,
@@ -25,6 +24,7 @@ interface CandidateCardProps {
   rep: Representative;
   researchStatus: ResearchStatus;
   summary: ResearchSummary | null;
+  progress?: ProgressInfo | null;
   onResearch: () => void;
 }
 
@@ -33,6 +33,7 @@ export function CandidateCard({
   rep,
   researchStatus,
   summary,
+  progress,
   onResearch,
 }: CandidateCardProps) {
   return (
@@ -79,27 +80,19 @@ export function CandidateCard({
           </Button>
         )}
 
-        {researchStatus === "loading" && !summary && (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground italic">
-              Scraping the web for information about this candidate -- this usually takes 30-60 seconds...
-            </p>
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-        )}
-
-        {researchStatus === "loading" && summary && (
+        {researchStatus === "loading" && (
           <Collapsible defaultOpen>
             <CollapsibleTrigger className="flex w-full items-center gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer group">
               <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
               <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
               AI Overview
-              <span className="ml-2 text-[11px] font-medium normal-case tracking-normal text-muted-foreground italic">(scraping the web — usually 30-60 seconds…)</span>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <ResearchContent summary={summary} />
+              <ResearchContent
+                summary={summary ?? { bullets: [], citations: [] }}
+                status="loading"
+                progress={progress}
+              />
             </CollapsibleContent>
           </Collapsible>
         )}
@@ -112,7 +105,7 @@ export function CandidateCard({
               AI Overview
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <ResearchContent summary={summary} />
+              <ResearchContent summary={summary} status="complete" />
             </CollapsibleContent>
           </Collapsible>
         )}

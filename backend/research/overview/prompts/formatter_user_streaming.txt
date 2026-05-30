@@ -1,0 +1,30 @@
+Official: $name
+Office: $office
+
+## Breadth search results
+
+$breadth_block
+
+---
+
+## Depth-research results (focused on volatile subtopics — prefer these on overlap)
+
+$depth_block
+
+---
+
+Write **6–8 tight bullets** per the system instructions — the product is for a busy voter, so each bullet is ~14–22 words. Quality over quantity: a 6-bullet overview beats a padded 8-bullet one.
+
+**OUTPUT FORMAT — read carefully before responding:**
+
+Emit one bullet per line as a single JSON object on each line. No outer array, no markdown, no commentary, no leading or trailing text, and do NOT call any tool — just one JSON object per line, separated by newlines.
+
+Wire shape per line:
+
+{"text": "**Headline** - sentence", "sources": ["https://example.com/a", "https://example.com/b"]}
+{"text": "**Next headline** - sentence", "sources": ["https://example.com/c"]}
+
+Rules:
+- Exactly one JSON object per line. Keys are `text` (string) and `sources` (array of URL strings).
+- Each `sources` array must have at least one URL **copied verbatim from the breadth or depth blocks above**. Do NOT invent or recall URLs from training data — any URL not in the materials is silently dropped from the user's citations.
+- Do NOT emit [N] markers — the system appends them after parsing.

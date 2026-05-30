@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Sparkles } from "lucide-react";
-import type { Representative, ResearchSummary } from "@/types";
+import type { Representative, ResearchSummary, ProgressInfo } from "@/types";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
 import { IssueSearch } from "@/components/IssueSearch";
 import { ResearchContent, isBullets } from "@/components/overview";
@@ -17,17 +17,17 @@ import {
 } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getPartyBadge } from "@/lib/partyBadge";
 
 interface RepCardProps {
   rep: Representative;
   researchStatus: ResearchStatus;
   summary: ResearchSummary | null;
+  progress?: ProgressInfo | null;
   onResearch: () => void;
 }
 
-export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardProps) {
+export function RepCard({ rep, researchStatus, summary, progress, onResearch }: RepCardProps) {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="flex flex-row items-start gap-4 space-y-0">
@@ -114,27 +114,19 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
           </div>
         )}
 
-        {researchStatus === "loading" && !summary && (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground italic">
-              Scraping the web for information about your representative -- this usually takes 30-60 seconds...
-            </p>
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-        )}
-
-        {(researchStatus === "loading" && summary) && (
+        {researchStatus === "loading" && (
           <Collapsible defaultOpen>
             <CollapsibleTrigger className="flex w-full items-center gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground cursor-pointer group">
               <ChevronRight className="h-4 w-4 group-data-[state=open]:hidden" />
               <ChevronDown className="h-4 w-4 group-data-[state=closed]:hidden" />
               AI Overview
-              <span className="ml-2 text-[11px] font-medium normal-case tracking-normal text-muted-foreground italic">(scraping the web — usually 30-60 seconds…)</span>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <ResearchContent summary={summary} />
+              <ResearchContent
+                summary={summary ?? { bullets: [], citations: [] }}
+                status="loading"
+                progress={progress}
+              />
             </CollapsibleContent>
           </Collapsible>
         )}
@@ -161,7 +153,7 @@ export function RepCard({ rep, researchStatus, summary, onResearch }: RepCardPro
                 AI Overview
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <ResearchContent summary={summary} />
+                <ResearchContent summary={summary} status="complete" />
               </CollapsibleContent>
             </Collapsible>
           )

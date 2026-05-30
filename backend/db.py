@@ -184,3 +184,10 @@ async def get_issues_taxonomy() -> list[dict]:
         "SELECT id, label FROM issues WHERE active = true ORDER BY label"
     )
     return [dict(r) for r in rows]
+
+
+async def get_civics_facts() -> list[str]:
+    """Return active civics/America facts for the loading carousel, ordered."""
+    pool = await get_pool()
+    rows = await pool.fetch("SELECT text FROM facts WHERE active ORDER BY id")
+    return [r["text"] for r in rows]

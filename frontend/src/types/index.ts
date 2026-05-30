@@ -39,10 +39,16 @@ export interface RepresentativesResponse {
   district_info: DistrictInfo | null;
 }
 
+export interface ProgressInfo {
+  pct: number;
+  label: string;
+}
+
 export interface ResearchResponse {
   research_id: string;
   status: "pending" | "in_progress" | "complete" | "failed";
   summary: ResearchSummary | null;
+  progress?: ProgressInfo | null;
 }
 
 export interface PollingLocation {

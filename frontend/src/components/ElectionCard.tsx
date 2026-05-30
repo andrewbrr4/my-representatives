@@ -6,7 +6,7 @@ import type {
 } from "@/types";
 import type { ElectionResearchStatus } from "@/hooks/useElectionResearchQuery";
 import type { ResearchStatus } from "@/hooks/useResearchQuery";
-import type { ResearchSummary } from "@/types";
+import type { ResearchSummary, ProgressInfo } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -79,6 +79,7 @@ interface ElectionCardProps {
   candidateToRep: (candidate: Candidate) => Representative;
   getCandidateResearchStatus: (candidate: Candidate) => ResearchStatus;
   getCandidateResearchSummary: (candidate: Candidate) => ResearchSummary | null;
+  getCandidateResearchProgress: (candidate: Candidate) => ProgressInfo | null;
   onCandidateResearch: (candidate: Candidate) => void;
 }
 
@@ -89,6 +90,7 @@ export function ElectionCard({
   candidateToRep,
   getCandidateResearchStatus,
   getCandidateResearchSummary,
+  getCandidateResearchProgress,
   onCandidateResearch,
 }: ElectionCardProps) {
   const days = daysUntil(election.date);
@@ -215,6 +217,7 @@ export function ElectionCard({
                         rep={candidateToRep(candidate)}
                         researchStatus={getCandidateResearchStatus(candidate)}
                         summary={getCandidateResearchSummary(candidate)}
+                        progress={getCandidateResearchProgress(candidate)}
                         onResearch={() => onCandidateResearch(candidate)}
                       />
                     ))}
