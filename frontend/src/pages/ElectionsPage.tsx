@@ -24,7 +24,7 @@ export function ElectionsPage() {
   const elections = data?.elections ?? [];
   const researchIds = useMemo(() => data?.researchIds ?? {}, [data?.researchIds]);
   const { trackElectionResearch, getElectionStatus, getElectionSummary } = useElectionResearch();
-  const { requestResearch, getStatus, getSummary } = useResearch();
+  const { requestResearch, getStatus, getSummary, getProgress } = useResearch();
 
   // Start polling for auto-triggered election research once we have research IDs
   useEffect(() => {
@@ -83,6 +83,7 @@ export function ElectionsPage() {
               candidateToRep={candidateToRep}
               getCandidateResearchStatus={(c) => getStatus(candidateToRep(c))}
               getCandidateResearchSummary={(c) => getSummary(candidateToRep(c))}
+              getCandidateResearchProgress={(c) => getProgress(candidateToRep(c))}
               onCandidateResearch={handleCandidateResearch}
             />
           ))}
