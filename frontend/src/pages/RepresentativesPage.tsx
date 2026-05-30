@@ -33,7 +33,7 @@ export function RepresentativesPage() {
   const { data, isLoading, error } = useRepresentativesQuery(address);
   const representatives = data?.representatives ?? [];
   const districtInfo = data?.district_info ?? null;
-  const { requestResearch, getStatus, getSummary } = useResearch();
+  const { requestResearch, getStatus, getSummary, getProgress } = useResearch();
 
   const hasResults = representatives.length > 0;
   const groups = groupByLevel(representatives);
@@ -129,6 +129,7 @@ export function RepresentativesPage() {
                           rep={rep}
                           researchStatus={getStatus(rep)}
                           summary={getSummary(rep)}
+                          progress={getProgress(rep)}
                           onResearch={() => requestResearch(rep)}
                         />
                       ))
