@@ -20,10 +20,24 @@ class ResearchRequest(BaseModel):
     representative: Representative
 
 
+class ProgressInfo(BaseModel):
+    pct: int
+    label: str
+
+
 class ResearchResponse(BaseModel):
     research_id: str
     status: str  # "pending" | "in_progress" | "complete" | "failed"
     summary: ResearchSummary | None = None
+    progress: ProgressInfo | None = None
+
+
+def _progress_for(task) -> ProgressInfo | None:
+    """Surface progress only while research is in flight."""
+    if task.status in ("pending", "in_progress"):
+        return ProgressInfo(pct=task.progress_pct, label=task.progress_label)
+    return None
+
 
 logger = logging.getLogger(__name__)
 limiter = Limiter(key_func=get_remote_address)
@@ -111,4 +125,5 @@ async def get_research(research_id: str) -> ResearchResponse:
         research_id=task.research_id,
         status=task.status,
         summary=task.summary,
+        progress=_progress_for(task),
     )
