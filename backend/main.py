@@ -20,6 +20,7 @@ from routers.overview import router as research_router
 from routers.transactions import router as transactions_router
 from routers.elections import router as elections_router
 from routers.issues import router as issues_router
+from routers.facts import router as facts_router
 from db import close_pool
 from store.dependencies import get_election_cache, get_issue_cache, get_rep_cache, get_research_store
 
@@ -110,3 +111,4 @@ app.include_router(research_router)
 app.include_router(transactions_router)
 app.include_router(elections_router)
 app.include_router(issues_router)
+app.include_router(facts_router)
