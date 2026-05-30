@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Representative, ResearchSummary, ResearchResponse } from "@/types";
+import type { Representative, ResearchSummary, ResearchResponse, ProgressInfo } from "@/types";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const POLL_INTERVAL_MS = 2000;
@@ -15,6 +15,7 @@ interface ResearchEntry {
   status: ResearchStatus;
   summary: ResearchSummary | null;
   researchId: string | null;
+  progress: ProgressInfo | null;
 }
 
 /**
@@ -32,6 +33,7 @@ export function useResearchQuery() {
         status: "idle",
         summary: null,
         researchId: null,
+        progress: null,
       };
     },
     [queryClient]
@@ -75,7 +77,7 @@ export function useResearchQuery() {
           const resp = await fetch(`${API_URL}/api/research/${researchId}`);
           if (!resp.ok) {
             stopPolling(key);
-            setEntry(key, { status: "failed", summary: null, researchId });
+            setEntry(key, { status: "failed", summary: null, researchId, progress: null });
             bumpVersion();
             return;
           }
@@ -83,16 +85,30 @@ export function useResearchQuery() {
           const data: ResearchResponse = await resp.json();
           if (data.status === "complete") {
             stopPolling(key);
-            setEntry(key, { status: "complete", summary: data.summary, researchId });
+            setEntry(key, {
+              status: "complete",
+              summary: data.summary,
+              researchId,
+              progress: null,
+            });
             bumpVersion();
           } else if (data.status === "in_progress" || data.status === "pending") {
-            if (data.summary) {
-              setEntry(key, { status: "loading", summary: data.summary, researchId });
-              bumpVersion();
-            }
+            const prev = getEntry(key);
+            setEntry(key, {
+              status: "loading",
+              summary: data.summary ?? prev.summary,
+              researchId,
+              progress: data.progress ?? prev.progress,
+            });
+            bumpVersion();
           } else if (data.status === "failed") {
             stopPolling(key);
-            setEntry(key, { status: "failed", summary: null, researchId });
+            setEntry(key, {
+              status: "failed",
+              summary: null,
+              researchId,
+              progress: null,
+            });
             bumpVersion();
           }
         } catch {
@@ -102,7 +118,7 @@ export function useResearchQuery() {
 
       pollTimers.current.set(key, timer);
     },
-    [stopPolling, setEntry, bumpVersion]
+    [stopPolling, setEntry, bumpVersion, getEntry]
   );
 
   // On mount, restart polling for any in-progress entries (survives route changes)
@@ -135,7 +151,7 @@ export function useResearchQuery() {
       const existing = getEntry(key);
       if (existing.status === "loading" || existing.status === "complete") return;
 
-      setEntry(key, { status: "loading", summary: null, researchId: null });
+      setEntry(key, { status: "loading", summary: null, researchId: null, progress: null });
       bumpVersion();
 
       (async () => {
@@ -147,7 +163,7 @@ export function useResearchQuery() {
           });
 
           if (!resp.ok) {
-            setEntry(key, { status: "failed", summary: null, researchId: null });
+            setEntry(key, { status: "failed", summary: null, researchId: null, progress: null });
             bumpVersion();
             return;
           }
@@ -155,18 +171,18 @@ export function useResearchQuery() {
           const data: ResearchResponse = await resp.json();
 
           if (data.status === "complete" && data.summary) {
-            setEntry(key, { status: "complete", summary: data.summary, researchId: data.research_id });
+            setEntry(key, { status: "complete", summary: data.summary, researchId: data.research_id, progress: null });
             bumpVersion();
             return;
           }
 
           // Always persist the researchId so remount can restart polling
-          setEntry(key, { status: "loading", summary: data.summary ?? null, researchId: data.research_id });
+          setEntry(key, { status: "loading", summary: data.summary ?? null, researchId: data.research_id, progress: data.progress ?? null });
           bumpVersion();
 
           startPolling(key, data.research_id);
         } catch {
-          setEntry(key, { status: "failed", summary: null, researchId: null });
+          setEntry(key, { status: "failed", summary: null, researchId: null, progress: null });
           bumpVersion();
         }
       })();
@@ -190,5 +206,13 @@ export function useResearchQuery() {
     [getEntry, cacheVersion.data]
   );
 
-  return { requestResearch, getStatus, getSummary };
+  const getProgress = useCallback(
+    (rep: Representative): ProgressInfo | null => {
+      void cacheVersion.data;
+      return getEntry(repKey(rep)).progress;
+    },
+    [getEntry, cacheVersion.data]
+  );
+
+  return { requestResearch, getStatus, getSummary, getProgress };
 }
