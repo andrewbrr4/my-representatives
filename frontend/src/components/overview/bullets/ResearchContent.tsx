@@ -39,8 +39,8 @@ export function ResearchContent({
   if (bullets.length === 0) {
     return (
       <div className="space-y-2 text-sm leading-relaxed">
-        <ResearchProgress progress={progress} />
         <FactsCarousel />
+        <ResearchProgress progress={progress} />
       </div>
     );
   }
