@@ -169,6 +169,7 @@ export function IssuesPage() {
                   key={repId(rep)}
                   rep={rep}
                   result={getResult(rep)}
+                  issueId={matchedIssue.id}
                   onRetry={() => retryRep(rep, lastQuery)}
                 />
               ))}
