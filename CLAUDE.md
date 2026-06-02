@@ -195,6 +195,5 @@ Required in `.env` at project root:
 - `COST_PER_SEARCH` — Tavily cost per search in USD (e.g. `0.008`)
 - `ENVIRONMENT` — `dev` or `prod` (default `dev`). Recorded in the `research_tasks` table for filtering.
 - `CORS_ORIGINS` — comma-separated list of allowed CORS origins (read in `main.py`). Defaults to `http://localhost:5173,http://localhost:3000` for local dev; prod sets the deployed frontend origin(s).
-- `ADMIN_API_KEY` — gates the admin-only `/api/transactions` routes (`routers/transactions.py`). Sent by the client as the `X-Admin-Key` header and compared constant-time. **Fail-closed:** if unset, every transactions request is rejected. The frontend never calls these endpoints — only `admin.ipynb`, which must pass the header.
 
 Backend loads these via `python-dotenv` at startup.
