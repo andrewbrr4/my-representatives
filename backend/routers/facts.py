@@ -11,5 +11,5 @@ class FactsResponse(BaseModel):
 
 
 @router.get("/api/facts")
-async def get_facts() -> FactsResponse:
-    return FactsResponse(facts=await get_civics_facts())
+async def get_facts(issue: str | None = None) -> FactsResponse:
+    return FactsResponse(facts=await get_civics_facts(issue))
