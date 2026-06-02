@@ -12,15 +12,18 @@ import {
 } from "@/components/ui/collapsible";
 import { FurtherReading } from "@/components/FurtherReading";
 import { renderInline } from "@/components/overview/renderInline";
+import { FactsCarousel } from "@/components/overview/FactsCarousel";
 
 function IssueResult({
   label,
+  issueId,
   items,
   citations,
   furtherReading,
   loading,
 }: {
   label: string;
+  issueId: string | undefined;
   items: string[] | null;
   citations: Citation[];
   furtherReading: SourceLink[] | undefined;
@@ -37,6 +40,7 @@ function IssueResult({
         <CollapsibleContent>
           {loading && !items ? (
             <div className="space-y-1.5 mt-1">
+              <FactsCarousel issueId={issueId} />
               <Skeleton className="h-3.5 w-full" />
               <Skeleton className="h-3.5 w-5/6" />
             </div>
@@ -112,6 +116,7 @@ export function IssueSearch({ rep }: IssueSearchProps) {
         <IssueResult
           key={key}
           label={entry.issue?.label ?? "Issue"}
+          issueId={entry.issue?.id}
           items={entry.summary?.stance_summary ?? null}
           citations={entry.summary?.citations ?? []}
           furtherReading={entry.summary?.further_reading}

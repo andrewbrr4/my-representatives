@@ -9,8 +9,8 @@ const ROTATE_MS = 6000;
  * loading state if the facts endpoint is empty or slow. Rotates sequentially
  * from the first fact; setState happens only in the async interval callback.
  */
-export function FactsCarousel() {
-  const { data: facts } = useFactsQuery();
+export function FactsCarousel({ issueId }: { issueId?: string } = {}) {
+  const { data: facts } = useFactsQuery(issueId);
   const [idx, setIdx] = useState(0);
 
   useEffect(() => {
