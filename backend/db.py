@@ -186,8 +186,22 @@ async def get_issues_taxonomy() -> list[dict]:
     return [dict(r) for r in rows]
 
 
-async def get_civics_facts() -> list[str]:
-    """Return active civics/America facts for the loading carousel, ordered."""
+async def get_civics_facts(issue_id: str | None = None) -> list[str]:
+    """Return active facts for the loading carousel, ordered.
+
+    With ``issue_id``, returns that issue's themed facts; if the issue has
+    none, falls back to general civics facts (``issue_id IS NULL``) so the
+    carousel is never empty. Without ``issue_id``, returns general facts only.
+    """
     pool = await get_pool()
-    rows = await pool.fetch("SELECT text FROM facts WHERE active ORDER BY id")
+    if issue_id:
+        rows = await pool.fetch(
+            "SELECT text FROM facts WHERE active AND issue_id = $1 ORDER BY id",
+            issue_id,
+        )
+        if rows:
+            return [r["text"] for r in rows]
+    rows = await pool.fetch(
+        "SELECT text FROM facts WHERE active AND issue_id IS NULL ORDER BY id"
+    )
     return [r["text"] for r in rows]

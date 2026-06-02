@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import type { Representative } from "@/types";
 import type { RepResult } from "@/hooks/useMultiIssueResearch";
 import { FurtherReading } from "@/components/FurtherReading";
+import { FactsCarousel } from "@/components/overview/FactsCarousel";
 import { renderInline } from "@/components/overview/renderInline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,10 +17,11 @@ import { getPartyBadge } from "@/lib/partyBadge";
 interface IssueCompareResultProps {
   rep: Representative;
   result: RepResult;
+  issueId: string | undefined;
   onRetry: () => void;
 }
 
-export function IssueCompareResult({ rep, result, onRetry }: IssueCompareResultProps) {
+export function IssueCompareResult({ rep, result, issueId, onRetry }: IssueCompareResultProps) {
   const { status, summary } = result;
 
   return (
@@ -45,6 +47,7 @@ export function IssueCompareResult({ rep, result, onRetry }: IssueCompareResultP
           <div className="mt-3 pl-6">
             {status === "loading" && !summary?.stance_summary && (
               <div className="space-y-1.5">
+                <FactsCarousel issueId={issueId} />
                 <Skeleton className="h-3.5 w-full" />
                 <Skeleton className="h-3.5 w-5/6" />
                 <Skeleton className="h-3.5 w-4/6" />
