@@ -224,6 +224,32 @@ def _min_bullets() -> int:
     return int(os.getenv("OVERVIEW_V4_FORMATTER_MIN_BULLETS", "3"))
 
 
+def _prepare_pool(
+    filtered: list[SearchResult],
+    depth: list[SearchResult],
+) -> tuple[list[SearchResult], str, str, list[SearchResult], list[SourceLink]]:
+    """Shared formatter prep for both the streaming and structured paths.
+
+    Applies the show-sources dedupe (when enabled), renders the breadth/depth
+    prompt blocks, and builds the combined pool + ``sources`` projection.
+    Returns ``(depth, breadth_block, depth_block, pool, sources)`` — ``depth``
+    is returned because it may have been deduped in place.
+    """
+    if _show_sources_enabled():
+        before = len(depth)
+        depth = _dedupe_depth_against_breadth(filtered, depth)
+        logger.info(
+            f"[v4] Formatter dedupe (show-sources on): depth {before} -> {len(depth)}"
+        )
+        sources = _build_sources(filtered + depth)
+    else:
+        sources = []
+    breadth_block = _format_breadth_block(filtered)
+    depth_block = _format_depth_block(depth)
+    pool = filtered + depth
+    return depth, breadth_block, depth_block, pool, sources
+
+
 async def _handle_line(
     line: str,
     *,
@@ -334,19 +360,8 @@ async def _formatter_streaming(state: V4State) -> dict:
     store = state.get("store")
     research_id = state.get("research_id")
 
-    show_sources = _show_sources_enabled()
-    if show_sources:
-        before = len(depth)
-        depth = _dedupe_depth_against_breadth(filtered, depth)
-        logger.info(
-            f"[v4] Formatter dedupe (show-sources on): depth {before} -> {len(depth)}"
-        )
-
-    breadth_block = _format_breadth_block(filtered)
-    depth_block = _format_depth_block(depth)
-    pool = filtered + depth
+    depth, breadth_block, depth_block, pool, sources = _prepare_pool(filtered, depth)
     pool_by_url = {r.url: r for r in pool if r.url}
-    sources = _build_sources(pool) if show_sources else []
 
     langfuse_handler = CallbackHandler()
     usage_tracker = UsageTracker()
@@ -419,17 +434,7 @@ async def _formatter_structured(state: V4State) -> dict:
     filtered = state.get("filtered_results") or []
     depth = state.get("depth_search_results") or []
 
-    show_sources = _show_sources_enabled()
-    if show_sources:
-        before = len(depth)
-        depth = _dedupe_depth_against_breadth(filtered, depth)
-        logger.info(
-            f"[v4] Formatter dedupe (show-sources on): depth {before} → "
-            f"{len(depth)} after dropping URL collisions with breadth/depth"
-        )
-
-    breadth_block = _format_breadth_block(filtered)
-    depth_block = _format_depth_block(depth)
+    depth, breadth_block, depth_block, pool, sources = _prepare_pool(filtered, depth)
 
     langfuse_handler = CallbackHandler()
     usage_tracker = UsageTracker()
@@ -471,9 +476,8 @@ async def _formatter_structured(state: V4State) -> dict:
     )
 
     pairs = _zip_bullets(result)
-    citations, url_to_n = _build_citations(pairs, filtered + depth)
+    citations, url_to_n = _build_citations(pairs, pool)
     bullet_texts = _attach_markers(pairs, url_to_n)
-    sources = _build_sources(filtered + depth) if show_sources else []
     summary = ResearchSummary(
         bullets=bullet_texts, citations=citations, sources=sources
     )

@@ -194,5 +194,6 @@ Required in `.env` at project root:
 - `ANTHROPIC_OUTPUT_COST_PER_M` — Anthropic output token cost in USD per million tokens (e.g. `15` for Sonnet 4)
 - `COST_PER_SEARCH` — Tavily cost per search in USD (e.g. `0.008`)
 - `ENVIRONMENT` — `dev` or `prod` (default `dev`). Recorded in the `research_tasks` table for filtering.
+- `CORS_ORIGINS` — comma-separated list of allowed CORS origins (read in `main.py`). Defaults to `http://localhost:5173,http://localhost:3000` for local dev; prod sets the deployed frontend origin(s).
 
 Backend loads these via `python-dotenv` at startup.

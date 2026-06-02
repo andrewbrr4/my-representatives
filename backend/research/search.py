@@ -90,21 +90,26 @@ def _get_tavily_client() -> AsyncTavilyClient:
     return _tavily_client
 
 
-@tool
-async def web_search(query: str) -> str:
-    """Search the web for current information about a topic. Returns relevant search results with snippets."""
+_SEARCH_FAILED_MSG = "Search failed. Try a different query."
+
+
+async def _tavily_search(query: str, max_results: int = 5) -> list[dict] | None:
+    """Run one Tavily search through the shared semaphore, with exponential
+    backoff on rate limits. Returns the raw ``results`` list, or ``None`` on
+    failure — distinct from an empty list, so callers can tell a failed search
+    from one that legitimately returned nothing. This is the single retry/error
+    core; the public tools below are thin wrappers that shape the output.
+    """
     async with _search_semaphore:
         tavily = _get_tavily_client()
         for attempt in range(_MAX_SEARCH_RETRIES):
             try:
                 search_results = await tavily.search(
                     query=query,
-                    max_results=5,
+                    max_results=max_results,
                     exclude_domains=_exclude_domains(),
                 )
-                return "\n\n".join(
-                    _format_result(r) for r in search_results.get("results", [])
-                )
+                return search_results.get("results", [])
             except Exception as e:
                 error_detail = str(e)
                 if hasattr(e, "response"):
@@ -118,9 +123,18 @@ async def web_search(query: str) -> str:
                     logger.warning(f"Search rate-limited, retrying in {delay}s (attempt {attempt + 1})")
                     await asyncio.sleep(delay)
                     continue
-                logger.warning(f"Search failed: {error_detail}")
-                return "Search failed. Try a different query."
-    return "Search failed. Try a different query."
+                logger.warning(f"Search failed for query={query!r}: {error_detail}")
+                return None
+    return None
+
+
+@tool
+async def web_search(query: str) -> str:
+    """Search the web for current information about a topic. Returns relevant search results with snippets."""
+    raw = await _tavily_search(query)
+    if raw is None:
+        return _SEARCH_FAILED_MSG
+    return "\n\n".join(_format_result(r) for r in raw)
 
 
 def make_accumulating_web_search() -> tuple[Any, list[SourceLink]]:
@@ -142,42 +156,17 @@ def make_accumulating_web_search() -> tuple[Any, list[SourceLink]]:
     @tool
     async def web_search(query: str) -> str:
         """Search the web for current information about a topic. Returns relevant search results with snippets."""
-        async with _search_semaphore:
-            tavily = _get_tavily_client()
-            for attempt in range(_MAX_SEARCH_RETRIES):
-                try:
-                    search_results = await tavily.search(
-                        query=query,
-                        max_results=5,
-                        exclude_domains=_exclude_domains(),
-                    )
-                    raw = search_results.get("results", [])
-                    for r in raw:
-                        url = r.get("url", "")
-                        title = r.get("title", "")
-                        if not url or not title or url in seen:
-                            continue
-                        seen.add(url)
-                        accumulator.append(SourceLink(title=title, url=url))
-                    return "\n\n".join(_format_result(r) for r in raw)
-                except Exception as e:
-                    error_detail = str(e)
-                    if hasattr(e, "response"):
-                        try:
-                            error_detail = e.response.text
-                        except Exception:
-                            pass
-                    is_rate_limit = "429" in error_detail or "rate" in error_detail.lower()
-                    if is_rate_limit and attempt < _MAX_SEARCH_RETRIES - 1:
-                        delay = _RETRY_BASE_DELAY * (2 ** attempt)
-                        logger.warning(
-                            f"Search rate-limited, retrying in {delay}s (attempt {attempt + 1})"
-                        )
-                        await asyncio.sleep(delay)
-                        continue
-                    logger.warning(f"Search failed: {error_detail}")
-                    return "Search failed. Try a different query."
-        return "Search failed. Try a different query."
+        raw = await _tavily_search(query)
+        if raw is None:
+            return _SEARCH_FAILED_MSG
+        for r in raw:
+            url = r.get("url", "")
+            title = r.get("title", "")
+            if not url or not title or url in seen:
+                continue
+            seen.add(url)
+            accumulator.append(SourceLink(title=title, url=url))
+        return "\n\n".join(_format_result(r) for r in raw)
 
     return web_search, accumulator
 
@@ -193,37 +182,15 @@ async def tavily_search_raw(
     Each result is ``{"title": str, "url": str, "snippet": str, "published_date": str}``
     where ``published_date`` is empty string when Tavily didn't supply one.
     """
-    async with _search_semaphore:
-        tavily = _get_tavily_client()
-        for attempt in range(_MAX_SEARCH_RETRIES):
-            try:
-                search_results = await tavily.search(
-                    query=query,
-                    max_results=max_results,
-                    exclude_domains=_exclude_domains(),
-                )
-                return [
-                    {
-                        "title": r.get("title", ""),
-                        "url": r.get("url", ""),
-                        "snippet": r.get("content", ""),
-                        "published_date": r.get("published_date") or "",
-                    }
-                    for r in search_results.get("results", [])
-                ]
-            except Exception as e:
-                error_detail = str(e)
-                if hasattr(e, "response"):
-                    try:
-                        error_detail = e.response.text
-                    except Exception:
-                        pass
-                is_rate_limit = "429" in error_detail or "rate" in error_detail.lower()
-                if is_rate_limit and attempt < _MAX_SEARCH_RETRIES - 1:
-                    delay = _RETRY_BASE_DELAY * (2 ** attempt)
-                    logger.warning(f"Raw search rate-limited, retrying in {delay}s (attempt {attempt + 1})")
-                    await asyncio.sleep(delay)
-                    continue
-                logger.warning(f"Raw search failed for query={query!r}: {error_detail}")
-                return []
-    return []
+    raw = await _tavily_search(query, max_results)
+    if raw is None:
+        return []
+    return [
+        {
+            "title": r.get("title", ""),
+            "url": r.get("url", ""),
+            "snippet": r.get("content", ""),
+            "published_date": r.get("published_date") or "",
+        }
+        for r in raw
+    ]

@@ -50,7 +50,7 @@ function Counter() {
 }
 ```
 
-**Hooks** (functions starting with `use`) = reusable chunks of state + logic. Our `useRepresentatives()` hook manages the loading/error/data state for the API call. Think of it like a service class that also manages its own state.
+**Hooks** (functions starting with `use`) = reusable chunks of state + logic. Our `useRepresentativesQuery()` hook manages the loading/error/data state for the rep lookup. Think of it like a service class that also manages its own state.
 
 ---
 
@@ -115,6 +115,20 @@ The components use Tailwind for styling and a utility called `cn()` (from `src/l
 
 ---
 
+## Routing, Shared State & Data Fetching
+
+Three libraries carry most of the app's plumbing. Their backend analogues:
+
+| Frontend tool | What it does | Python-ish analogue |
+|---------------|--------------|---------------------|
+| **React Router** | Maps URLs to page components (`/` search, `/reps`, `/elections`, `/issues`). `RequireAddress` redirects to `/` if no address is set. | FastAPI's router — URL paths → handlers |
+| **TanStack Query** | Caches API responses by key, so switching tabs is instant and data survives navigation. Hooks like `useRepresentativesQuery` wrap a `fetch` and hand back `{ data, isLoading, error }`. | A request cache / memoization layer in front of your service calls |
+| **React Context** | App-wide shared state without passing props through every layer. `AddressContext` holds the user's address; setting it navigates to `/reps`. | A module-level singleton / dependency injection |
+
+`src/main.tsx` wraps the whole app in `BrowserRouter` + `QueryClientProvider` + `AddressProvider` so every page can use routing, the query cache, and the shared address.
+
+---
+
 ## Project Structure Explained
 
 ```
@@ -123,17 +137,20 @@ frontend/
 ├── src/
 │   ├── components/
 │   │   ├── ui/          # shadcn components (Button, Card, etc.) — don't edit often
-│   │   ├── AddressSearch.tsx   # Our search form component
+│   │   ├── overview/    # AI-research rendering (bullets, progress bar, facts carousel)
+│   │   ├── AddressSearch.tsx   # Search form component
 │   │   ├── RepCard.tsx         # Card showing one representative
 │   │   └── SkeletonCard.tsx    # Loading placeholder card
-│   ├── hooks/
-│   │   └── useRepresentatives.ts  # API call logic + state management
+│   ├── pages/           # One component per route (Search, Representatives, Elections, Issues)
+│   ├── hooks/           # Data-fetching + polling hooks (useRepresentativesQuery, useResearchQuery, …)
+│   ├── contexts/        # App-wide shared state (AddressContext, IssuesContext)
 │   ├── types/
 │   │   └── index.ts       # TypeScript interfaces (like Pydantic models)
 │   ├── lib/
-│   │   └── utils.ts       # cn() utility from shadcn
-│   ├── App.tsx            # Main app component — the "page"
-│   ├── main.tsx           # Entry point — mounts React into the HTML page
+│   │   ├── utils.ts       # cn() utility from shadcn
+│   │   └── queryClient.ts # TanStack Query client singleton
+│   ├── App.tsx            # Route definitions + layout wrapper
+│   ├── main.tsx           # Entry point — mounts React, wraps app in the providers
 │   └── index.css          # Tailwind imports + shadcn theme variables
 ├── index.html             # The single HTML page React mounts into
 ├── package.json           # Dependencies and scripts
@@ -147,20 +164,24 @@ frontend/
 ## How Data Flows
 
 ```
-User types address
+User types address on the Search page (/)
     ↓
-AddressSearch component calls onSearch(address)
+AddressSearch sets the address in AddressContext → navigates to /reps
     ↓
-App component calls lookup(address) from useRepresentatives hook
+RepresentativesPage calls useRepresentativesQuery(address)
     ↓
-Hook does fetch("http://localhost:8000/api/representatives", { body: { address } })
+TanStack Query checks its cache; on a miss it fetches POST /api/representatives
     ↓
-Sets loading=true → React re-renders → skeleton cards appear
+While the request is in flight, isLoading=true → skeleton cards appear
     ↓
-Response arrives → sets representatives array → React re-renders → real cards appear
+Response arrives → cached by key → React re-renders → real cards appear
+    ↓
+(Switching to /elections and back is instant — the result is still cached)
 ```
 
-This is basically the same as calling your FastAPI endpoint from `requests`, but React automatically updates the UI when the data changes.
+Clicking "Learn More" on a rep kicks off a second flow: `useResearchQuery` POSTs to `/api/research`, then polls `GET /api/research/{id}` every couple seconds until the AI overview is `complete`, rendering bullets as they stream in.
+
+This is basically the same as calling your FastAPI endpoints from `requests` — but React re-renders the UI automatically when the data changes, and TanStack Query keeps a cache so you don't re-fetch on every navigation.
 
 ---
 
