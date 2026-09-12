@@ -15,6 +15,8 @@ interface CrossLink {
   cta: string;
 }
 
+// NOTE: the "What's on your ballot?" elections card is hidden alongside the
+// elections tab (see TabNav.tsx).
 const LINKS: CrossLink[] = [
   {
     to: "/issues",
@@ -22,17 +24,15 @@ const LINKS: CrossLink[] = [
     body: "Search any topic — housing, climate, taxes — and we'll find each rep's stance.",
     cta: "Search by issue",
   },
-  {
-    to: "/elections",
-    title: "What's on your ballot?",
-    body: "See upcoming elections, polling info, and candidates for your address.",
-    cta: "See upcoming elections",
-  },
 ];
 
 export function CrossLinkCards() {
   return (
-    <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div
+      className={`max-w-4xl mx-auto grid grid-cols-1 gap-4 ${
+        LINKS.length > 1 ? "md:grid-cols-2" : ""
+      }`}
+    >
       {LINKS.map((link) => (
         <Link
           key={link.to}

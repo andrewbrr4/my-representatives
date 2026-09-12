@@ -13,7 +13,7 @@ MyReps runs on Google Cloud Platform (GCP) in the `us-east1` region. Production 
 - **Traffic routing:** Route only private IPs to VPC
 - **Cloud SQL connection:** Add the Cloud SQL instance (`my-representatives-489301:us-east1:my-reps-small`) to the service. Cloud Run injects a proxy sidecar that exposes a Unix socket at `/cloudsql/my-representatives-489301:us-east1:my-reps-small`. The backend connects via `DB_SOCKET_PATH` env var (see below).
 - **Secrets:** API keys injected via GCP Secret Manager (see below)
-- **Env vars:** `REDIS_URL=redis://10.107.77.182:6379` set as a Cloud Run env var (not a secret — it's a private IP)
+- **Env vars:** `REDIS_URL=redis://10.232.20.227:6379` set as a Cloud Run env var (not a secret — it's a private IP)
 
 ### Cloud Run — Frontend (`my-reps-frontend`)
 - **Image:** Built from `frontend/Dockerfile` (Node 22 build → Nginx)
@@ -23,11 +23,12 @@ MyReps runs on Google Cloud Platform (GCP) in the `us-east1` region. Production 
 
 ### Memorystore for Redis
 - **Purpose:** Persistent rep research cache (3-day TTL) shared across backend workers
-- **Instance:** Basic tier, `us-east1`
-- **Primary endpoint:** `10.107.77.182:6379` (private IP, only reachable from same VPC)
-- **Read endpoint:** `10.107.77.181:6379`
+- **Instance:** `my-reps-cache-small` — Basic tier, 1 GB, Redis 7.2, `us-east1`
+- **Primary endpoint:** `10.232.20.227:6379` (private IP, only reachable from same VPC)
+- **Read endpoint:** none (Basic tier has no read replica)
 - **Network:** `default` (`my-representatives-489301`), direct peering
-- **IP range:** `10.107.77.176/28`
+
+> Memorystore is the one piece of this stack with no persistence (cache only, `persistence_mode: DISABLED`). If the instance is ever deleted and recreated to save cost, the new instance gets a **new private IP** — update `REDIS_URL` on the backend Cloud Run service and this doc.
 
 ## Secrets (GCP Secret Manager)
 
@@ -58,6 +59,7 @@ Non-secret env vars (set directly on Cloud Run):
 - `COST_PER_SEARCH` — USD per Tavily search (cost tracking)
 - `SEARCH_TOOL` — search provider name (default `tavily`)
 - `ENVIRONMENT` — `dev` or `prod` (recorded in research_tasks)
+- `CORS_ORIGINS` — comma-separated allowed browser origins. Prod: `https://knowmyreps.org` plus both Cloud Run frontend URLs (`https://my-reps-frontend-968920716189.us-east1.run.app`, `https://my-reps-frontend-en6pkt3tzq-ue.a.run.app`). Omitting this falls back to the localhost dev defaults, which breaks the deployed frontend.
 - `OVERVIEW_PIPELINE_VERSION` — which rep-overview pipeline to run. **Default `v4`** (the flat top-level pipeline at `research/overview/` — LangGraph breadth + adaptive depth). Set explicitly on Cloud Run rather than relying on the code default — makes the deployed version visible in the Cloud Run console. Other valid values: `v1` / `v2` / `v3` — these load legacy variants from `research/overview/legacy/`.
 - `TAVILY_GLOBAL_CONCURRENCY` — process-global cap on concurrent Tavily calls. Defaults to `20` if unset, which is correct for prod (Tavily paid tier supports ~100 RPS). Set explicitly only if we need to throttle below 20 (e.g. during a Tavily-side incident).
 

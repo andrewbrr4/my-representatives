@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAddress } from "@/contexts/AddressContext";
 import { SearchPage } from "@/pages/SearchPage";
 import { RepresentativesPage } from "@/pages/RepresentativesPage";
-import { ElectionsPage } from "@/pages/ElectionsPage";
 import { IssuesPage } from "@/pages/IssuesPage";
 import { TabNav } from "@/components/TabNav";
 
@@ -61,16 +60,8 @@ function App() {
           </RequireAddress>
         }
       />
-      <Route
-        path="/elections"
-        element={
-          <RequireAddress>
-            <ResultsLayout>
-              <ElectionsPage />
-            </ResultsLayout>
-          </RequireAddress>
-        }
-      />
+      {/* Elections is hidden for now — redirect any stale links to /reps. */}
+      <Route path="/elections" element={<Navigate to="/reps" replace />} />
       <Route
         path="/issues"
         element={
