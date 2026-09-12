@@ -1,3 +1,5 @@
+// NOTE: the "Upcoming Elections" tab is hidden until the elections data is useful.
+// Restore by re-adding a NavLink to /elections here and the route in App.tsx.
 import { NavLink } from "react-router-dom";
 
 function tabClass({ isActive }: { isActive: boolean }) {
@@ -16,9 +18,6 @@ export function TabNav() {
       </NavLink>
       <NavLink to="/issues" className={tabClass}>
         On the Issues
-      </NavLink>
-      <NavLink to="/elections" className={tabClass}>
-        Upcoming Elections
       </NavLink>
     </div>
   );

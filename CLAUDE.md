@@ -102,13 +102,13 @@ cd frontend && npx shadcn@latest add <component-name>
 
 All models are in `backend/models.py`. Backend imports use bare module names (not relative) since uvicorn runs from the `backend/` directory.
 
-**Frontend (React + TypeScript + Vite + Tailwind v4 + shadcn/ui + React Router v7 + TanStack Query v5):** Multi-page app with React Router. Routes: `/` (search), `/reps` (representatives), `/elections` (upcoming elections). Address state shared via `AddressContext`. Routes `/reps` and `/elections` are guarded by `RequireAddress` — redirects to `/` if no address. TanStack Query provides client-side caching — data persists across route changes so switching tabs is instant.
+**Frontend (React + TypeScript + Vite + Tailwind v4 + shadcn/ui + React Router v7 + TanStack Query v5):** Multi-page app with React Router. Routes: `/` (search), `/reps` (representatives), `/issues` (on the issues). Address state shared via `AddressContext`. These results routes are guarded by `RequireAddress` — redirects to `/` if no address. **The elections tab is currently hidden** — `/elections` redirects to `/reps`, and the `TabNav` link plus the `CrossLinkCards` ballot card are removed. `ElectionsPage`, `useElectionsQuery`, `useElectionResearchQuery`, and the whole backend elections pipeline are untouched and still work; restore by re-adding the `NavLink`, the cross-link entry, and the real `/elections` route. TanStack Query provides client-side caching — data persists across route changes so switching tabs is instant.
 
 - `src/main.tsx` — wraps app in `BrowserRouter` + `QueryClientProvider` + `AddressProvider`
 - `src/lib/queryClient.ts` — `QueryClient` singleton (retry: 1, refetchOnWindowFocus: false)
 - `src/App.tsx` — React Router routes with `RequireAddress` guard and `ResultsLayout` wrapper
 - `src/contexts/AddressContext.tsx` — shared address state; `setAddress` navigates to `/reps`, `clearAddress` navigates to `/`
-- `src/components/TabNav.tsx` — `NavLink`-based tab bar for `/reps` and `/elections`
+- `src/components/TabNav.tsx` — `NavLink`-based tab bar for `/reps` and `/issues` (elections tab hidden)
 - `src/pages/SearchPage.tsx` — landing page with welcome message and address input
 - `src/pages/RepresentativesPage.tsx` — representative results grouped by level (federal/state/municipal)
 - `src/pages/ElectionsPage.tsx` — elections tab; fetches elections on mount, auto-polls election research, converts candidates to reps for candidate research
