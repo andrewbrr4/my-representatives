@@ -26,7 +26,10 @@ async def _geocode_address(client: httpx.AsyncClient, address: str) -> dict:
     params = {
         "address": address,
         "benchmark": "Public_AR_Current",
-        "vintage": "Current_Current",
+        # Pinned: Current_Current rolled to 120th-Congress district lines before
+        # the 120th is seated (Jan 3, 2027). ACS2025 carries 119th lines, which
+        # match CURRENT_CONGRESS. Bump both together when the 120th is seated.
+        "vintage": "ACS2025_Current",
         "format": "json",
     }
 
@@ -73,7 +76,9 @@ async def _geocode_address(client: httpx.AsyncClient, address: str) -> dict:
     districts = geos.get(cd_key, [])
     if not districts:
         raise ValueError("No congressional district found for address")
-    district_num = districts[0].get(f"CD{CURRENT_CONGRESS}")
+    # Current_Current exposes the number as CD{N}; ACS vintages omit it, but
+    # GEOID is always state FIPS + the same 2-digit district code.
+    district_num = districts[0].get(f"CD{CURRENT_CONGRESS}") or districts[0].get("GEOID", "")[-2:] or None
 
     return {"state": state_abbr, "district": district_num}
 
